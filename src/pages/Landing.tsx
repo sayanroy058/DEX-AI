@@ -141,8 +141,8 @@ export default function Landing() {
         <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
           <Link to="/markets" className="hover:text-foreground transition-colors">Markets</Link>
           <a href="#features" className="hover:text-foreground transition-colors">Features</a>
+          <Link to="/prop" className="hover:text-foreground transition-colors">Get Funded</Link>
           <a href="#stats" className="hover:text-foreground transition-colors">Stats</a>
-          <a href="#wallet" className="hover:text-foreground transition-colors">Wallet</a>
         </nav>
         <div className="flex items-center gap-2">
           <Button variant="ghost" onClick={() => setWalletOpen(true)} className="hidden sm:inline-flex">
