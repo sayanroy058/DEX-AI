@@ -139,11 +139,10 @@ export default function Landing() {
           <span className="font-bold text-lg tracking-tight">DEX<span className="gradient-text">.ai</span></span>
         </Link>
         <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
-          <a href="#markets" className="hover:text-foreground transition-colors">Markets</a>
+          <Link to="/markets" className="hover:text-foreground transition-colors">Markets</Link>
           <a href="#features" className="hover:text-foreground transition-colors">Features</a>
           <a href="#stats" className="hover:text-foreground transition-colors">Stats</a>
           <a href="#wallet" className="hover:text-foreground transition-colors">Wallet</a>
-          <Link to="/markets" className="hover:text-foreground transition-colors">Explore</Link>
         </nav>
         <div className="flex items-center gap-2">
           <Button variant="ghost" onClick={() => setWalletOpen(true)} className="hidden sm:inline-flex">
