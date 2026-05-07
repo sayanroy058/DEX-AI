@@ -203,22 +203,22 @@ export default function PropFirm() {
                     </div>
 
                     <div className="flex-1">
-                      <h3 className="text-lg font-bold mb-1">{c.name}</h3>
-                      <div className="text-3xl font-bold gradient-text mb-1">{c.capital}</div>
-                      <div className="text-xs text-primary font-semibold mb-4">{c.split} profit split</div>
+                      <h3 className={`text-lg font-bold mb-1 ${selectedTier === c.name ? "text-white" : ""}`}>{c.name}</h3>
+                      <div className={`text-3xl font-bold mb-1 ${selectedTier === c.name ? "text-white" : "gradient-text"}`}>{c.capital}</div>
+                      <div className={`text-xs font-semibold mb-4 ${selectedTier === c.name ? "text-white/90" : "text-primary"}`}>{c.split} profit split</div>
 
                       <div className="space-y-2.5 mb-6">
                         <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">Profit target</span>
-                          <span className="font-bold text-foreground">{c.profit}</span>
+                          <span className={selectedTier === c.name ? "text-white/70" : "text-muted-foreground"}>Profit target</span>
+                          <span className={`font-bold ${selectedTier === c.name ? "text-white" : "text-foreground"}`}>{c.profit}</span>
                         </div>
                         <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">Max drawdown</span>
-                          <span className="font-bold text-foreground">{c.drawdown}</span>
+                          <span className={selectedTier === c.name ? "text-white/70" : "text-muted-foreground"}>Max drawdown</span>
+                          <span className={`font-bold ${selectedTier === c.name ? "text-white" : "text-foreground"}`}>{c.drawdown}</span>
                         </div>
                         <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">One-time fee</span>
-                          <span className="font-bold text-foreground">{c.fee}</span>
+                          <span className={selectedTier === c.name ? "text-white/70" : "text-muted-foreground"}>One-time fee</span>
+                          <span className={`font-bold ${selectedTier === c.name ? "text-white" : "text-foreground"}`}>{c.fee}</span>
                         </div>
                       </div>
                     </div>
