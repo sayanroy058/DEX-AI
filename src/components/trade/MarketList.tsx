@@ -52,7 +52,7 @@ export function MarketList({
 
   if (collapsed) {
     return (
-      <div className="glass rounded-xl flex flex-col h-full overflow-hidden items-center py-2 gap-2 justify-start">
+      <div className="glass rounded-xl flex flex-col overflow-hidden items-center py-2 gap-2">
         <button
           onClick={onToggleCollapse}
           className="p-2 rounded hover:bg-muted/30 text-muted-foreground hover:text-primary shrink-0"
@@ -61,19 +61,21 @@ export function MarketList({
           <ChevronRight className="h-4 w-4" />
         </button>
         <div className="h-px w-8 bg-border shrink-0" />
-        {ASSET_TABS.map(a => (
-          <button
-            key={a.id}
-            onClick={() => { setAsset(a.id); onToggleCollapse(); }}
-            className={cn(
-              "p-2 rounded transition-colors shrink-0",
-              asset === a.id ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
-            )}
-            title={a.label}
-          >
-            <a.icon className="h-4 w-4" />
-          </button>
-        ))}
+        <div className="flex flex-col items-center gap-2">
+          {ASSET_TABS.map(a => (
+            <button
+              key={a.id}
+              onClick={() => { setAsset(a.id); onToggleCollapse(); }}
+              className={cn(
+                "p-2 rounded transition-colors shrink-0",
+                asset === a.id ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
+              )}
+              title={a.label}
+            >
+              <a.icon className="h-4 w-4" />
+            </button>
+          ))}
+        </div>
       </div>
     );
   }
