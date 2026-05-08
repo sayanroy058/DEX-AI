@@ -52,7 +52,7 @@ export function MarketList({
 
   if (collapsed) {
     return (
-      <div className="glass rounded-xl flex flex-col overflow-hidden items-center py-2 gap-2">
+      <div className="glass rounded-xl flex h-full flex-col overflow-hidden items-center justify-start py-2 gap-2">
         <button
           onClick={onToggleCollapse}
           className="p-2 rounded hover:bg-muted/30 text-muted-foreground hover:text-primary shrink-0"

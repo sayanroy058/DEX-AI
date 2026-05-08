@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
 import { MarketList } from "@/components/trade/MarketList";
 import { TradingChart } from "@/components/trade/TradingChart";
@@ -11,11 +11,11 @@ import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import { RotateCcw, GripVertical, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { generateOrderBook, generateTrade, formatPrice, Trade } from "@/lib/mockData";
-import { useEffect } from "react";
 
 // ─── Default sizes ────────────────────────────────────────────────────────────
 const DEFAULT_COL_SIZES = [18, 52, 30];
 const DEFAULT_CENTER_SIZES = [65, 35];
+const COLLAPSED_LEFT_SIZE = 5;
 
 type PanelId = "marketList" | "chart" | "positions";
 
@@ -245,6 +245,7 @@ const Index = () => {
   const price = market?.price ?? 0;
 
   const [slots, setSlots] = useState<[PanelId, PanelId, PanelId]>(["marketList", "chart", "positions"]);
+  const leftPanelSizeRef = useRef(DEFAULT_COL_SIZES[0]);
 
   const leftPanelRef  = useRef<any>(null);
   const centerPanelRef = useRef<any>(null);
@@ -266,13 +267,31 @@ const Index = () => {
   }, [draggingId]);
 
   const resetLayout = () => {
+    setCollapsed(false);
     setSlots(["marketList", "chart", "positions"]);
+    leftPanelSizeRef.current = DEFAULT_COL_SIZES[0];
     leftPanelRef.current?.resize(DEFAULT_COL_SIZES[0]);
     centerPanelRef.current?.resize(DEFAULT_COL_SIZES[1]);
     rightPanelRef.current?.resize(DEFAULT_COL_SIZES[2]);
     chartPanelRef.current?.resize(DEFAULT_CENTER_SIZES[0]);
     posPanelRef.current?.resize(DEFAULT_CENTER_SIZES[1]);
   };
+
+  useEffect(() => {
+    const panel = leftPanelRef.current;
+    if (!panel) return;
+
+    if (collapsed) {
+      const currentSize = panel.getSize?.();
+      if (typeof currentSize === "number" && Number.isFinite(currentSize)) {
+        leftPanelSizeRef.current = currentSize;
+      }
+      panel.resize(COLLAPSED_LEFT_SIZE);
+      return;
+    }
+
+    panel.resize(leftPanelSizeRef.current || DEFAULT_COL_SIZES[0]);
+  }, [collapsed]);
 
   const cardProps = {
     draggingId,
