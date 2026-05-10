@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink as RouterNavLink, useLocation, Link } from "react-router-dom";
-import { LayoutDashboard, LineChart, Wallet, Users, Settings, Zap, Bell, Search, ArrowDownToLine, ArrowUpFromLine, User, ChevronDown, Building2, Sparkles, Repeat, Coins, Gift, CalendarClock } from "lucide-react";
+import { LayoutDashboard, LineChart, Wallet, Users, Settings, Zap, Bell, Search, ArrowDownToLine, ArrowUpFromLine, User, Building2, Sparkles, Repeat, Coins, Gift, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,15 +15,11 @@ const navItems = [
   { to: "/markets", icon: LayoutDashboard, label: "Markets" },
   { to: "/portfolio", icon: Wallet, label: "Portfolio" },
   { to: "/copy", icon: Users, label: "Copy" },
-];
-
-const moreItems = [
   { to: "/prop", icon: Building2, label: "Prop Firm" },
-  { to: "/prediction", icon: Sparkles, label: "Prediction Market" },
+  { to: "/prediction", icon: Sparkles, label: "Predict" },
   { to: "/p2p", icon: Repeat, label: "P2P" },
   { to: "/token", icon: Coins, label: "Token" },
-  { to: "/refer", icon: Gift, label: "Refer" },
-  { to: "/sip", icon: CalendarClock, label: "SIP / SWP" },
+  { to: "/sip", icon: CalendarClock, label: "SIP" },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -45,12 +41,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return s + b.amount * px;
   }, 0);
 
-  const moreActive = moreItems.some(i => location.pathname === i.to);
-
   return (
     <div className="min-h-screen w-full flex flex-col">
-      <header className="h-14 px-4 flex items-center gap-3 glass-strong border-b border-glass-border z-30 sticky top-0">
-        <Link to="/" className="flex items-center gap-2">
+      <header className="h-14 px-4 flex items-center gap-2 glass-strong border-b border-glass-border z-30 sticky top-0">
+        <Link to="/" className="flex items-center gap-2 shrink-0">
           <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow-primary">
             <Zap className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
           </div>
@@ -59,14 +53,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-1 ml-4">
+        <nav className="hidden lg:flex items-center gap-0.5 ml-3 overflow-x-auto">
           {navItems.map(item => (
             <RouterNavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  "px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+                  "px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap",
                   "hover:bg-muted/50 hover:text-foreground",
                   isActive
                     ? "bg-primary/10 text-primary border border-primary/30 shadow-[0_0_12px_hsl(var(--primary)/0.2)]"
@@ -78,28 +72,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {item.label}
             </RouterNavLink>
           ))}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className={cn(
-                "px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5",
-                "hover:bg-muted/50 hover:text-foreground",
-                moreActive ? "bg-primary/10 text-primary border border-primary/30" : "text-muted-foreground"
-              )}>
-                More <ChevronDown className="h-3 w-3" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="glass-strong border-glass-border w-52">
-              {moreItems.map(i => (
-                <DropdownMenuItem key={i.to} asChild>
-                  <Link to={i.to} className="flex items-center gap-2 cursor-pointer">
-                    <i.icon className="h-3.5 w-3.5 text-primary" />
-                    {i.label}
-                  </Link>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
         </nav>
 
         <div className="flex-1" />
@@ -189,6 +161,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <DropdownMenuItem asChild><Link to="/profile" className="cursor-pointer"><User className="h-3.5 w-3.5 mr-2 text-primary" /> My Profile</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link to="/portfolio" className="cursor-pointer"><Wallet className="h-3.5 w-3.5 mr-2 text-primary" /> Portfolio</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link to="/refer" className="cursor-pointer"><Gift className="h-3.5 w-3.5 mr-2 text-primary" /> Refer & Earn</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link to="/profile#affiliate" className="cursor-pointer"><Sparkles className="h-3.5 w-3.5 mr-2 text-primary" /> Affiliate</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link to="/settings" className="cursor-pointer"><Settings className="h-3.5 w-3.5 mr-2 text-primary" /> Settings</Link></DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -197,8 +170,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <WalletDialog open={walletOpen} onOpenChange={setWalletOpen} />
       <TransferDialog open={transferOpen} onOpenChange={setTransferOpen} defaultMode={transferMode} />
 
-      <nav className="md:hidden flex items-center gap-1 px-2 py-2 glass-strong border-b border-glass-border overflow-x-auto">
-        {[...navItems, ...moreItems].map(item => (
+      <nav className="lg:hidden flex items-center gap-1 px-2 py-2 glass-strong border-b border-glass-border overflow-x-auto">
+        {navItems.map(item => (
           <RouterNavLink
             key={item.to}
             to={item.to}

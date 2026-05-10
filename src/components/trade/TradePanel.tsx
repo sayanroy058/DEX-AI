@@ -187,10 +187,10 @@ export function TradePanel({ symbol, price }: { symbol: string; price: number })
               </span>
               <span className="font-mono font-bold text-primary">{leverage}x</span>
             </div>
-            <Slider value={[leverage]} min={1} max={50} step={1} onValueChange={v => setLeverage(v[0])}
+            <Slider value={[leverage]} min={1} max={100} step={1} onValueChange={v => setLeverage(v[0])}
               className="my-0.5 h-3" />
             <div className="flex gap-0.5 mt-0.5">
-              {[1, 5, 10, 25, 50].map(l => (
+              {[1, 5, 10, 25, 50, 75, 100].map(l => (
                 <button key={l} onClick={() => setLeverage(l)}
                   className={cn("flex-1 py-0.5 text-[9px] rounded transition-colors",
                     leverage === l ? "bg-primary/20 text-primary" : "bg-muted/30 text-muted-foreground hover:text-foreground"

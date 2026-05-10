@@ -8,7 +8,7 @@ import { MarketHeader } from "@/components/trade/MarketHeader";
 import { useMarket, useMarkets } from "@/lib/useMarkets";
 import { cn } from "@/lib/utils";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
-import { RotateCcw, GripVertical, ChevronUp, ChevronDown } from "lucide-react";
+import { Calculator, GripVertical, ChevronUp, ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { generateOrderBook, generateTrade, formatPrice, Trade } from "@/lib/mockData";
 
@@ -266,16 +266,18 @@ const Index = () => {
     });
   }, [draggingId]);
 
-  const resetLayout = () => {
-    setCollapsed(false);
-    setSlots(["marketList", "chart", "positions"]);
-    leftPanelSizeRef.current = DEFAULT_COL_SIZES[0];
-    leftPanelRef.current?.resize(DEFAULT_COL_SIZES[0]);
-    centerPanelRef.current?.resize(DEFAULT_COL_SIZES[1]);
-    rightPanelRef.current?.resize(DEFAULT_COL_SIZES[2]);
-    chartPanelRef.current?.resize(DEFAULT_CENTER_SIZES[0]);
-    posPanelRef.current?.resize(DEFAULT_CENTER_SIZES[1]);
-  };
+  const [calcOpen, setCalcOpen] = useState(false);
+  const [calcEntry, setCalcEntry] = useState("");
+  const [calcLev, setCalcLev] = useState(10);
+  const [calcSize, setCalcSize] = useState(1000);
+  const [calcSide, setCalcSide] = useState<"long" | "short">("long");
+  const calcLiq = calcEntry
+    ? calcSide === "long"
+      ? parseFloat(calcEntry) * (1 - 0.95 / calcLev)
+      : parseFloat(calcEntry) * (1 + 0.95 / calcLev)
+    : 0;
+  const calcMargin = calcSize / calcLev;
+  const calcRisk = calcMargin * 0.95;
 
   useEffect(() => {
     const panel = leftPanelRef.current;
@@ -318,19 +320,89 @@ const Index = () => {
         {/* Top bar */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="flex-1 min-w-0">
-            <MarketHeader symbol={symbol} />
+            <MarketHeader symbol={symbol} collapsed={collapsed} onToggleCollapse={() => setCollapsed(c => !c)} />
           </div>
           <Button
             variant="outline"
             size="sm"
-            onClick={resetLayout}
-            className="glass border-border/60 hover:border-primary/40 text-muted-foreground hover:text-foreground h-8 px-2.5 shrink-0"
-            title="Reset layout to default"
+            onClick={() => setCalcOpen(o => !o)}
+            className="glass border-primary/30 text-primary hover:bg-primary/10 hover:text-primary h-8 px-2.5 shrink-0"
+            title="Trade Calculator & Risk Management"
           >
-            <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-            <span className="text-xs">Reset Layout</span>
+            <Calculator className="h-3.5 w-3.5 mr-1.5" />
+            <span className="text-xs">Calculator</span>
           </Button>
         </div>
+
+        {/* Trade Calculator panel */}
+        {calcOpen && (
+          <div className="glass-strong rounded-xl border border-primary/20 px-4 py-3 shrink-0 animate-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-bold flex items-center gap-2"><Calculator className="h-4 w-4 text-primary" /> Trade Calculator & Risk Management</span>
+              <button onClick={() => setCalcOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 text-xs">
+              <div className="space-y-1">
+                <label className="text-muted-foreground uppercase tracking-wide text-[10px]">Side</label>
+                <div className="flex gap-1">
+                  <button onClick={() => setCalcSide("long")} className={`flex-1 py-1 rounded text-[10px] font-bold transition-colors ${calcSide === "long" ? "bg-buy/20 text-buy border border-buy/40" : "glass text-muted-foreground"}`}>Long</button>
+                  <button onClick={() => setCalcSide("short")} className={`flex-1 py-1 rounded text-[10px] font-bold transition-colors ${calcSide === "short" ? "bg-sell/20 text-sell border border-sell/40" : "glass text-muted-foreground"}`}>Short</button>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-muted-foreground uppercase tracking-wide text-[10px]">Entry Price</label>
+                <input
+                  type="number"
+                  value={calcEntry}
+                  onChange={e => setCalcEntry(e.target.value)}
+                  placeholder={price.toFixed(2)}
+                  className="w-full bg-muted/30 rounded px-2 py-1.5 text-xs border border-border/50 focus:border-primary/50 focus:outline-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-muted-foreground uppercase tracking-wide text-[10px]">Position Size ($)</label>
+                <input
+                  type="number"
+                  value={calcSize}
+                  onChange={e => setCalcSize(Number(e.target.value))}
+                  className="w-full bg-muted/30 rounded px-2 py-1.5 text-xs border border-border/50 focus:border-primary/50 focus:outline-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-muted-foreground uppercase tracking-wide text-[10px]">Leverage</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={1}
+                    max={100}
+                    value={calcLev}
+                    onChange={e => setCalcLev(Number(e.target.value))}
+                    className="flex-1"
+                  />
+                  <span className="font-bold text-primary w-12 text-right">{calcLev}x</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-muted-foreground uppercase tracking-wide text-[10px]">Required Margin</label>
+                <div className="glass rounded px-2 py-1.5 font-mono font-bold text-primary">${calcMargin.toFixed(2)}</div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-muted-foreground uppercase tracking-wide text-[10px]">Liq. Price</label>
+                <div className={`glass rounded px-2 py-1.5 font-mono font-bold ${calcSide === "long" ? "text-sell" : "text-buy"}`}>
+                  {calcEntry ? `$${calcLiq.toFixed(2)}` : "—"}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-muted-foreground uppercase tracking-wide text-[10px]">Max Risk</label>
+                <div className="glass rounded px-2 py-1.5 font-mono font-bold text-sell">${calcRisk.toFixed(2)}</div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-muted-foreground uppercase tracking-wide text-[10px]">Notional Value</label>
+                <div className="glass rounded px-2 py-1.5 font-mono font-bold">${calcSize.toLocaleString()}</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Main panel grid */}
         <PanelGroup direction="horizontal" className="flex-1 min-h-0">

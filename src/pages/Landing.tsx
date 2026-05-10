@@ -59,11 +59,64 @@ const features = [
   { icon: Bot, title: "AI Agents & Bots", desc: "Automate strategies with AI-powered trading assistants." },
   { icon: Shield, title: "Self-Custody", desc: "Connect MetaMask, Coinbase, Trust, Binance, Bitget." },
   { icon: Globe, title: "Multi-Asset", desc: "Crypto, Forex, Commodities and Stocks in one place." },
-  { icon: Sparkles, title: "Up to 50× Leverage", desc: "Deep liquidity and ultra-low fees on every fill." },
+  { icon: Sparkles, title: "Up to 100× Leverage", desc: "Deep liquidity and ultra-low fees on every fill." },
+];
+
+const ORBIT_SERVICES = [
+  { icon: TrendingUp, label: "Trade", color: "hsl(186 100% 55%)" },
+  { icon: Bot, label: "AI Bots", color: "hsl(270 70% 65%)" },
+  { icon: Shield, label: "Self-Custody", color: "hsl(145 70% 50%)" },
+  { icon: Globe, label: "Multi-Asset", color: "hsl(38 90% 55%)" },
+  { icon: BarChart3, label: "Analytics", color: "hsl(186 100% 55%)" },
+  { icon: Users, label: "Copy Trade", color: "hsl(320 70% 60%)" },
 ];
 
 // Top 6 markets to feature
 const TOP_SYMBOLS = ["BTC-PERP", "ETH-PERP", "SOL-PERP", "HYPE-PERP", "DOGE-PERP", "TIA-PERP"];
+
+function OrbitAnimation() {
+  return (
+    <div className="relative w-80 h-80 flex items-center justify-center select-none">
+      {/* Outer glow */}
+      <div className="absolute w-64 h-64 rounded-full bg-blue-500/8 blur-3xl" />
+
+      {/* Center DEX.ai core */}
+      <div className="relative z-10 h-24 w-24 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex flex-col items-center justify-center shadow-[0_0_40px_hsl(210_100%_60%/0.5)] animate-float">
+        <Zap className="h-7 w-7 text-white" strokeWidth={2.5} />
+        <span className="text-[10px] font-bold text-white/90 mt-0.5">DEX.ai</span>
+      </div>
+
+      {/* Orbit rings */}
+      <div className="absolute w-72 h-72 rounded-full border border-blue-500/15 animate-spin" style={{ animationDuration: "24s" }} />
+      <div className="absolute w-56 h-56 rounded-full border border-cyan-500/10 animate-spin" style={{ animationDuration: "16s", animationDirection: "reverse" }} />
+
+      {/* Orbiting service nodes — positioned around orbit ring */}
+      {ORBIT_SERVICES.map((s, i) => {
+        const deg = (i / ORBIT_SERVICES.length) * 360;
+        return (
+          <div
+            key={s.label}
+            className="absolute w-full h-full"
+            style={{ animation: `spin 24s linear infinite`, animationDelay: `-${(i / ORBIT_SERVICES.length) * 24}s` }}
+          >
+            <div
+              className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1"
+              style={{ animation: `spin 24s linear infinite reverse`, animationDelay: `-${(i / ORBIT_SERVICES.length) * 24}s` }}
+            >
+              <div
+                className="h-10 w-10 rounded-full flex items-center justify-center border"
+                style={{ background: `${s.color}1a`, borderColor: `${s.color}50`, boxShadow: `0 0 14px ${s.color}40` }}
+              >
+                <s.icon className="h-4 w-4" style={{ color: s.color }} />
+              </div>
+              <span className="text-[9px] font-semibold text-slate-400 whitespace-nowrap">{s.label}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -142,14 +195,12 @@ export default function Landing() {
           <Link to="/markets" className="hover:text-foreground transition-colors">Markets</Link>
           <a href="#features" className="hover:text-foreground transition-colors">Features</a>
           <Link to="/prop" className="hover:text-foreground transition-colors">Get Funded</Link>
-          <a href="#stats" className="hover:text-foreground transition-colors">Stats</a>
+          <Link to="/prediction" className="hover:text-foreground transition-colors">Predict</Link>
+          <Link to="/trade" className="hover:text-foreground transition-colors">Trade</Link>
         </nav>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" onClick={() => setWalletOpen(true)} className="hidden sm:inline-flex">
-            <Wallet className="h-4 w-4 mr-1.5" /> Login
-          </Button>
-          <Button onClick={goTrade} className="bg-gradient-primary text-primary-foreground hover:shadow-glow-primary">
-            Launch App <ArrowRight className="h-4 w-4 ml-1" />
+          <Button onClick={() => setWalletOpen(true)} className="bg-gradient-primary text-primary-foreground hover:shadow-glow-primary">
+            <Wallet className="h-4 w-4 mr-1.5" /> Connect Wallet
           </Button>
         </div>
       </header>
@@ -158,80 +209,73 @@ export default function Landing() {
       <TickerBar prices={prices} changes={changes} />
 
       {/* Hero */}
-      <section className="relative overflow-hidden">
-        <img src={hero} alt="Trading visualization" width={1920} height={1088}
-          className="absolute inset-0 w-full h-full object-cover opacity-40" />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/40 to-background" />
-        <div className="relative max-w-7xl mx-auto px-6 lg:px-10 pt-12 pb-6 grid lg:grid-cols-2 gap-12 items-start">
+      <section className="relative overflow-hidden bg-[#010409]">
+        {/* deep starfield / mesh */}
+        <div className="absolute inset-0 -z-0">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,hsl(210_100%_12%/0.9),transparent)]" />
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full bg-[hsl(210_100%_8%)] blur-[120px] opacity-70" />
+          {/* animated grid lines */}
+          <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+                <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#38bdf8" strokeWidth="0.5"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+          </svg>
+          {/* floating orbs */}
+          <div className="absolute top-20 left-10 w-2 h-2 rounded-full bg-blue-400 animate-ping opacity-60" style={{ animationDuration: "3s" }} />
+          <div className="absolute top-40 right-20 w-1.5 h-1.5 rounded-full bg-cyan-300 animate-ping opacity-40" style={{ animationDuration: "4.5s" }} />
+          <div className="absolute bottom-40 left-1/4 w-1 h-1 rounded-full bg-blue-300 animate-ping opacity-50" style={{ animationDuration: "2s" }} />
+        </div>
+
+        <div className="relative max-w-7xl mx-auto px-6 lg:px-10 pt-16 pb-8 grid lg:grid-cols-2 gap-12 items-center">
           <div>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full glass text-xs text-primary border border-primary/30">
-              <Sparkles className="h-3 w-3" /> Next-gen on-chain trading
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-xs text-blue-400">
+              <Sparkles className="h-3 w-3" /> Next-gen on-chain trading · AI-powered
             </span>
-            <h1 className="mt-5 text-4xl md:text-5xl font-extrabold leading-[1.05] tracking-tight">
-              <span className="gradient-text">ALL-IN-ONE DEX</span> ON BITCOIN LAYER<br />
-              <span className="text-foreground">POWERED BY AI</span> — FOR EVERYONE IN THE WORLD
+            <h1 className="mt-6 text-4xl md:text-5xl lg:text-6xl font-extrabold leading-[1.05] tracking-tight">
+              <span className="text-white">The</span>{" "}
+              <span className="bg-gradient-to-r from-blue-400 via-cyan-300 to-blue-500 bg-clip-text text-transparent">ALL-IN-ONE DEX</span>
+              <br />
+              <span className="text-white">Powered by</span>{" "}
+              <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">Artificial Intelligence</span>
             </h1>
-            <p className="mt-5 text-lg text-muted-foreground max-w-xl">
-              Spot, Futures and Options across Crypto, Forex, Commodities and Stocks — with AI agents,
-              copy trading and self-custody wallet support, all settled on Bitcoin L2.
+            <p className="mt-5 text-lg text-slate-400 max-w-xl leading-relaxed">
+              Spot, Futures & Options across Crypto, Forex, Commodities and Stocks —
+              up to <strong className="text-blue-400">100× leverage</strong>, with AI agents, copy trading and self-custody, settled on Bitcoin L2.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button size="lg" onClick={goTrade} className="bg-gradient-primary text-primary-foreground hover:shadow-glow-primary h-12 px-6">
+              <Button size="lg" onClick={goTrade} className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-[0_0_24px_hsl(210_100%_60%/0.5)] h-12 px-6 font-semibold">
                 Launch Terminal <ArrowRight className="h-4 w-4 ml-1.5" />
               </Button>
-              <Button size="lg" variant="outline" onClick={() => setWalletOpen(true)} className="glass border-primary/40 text-primary hover:bg-primary/10 hover:text-primary h-12 px-6">
+              <Button size="lg" variant="outline" onClick={() => setWalletOpen(true)} className="border-blue-500/40 text-blue-400 hover:bg-blue-500/10 h-12 px-6 bg-transparent">
                 <Wallet className="h-4 w-4 mr-1.5" /> Connect Wallet
               </Button>
             </div>
-            <div className="mt-6 flex items-center gap-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-buy animate-pulse" /> Live mainnet</span>
-              <span>·</span>
-              <span>Zero gas trading</span>
-              <span>·</span>
-              <span>Audited contracts</span>
+            <div className="mt-8 flex items-center gap-6 text-xs text-slate-500">
+              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live mainnet</span>
+              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-blue-400" /> Zero gas trading</span>
+              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-cyan-400" /> Audited contracts</span>
+            </div>
+            {/* Mini stats */}
+            <div className="mt-10 grid grid-cols-3 gap-4">
+              {[
+                { v: "$2.4B+", l: "Daily Volume" },
+                { v: "340K+", l: "Traders" },
+                { v: "100×", l: "Max Leverage" },
+              ].map(s => (
+                <div key={s.l} className="border border-blue-500/20 rounded-xl p-3 bg-blue-500/5 text-center">
+                  <div className="text-xl font-bold text-blue-400">{s.v}</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">{s.l}</div>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Login card */}
-          <div className="lg:justify-self-end w-full max-w-md">
-            <div className="glass-strong rounded-2xl p-6 border border-primary/20 shadow-glow-primary">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-lg">Get started</h3>
-                <span className="text-[10px] uppercase tracking-wide text-primary">Free</span>
-              </div>
-              <Tabs defaultValue="wallet">
-                <TabsList className="grid grid-cols-2 w-full bg-muted/30">
-                  <TabsTrigger value="wallet">Wallet</TabsTrigger>
-                  <TabsTrigger value="email">Email</TabsTrigger>
-                </TabsList>
-                <TabsContent value="wallet" className="mt-4 space-y-2">
-                  {[
-                    { name: "MetaMask", color: "from-orange-500 to-yellow-500" },
-                    { name: "Coinbase Wallet", color: "from-blue-500 to-blue-700" },
-                    { name: "Binance", color: "from-yellow-400 to-yellow-600" },
-                    { name: "Trust Wallet", color: "from-blue-400 to-cyan-400" },
-                    { name: "Bitget", color: "from-cyan-400 to-teal-500" },
-                  ].map(w => (
-                    <button key={w.name} onClick={() => setWalletOpen(true)}
-                      className="w-full flex items-center justify-between glass hover:border-primary/40 rounded-lg px-3 py-2.5 transition-all group">
-                      <div className="flex items-center gap-3">
-                        <div className={`h-8 w-8 rounded-lg bg-gradient-to-br ${w.color}`} />
-                        <span className="text-sm font-medium">{w.name}</span>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </button>
-                  ))}
-                </TabsContent>
-                <TabsContent value="email" className="mt-4 space-y-3">
-                  <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                    placeholder="you@dex.ai" className="h-11 bg-muted/30" />
-                  <Button onClick={goTrade} className="w-full h-11 bg-gradient-primary text-primary-foreground">
-                    Continue <ArrowRight className="h-4 w-4 ml-1" />
-                  </Button>
-                  <p className="text-[10px] text-muted-foreground text-center">By continuing you agree to our Terms & Privacy Policy.</p>
-                </TabsContent>
-              </Tabs>
-            </div>
+          {/* Rotating orbit animation */}
+          <div className="lg:justify-self-end w-full flex items-center justify-center py-8 lg:py-0">
+            <OrbitAnimation />
           </div>
         </div>
 
@@ -245,9 +289,9 @@ export default function Landing() {
               const positive = chg >= 0;
               return (
                 <button key={sym} onClick={goTrade}
-                  className="glass rounded-xl p-3 hover:border-primary/40 transition-all text-left group">
+                  className="border border-blue-500/10 bg-blue-500/5 backdrop-blur rounded-xl p-3 hover:border-blue-500/30 transition-all text-left group">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold">{mkt.base}</span>
+                    <span className="text-xs font-bold text-white">{mkt.base}</span>
                     <Badge variant="outline"
                       className={cn("text-[9px] px-1 py-0 border-0 font-mono",
                         positive ? "text-buy bg-buy/10" : "text-sell bg-sell/10")}>
@@ -255,8 +299,8 @@ export default function Landing() {
                     </Badge>
                   </div>
                   <MiniSpark data={sparks[sym] ?? []} positive={positive} />
-                  <div className="mt-1 font-mono text-xs font-bold">{formatPrice(price)}</div>
-                  <div className="text-[9px] text-muted-foreground">{formatCompact(mkt.volume24h)} vol</div>
+                  <div className="mt-1 font-mono text-xs font-bold text-white">{formatPrice(price)}</div>
+                  <div className="text-[9px] text-slate-500">{formatCompact(mkt.volume24h)} vol</div>
                 </button>
               );
             })}

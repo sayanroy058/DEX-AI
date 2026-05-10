@@ -5,11 +5,19 @@ import { Trophy, Target, Zap, Shield, TrendingUp, ArrowRight, Flame, Sparkles, C
 import { useState, useEffect } from "react";
 
 const challenges = [
-  { name: "Starter", capital: "$5,000", fee: "$49", profit: "8%", drawdown: "5%", split: "80%", recommended: false, color: "from-blue-500 to-cyan-500" },
-  { name: "Popular", capital: "$10,000", fee: "$99", profit: "8%", drawdown: "5%", split: "85%", recommended: true, color: "from-primary to-purple-500" },
-  { name: "Pro", capital: "$25,000", fee: "$249", profit: "8%", drawdown: "8%", split: "90%", recommended: false, color: "from-orange-500 to-pink-500" },
-  { name: "Elite", capital: "$100,000", fee: "$499", profit: "10%", drawdown: "8%", split: "90%", recommended: false, color: "from-yellow-500 to-orange-500" },
-  { name: "Whale", capital: "$500,000", fee: "$1,499", profit: "10%", drawdown: "10%", split: "90%", recommended: false, color: "from-cyan-500 to-blue-500" },
+  { name: "Starter", capital: "$5,000", fee: "$49", profit: "8%", drawdown: "5%", split: "80%", recommended: false, color: "border-slate-700/60", badge: "bg-slate-700/30 text-slate-300" },
+  { name: "Popular", capital: "$10,000", fee: "$99", profit: "8%", drawdown: "5%", split: "85%", recommended: true, color: "border-primary/40", badge: "bg-primary/20 text-primary" },
+  { name: "Pro", capital: "$25,000", fee: "$249", profit: "8%", drawdown: "8%", split: "90%", recommended: false, color: "border-violet-500/40", badge: "bg-violet-500/15 text-violet-400" },
+  { name: "Elite", capital: "$100,000", fee: "$499", profit: "10%", drawdown: "8%", split: "90%", recommended: false, color: "border-amber-500/40", badge: "bg-amber-500/15 text-amber-400" },
+  { name: "Whale", capital: "$500,000", fee: "$1,499", profit: "10%", drawdown: "10%", split: "90%", recommended: false, color: "border-cyan-500/30", badge: "bg-cyan-500/15 text-cyan-400" },
+];
+
+const FEE_STRUCTURE = [
+  { category: "Crypto Futures", maker: "0.02%", taker: "0.05%", overnight: "0.01%/day" },
+  { category: "Crypto Spot", maker: "0.05%", taker: "0.10%", overnight: "N/A" },
+  { category: "Forex", maker: "0.01%", taker: "0.03%", overnight: "0.005%/day" },
+  { category: "Commodities", maker: "0.03%", taker: "0.07%", overnight: "0.008%/day" },
+  { category: "Stocks / ETFs", maker: "0.05%", taker: "0.12%", overnight: "0.012%/day" },
 ];
 
 const features = [
@@ -190,35 +198,35 @@ export default function PropFirm() {
                   <div
                     className={`h-full rounded-2xl p-6 border-2 transition-all duration-300 flex flex-col ${
                       selectedTier === c.name
-                        ? `border-primary bg-gradient-to-br ${c.color} bg-opacity-10 shadow-glow-primary`
-                        : "border-border/50 hover:border-primary/40 bg-glass hover:bg-muted/30"
+                        ? `${c.color} bg-muted/10`
+                        : "border-border/40 hover:border-primary/30 bg-glass hover:bg-muted/20"
                     }`}
                   >
-                    <div className={`h-12 w-12 rounded-lg bg-gradient-to-br ${c.color} flex items-center justify-center mb-4 shadow-lg`}>
-                      {c.name === "Starter" && <Target className="h-5 w-5 text-white" />}
-                      {c.name === "Popular" && <Bolt className="h-5 w-5 text-white" />}
-                      {c.name === "Pro" && <TrendingUp className="h-5 w-5 text-white" />}
-                      {c.name === "Elite" && <Crown className="h-5 w-5 text-white" />}
-                      {c.name === "Whale" && <Trophy className="h-5 w-5 text-white" />}
+                    <div className={`h-10 w-10 rounded-lg ${c.badge} border flex items-center justify-center mb-4`}>
+                      {c.name === "Starter" && <Target className="h-4.5 w-4.5" />}
+                      {c.name === "Popular" && <Bolt className="h-4.5 w-4.5" />}
+                      {c.name === "Pro" && <TrendingUp className="h-4.5 w-4.5" />}
+                      {c.name === "Elite" && <Crown className="h-4.5 w-4.5" />}
+                      {c.name === "Whale" && <Trophy className="h-4.5 w-4.5" />}
                     </div>
 
                     <div className="flex-1">
-                      <h3 className={`text-lg font-bold mb-1 ${selectedTier === c.name ? "text-white" : ""}`}>{c.name}</h3>
-                      <div className={`text-3xl font-bold mb-1 ${selectedTier === c.name ? "text-white" : "gradient-text"}`}>{c.capital}</div>
-                      <div className={`text-xs font-semibold mb-4 ${selectedTier === c.name ? "text-white/90" : "text-primary"}`}>{c.split} profit split</div>
+                      <h3 className="text-lg font-bold mb-1">{c.name}</h3>
+                      <div className="text-3xl font-bold mb-1 gradient-text">{c.capital}</div>
+                      <div className="text-xs font-semibold mb-4 text-primary">{c.split} profit split</div>
 
                       <div className="space-y-2.5 mb-6">
                         <div className="flex justify-between text-xs">
-                          <span className={selectedTier === c.name ? "text-white/70" : "text-muted-foreground"}>Profit target</span>
-                          <span className={`font-bold ${selectedTier === c.name ? "text-white" : "text-foreground"}`}>{c.profit}</span>
+                          <span className="text-muted-foreground">Profit target</span>
+                          <span className="font-bold">{c.profit}</span>
                         </div>
                         <div className="flex justify-between text-xs">
-                          <span className={selectedTier === c.name ? "text-white/70" : "text-muted-foreground"}>Max drawdown</span>
-                          <span className={`font-bold ${selectedTier === c.name ? "text-white" : "text-foreground"}`}>{c.drawdown}</span>
+                          <span className="text-muted-foreground">Max drawdown</span>
+                          <span className="font-bold">{c.drawdown}</span>
                         </div>
                         <div className="flex justify-between text-xs">
-                          <span className={selectedTier === c.name ? "text-white/70" : "text-muted-foreground"}>One-time fee</span>
-                          <span className={`font-bold ${selectedTier === c.name ? "text-white" : "text-foreground"}`}>{c.fee}</span>
+                          <span className="text-muted-foreground">One-time fee</span>
+                          <span className="font-bold">{c.fee}</span>
                         </div>
                       </div>
                     </div>
@@ -226,7 +234,7 @@ export default function PropFirm() {
                     <Button
                       className={`w-full transition-all ${
                         selectedTier === c.name
-                          ? `bg-gradient-to-r ${c.color} text-white hover:shadow-glow-primary`
+                          ? "bg-gradient-primary text-primary-foreground hover:shadow-glow-primary"
                           : "glass border border-border/50 hover:border-primary/40"
                       }`}
                     >
@@ -323,6 +331,36 @@ export default function PropFirm() {
                   View All Traders
                 </Button>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Fee Structure */}
+        <section className="px-6 lg:px-10 py-10">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-2xl font-bold mb-2">Trading Fee Structure</h2>
+            <p className="text-muted-foreground text-sm mb-6">Fees vary by asset class. Funded accounts benefit from reduced fees.</p>
+            <div className="glass rounded-xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="text-[11px] text-muted-foreground uppercase border-b border-border/50">
+                  <tr>
+                    <th className="text-left px-5 py-3">Asset Category</th>
+                    <th className="text-right px-4 py-3">Maker Fee</th>
+                    <th className="text-right px-4 py-3">Taker Fee</th>
+                    <th className="text-right px-5 py-3">Overnight / Swap</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {FEE_STRUCTURE.map(f => (
+                    <tr key={f.category} className="border-b border-border/30 hover:bg-muted/20">
+                      <td className="px-5 py-3 font-medium">{f.category}</td>
+                      <td className="text-right px-4 py-3 font-mono text-buy">{f.maker}</td>
+                      <td className="text-right px-4 py-3 font-mono text-sell">{f.taker}</td>
+                      <td className="text-right px-5 py-3 font-mono text-muted-foreground">{f.overnight}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </section>

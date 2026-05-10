@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMarkets } from "@/lib/useMarkets";
 import { formatCompact, formatPrice, AssetClass, MarketKind } from "@/lib/mockData";
-import { Star, Search, Flame, ChevronLeft, ChevronRight, Bitcoin, DollarSign, Droplet, Briefcase } from "lucide-react";
+import { Star, Search, ChevronLeft, ChevronRight, Bitcoin, DollarSign, Droplet, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
@@ -27,7 +27,7 @@ export function MarketList({
 }) {
   const markets = useMarkets();
   const [asset, setAsset] = useState<AssetClass>("crypto");
-  const [kind, setKind] = useState<MarketKind | "all" | "fav" | "trending">("all");
+  const [kind, setKind] = useState<MarketKind | "fav">("perp");
   const [query, setQuery] = useState("");
   const [favorites, setFavorites] = useState<Set<string>>(new Set(markets.filter(m => m.favorite).map(m => m.symbol)));
 
@@ -36,8 +36,7 @@ export function MarketList({
   const filtered = useMemo(() => {
     let list = markets.filter(m => m.asset === asset);
     if (kind === "fav") list = list.filter(m => favorites.has(m.symbol));
-    else if (kind === "trending") list = list.filter(m => m.trending);
-    else if (kind !== "all") list = list.filter(m => m.category === kind);
+    else list = list.filter(m => m.category === kind);
     if (query) list = list.filter(m => m.symbol.toLowerCase().includes(query.toLowerCase()));
     return list;
   }, [markets, asset, kind, query, favorites]);
@@ -109,7 +108,7 @@ export function MarketList({
           {ASSET_TABS.map(a => (
             <button
               key={a.id}
-              onClick={() => { setAsset(a.id); setKind("all"); }}
+              onClick={() => { setAsset(a.id); setKind(a.kinds[0]); }}
               className={cn(
                 "flex flex-col items-center justify-center py-1.5 rounded text-[9px] font-semibold transition-all gap-0.5",
                 asset === a.id
@@ -133,13 +132,6 @@ export function MarketList({
             )}
             title="Favorites"
           >★</button>
-          <button
-            onClick={() => setKind("all")}
-            className={cn(
-              "px-2 py-0.5 text-[10px] rounded transition-colors",
-              kind === "all" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
-            )}
-          >All</button>
           {activeAsset.kinds.map(k => (
             <button
               key={k}
@@ -150,15 +142,6 @@ export function MarketList({
               )}
             >{KIND_LABEL[k]}</button>
           ))}
-          <button
-            onClick={() => setKind("trending")}
-            className={cn(
-              "px-2 py-0.5 text-[10px] rounded transition-colors flex items-center gap-0.5",
-              kind === "trending" ? "bg-secondary/20 text-secondary" : "text-muted-foreground hover:text-secondary"
-            )}
-          >
-            <Flame className="h-2.5 w-2.5" /> Hot
-          </button>
         </div>
       </div>
 
