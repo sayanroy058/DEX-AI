@@ -343,7 +343,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Sponsor Marquee */}
+      {/* Sponsor Marquee
       <section className="relative overflow-hidden px-6 py-10 lg:px-10 bg-[#030821] border-t border-slate-800/40 border-b border-slate-800/40">
         <style>{`
           @keyframes sponsorMarquee {
@@ -387,7 +387,7 @@ export default function Landing() {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       <footer className="border-t border-slate-800/70 bg-[#070b20] px-6 py-10 lg:px-10">
         <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
