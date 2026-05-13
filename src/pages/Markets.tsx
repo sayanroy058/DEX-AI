@@ -40,7 +40,7 @@ const Markets = () => {
 
   return (
     <AppShell>
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Markets</h1>
           <p className="text-muted-foreground text-sm mt-1">Real-time prices across {markets.length} pairs · ${formatCompact(totalVol)} 24h volume</p>
@@ -53,43 +53,61 @@ const Markets = () => {
         </div>
 
         {/* Asset class tabs */}
-        <div className="glass rounded-xl p-2 flex flex-wrap items-center gap-1.5">
-          {ASSET_TABS.map(a => (
-            <button
-              key={a.id}
-              onClick={() => { setAsset(a.id); setKind("all"); }}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all",
-                asset === a.id
-                  ? "bg-primary/15 text-primary border border-primary/30"
-                  : "text-muted-foreground hover:bg-muted/40"
-              )}
-            >
-              <a.icon className="h-3.5 w-3.5" /> {a.label}
-            </button>
-          ))}
-          <div className="h-5 w-px bg-border mx-1" />
-          {activeAsset.kinds.map(k => (
-            <button
-              key={k}
-              onClick={() => setKind(k as any)}
-              className={cn(
-                "px-2.5 py-1 rounded text-[11px] transition-colors",
-                kind === k ? "bg-secondary/20 text-secondary" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {KIND_LABEL[k]}
-            </button>
-          ))}
-          <div className="flex-1" />
-          <div className="flex items-center gap-2 glass-strong px-2.5 py-1 rounded-md min-w-48">
-            <Search className="h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search symbol..."
-              className="h-6 border-0 bg-transparent p-0 text-xs focus-visible:ring-0"
-            />
+        <div className="glass rounded-xl p-2 space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0 overflow-x-auto">
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
+                {ASSET_TABS.map(a => (
+                  <button
+                    key={a.id}
+                    onClick={() => { setAsset(a.id); setKind("all"); }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all",
+                      asset === a.id
+                        ? "bg-primary/15 text-primary border border-primary/30"
+                        : "text-muted-foreground hover:bg-muted/40"
+                    )}
+                  >
+                    <a.icon className="h-3.5 w-3.5" /> {a.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="hidden md:flex items-center gap-2 glass-strong px-2.5 py-1 rounded-md min-w-52">
+              <Search className="h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Search symbol..."
+                className="h-6 border-0 bg-transparent p-0 text-xs focus-visible:ring-0"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap">
+              {activeAsset.kinds.map(k => (
+                <button
+                  key={k}
+                  onClick={() => setKind(k as any)}
+                  className={cn(
+                    "px-2.5 py-1 rounded text-[11px] transition-colors",
+                    kind === k ? "bg-secondary/20 text-secondary" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {KIND_LABEL[k]}
+                </button>
+              ))}
+            </div>
+            <div className="md:hidden flex items-center gap-2 glass-strong px-2.5 py-1 rounded-md w-[165px] shrink-0">
+              <Search className="h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Search..."
+                className="h-6 border-0 bg-transparent p-0 text-xs focus-visible:ring-0"
+              />
+            </div>
           </div>
         </div>
 
