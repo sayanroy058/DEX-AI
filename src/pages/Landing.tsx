@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Zap, ArrowRight, TrendingUp, Layers, Bot, Shield, Globe, Apple, Smartphone, Download, QrCode, Star } from "lucide-react";
+import { Zap, ArrowRight, TrendingUp, Layers, Bot, Shield, Globe, QrCode, Star } from "lucide-react";
 import { WalletDialog } from "@/components/wallet/WalletDialog";
 import appStoreImg from "@/assets/app-store.png";
 import playStoreImg from "@/assets/play-store.png";
@@ -9,13 +9,23 @@ import playStoreImg from "@/assets/play-store.png";
 export default function Landing() {
   const navigate = useNavigate();
   const [walletOpen, setWalletOpen] = useState(false);
+  const sponsors = [
+    { name: "Binance", logo: "https://logo.clearbit.com/binance.com" },
+    { name: "Coinbase", logo: "https://logo.clearbit.com/coinbase.com" },
+    { name: "Bybit", logo: "https://logo.clearbit.com/bybit.com" },
+    { name: "OKX", logo: "https://logo.clearbit.com/okx.com" },
+    { name: "Kraken", logo: "https://logo.clearbit.com/kraken.com" },
+    { name: "Bitget", logo: "https://logo.clearbit.com/bitget.com" },
+    { name: "MetaMask", logo: "https://logo.clearbit.com/metamask.io" },
+    { name: "Chainlink", logo: "https://logo.clearbit.com/chain.link" },
+  ];
 
   const goTrade = () => navigate("/trade");
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0a0e27]">
       {/* Navigation */}
-      <header className="px-6 lg:px-10 h-16 flex items-center justify-between border-b border-slate-800/50 sticky top-0 z-30 bg-[#0a0e27]/80 backdrop-blur">
+      <header className="px-6 lg:px-10 h-16 flex items-center justify-between border-b border-glass-border glass-strong sticky top-0 z-30">
         <Link to="/" className="flex items-center gap-2">
           <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center shadow-lg">
             <Zap className="h-5 w-5 text-white" strokeWidth={2.5} />
@@ -31,7 +41,7 @@ export default function Landing() {
           <Link to="/prediction" className="hover:text-white transition-colors">Prediction</Link>
           <Link to="/p2p" className="hover:text-white transition-colors">P2P</Link>
           <Link to="/token" className="hover:text-white transition-colors">Token</Link>
-          <Link to="/sip" className="hover:text-white transition-colors">DYP/SWAP</Link>
+          <Link to="/sip" className="hover:text-white transition-colors">SIP/SWP</Link>
         </nav>
 
         <Button 
@@ -43,18 +53,19 @@ export default function Landing() {
       </header>
 
       {/* Hero Section */}
-      <div className="flex-1 flex items-center justify-center px-6 py-20">
-        <div className="max-w-3xl w-full text-center space-y-8">
+      <div className="relative flex-1 flex items-center justify-center px-6 py-20 overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(56,189,248,0.2),transparent_38%),radial-gradient(circle_at_82%_22%,rgba(124,58,237,0.16),transparent_34%),linear-gradient(180deg,rgba(6,11,42,0.35)_0%,rgba(6,11,42,0)_60%)]" />
+        <div className="relative max-w-3xl w-full text-center space-y-8">
           {/* Badge */}
-          <div className="inline-block">
-            <span className="text-sm font-semibold text-slate-300 px-4 py-2 rounded-full border border-slate-700 bg-slate-800/50">
+          <div className="mx-auto max-w-full">
+            <span className="inline-block max-w-[92vw] sm:max-w-none text-center whitespace-normal break-words leading-snug text-sm font-semibold text-slate-300 px-4 py-2 rounded-full border border-slate-700 bg-slate-800/50">
               ⚡ AI-Powered Multi-Asset Trading Platform
             </span>
           </div>
 
           {/* Main Heading */}
           <div className="space-y-4">
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tight">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight">
               <span className="block text-white mb-2">ALL IN ONE</span>
               <span className="block bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
                 AI-POWERED DEX
@@ -63,7 +74,7 @@ export default function Landing() {
           </div>
 
           {/* Description */}
-          <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-base md:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed">
             Trade Crypto, Forex, Stocks & Commodities with institutional-grade AI intelligence. One platform. Every market. Zero limits.
           </p>
 
@@ -155,60 +166,63 @@ export default function Landing() {
       </section>
 
       {/* Mobile App Download Section */}
-      <section className="py-20 px-6 lg:px-10 bg-[#0a0e27]">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-[1fr_auto_1fr] gap-12 items-center">
+      <section className="relative overflow-hidden py-20 px-6 lg:px-10 bg-[#030821]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_40%,rgba(9,184,255,0.16),transparent_36%),radial-gradient(circle_at_88%_38%,rgba(0,115,255,0.12),transparent_32%)]" />
+        <div className="relative max-w-7xl mx-auto grid lg:grid-cols-[1fr_auto_1fr] gap-10 items-center">
           {/* Left Side - Content */}
-          <div className="space-y-6">
-            <div>
-              <span className="text-sm font-semibold text-cyan-400">TradePro</span>
-              <h2 className="text-4xl md:text-5xl font-black mt-3 leading-tight">
-                <span className="block text-white">Trade anywhere.</span>
-                <span className="block bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">On every device.</span>
+          <div className="space-y-7">
+            <div className="flex items-start gap-4 md:gap-6">
+              <div className="text-cyan-400/95 text-[64px] md:text-[84px] font-black tracking-tight leading-[0.8] [writing-mode:vertical-rl] rotate-180">
+                Trade
+              </div>
+              <h2 className="text-5xl md:text-6xl lg:text-7xl font-black leading-[0.88] tracking-tight">
+                <span className="block text-white">Anytime</span>
+                <span className="block text-cyan-400">Anywhere</span>
+                <span className="block text-white">Any Device</span>
               </h2>
             </div>
-            
-            <p className="text-lg text-slate-400">
+
+            <p className="text-lg text-slate-400 max-w-xl">
               Native apps for mobile and desktop with the same lightning-fast experience.
             </p>
 
-            {/* App Store Buttons */}
-            <div className="space-y-3 pt-4 max-w-xs">
-              <button className="w-full border-2 border-slate-700/60 bg-slate-900/40 hover:border-cyan-500/50 hover:bg-slate-900/70 transition-all rounded-2xl px-5 py-3 flex items-center gap-4 group">
+            <div className="flex flex-col sm:flex-row gap-3.5 pt-1">
+              <button className="sm:w-[300px] border border-slate-700/80 bg-slate-900/55 hover:border-cyan-500/60 hover:bg-slate-900/80 transition-all rounded-2xl px-5 py-2.5 flex items-center gap-4 group">
                 <div className="h-12 w-12 rounded-lg bg-black/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
                   <img src={appStoreImg} alt="App Store" className="w-8 h-8 object-contain" />
                 </div>
                 <div className="text-left flex-1">
-                  <div className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Download on the</div>
-                  <div className="text-base font-bold text-white leading-tight">App Store</div>
+                  <div className="text-[9px] text-slate-400 group-hover:text-slate-300 transition-colors">Download on the</div>
+                  <div className="text-[22px] leading-none font-extrabold text-white">App Store</div>
                 </div>
               </button>
 
-              <button className="w-full border-2 border-slate-700/60 bg-slate-900/40 hover:border-cyan-500/50 hover:bg-slate-900/70 transition-all rounded-2xl px-5 py-3 flex items-center gap-4 group">
+              <button className="sm:w-[300px] border border-slate-700/80 bg-slate-900/55 hover:border-cyan-500/60 hover:bg-slate-900/80 transition-all rounded-2xl px-5 py-2.5 flex items-center gap-4 group">
                 <div className="h-12 w-12 rounded-lg bg-black/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
                   <img src={playStoreImg} alt="Google Play" className="w-8 h-8 object-contain" />
                 </div>
                 <div className="text-left flex-1">
-                  <div className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">GET IT ON</div>
-                  <div className="text-base font-bold text-white leading-tight">Google Play</div>
+                  <div className="text-[9px] text-slate-400 group-hover:text-slate-300 transition-colors">GET IT ON</div>
+                  <div className="text-[22px] leading-none font-extrabold text-white">Google Play</div>
                 </div>
               </button>
             </div>
           </div>
 
           {/* Center - QR Code */}
-          <div className="flex flex-col items-center justify-center gap-4">
-            <div className="w-48 h-48 rounded-3xl bg-white p-4 flex items-center justify-center shadow-2xl shadow-cyan-500/30">
-              <img 
+          <div className="flex flex-col items-center justify-center gap-5">
+            <div className="w-56 h-56 md:w-60 md:h-60 rounded-[2rem] bg-white p-5 flex items-center justify-center shadow-[0_0_40px_rgba(18,197,255,0.35)]">
+              <img
                 src="https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg"
                 alt="QR Code"
                 className="w-full h-full"
               />
             </div>
             <div className="flex flex-col items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                <QrCode className="h-4 w-4 text-cyan-400" />
+              <div className="h-9 w-9 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                <QrCode className="h-[18px] w-[18px] text-cyan-400" />
               </div>
-              <p className="text-sm text-slate-400">Scan to download on your mobile</p>
+              <p className="text-base md:text-lg text-slate-400 text-center">Scan to download on your mobile</p>
             </div>
           </div>
 
@@ -216,7 +230,7 @@ export default function Landing() {
           <div className="flex justify-center lg:justify-end">
             <div className="relative">
               {/* Phone frame */}
-              <div className="w-72 rounded-[2.8rem] bg-gradient-to-b from-slate-700 to-slate-900 p-2 shadow-2xl shadow-cyan-500/30 border border-cyan-500/40">
+              <div className="w-72 rounded-[2.8rem] bg-gradient-to-b from-slate-700 to-slate-900 p-2 shadow-[0_0_50px_rgba(7,153,255,0.3)] border border-cyan-500/40">
                 {/* Notch */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-7 bg-black rounded-b-3xl z-20" />
                 
@@ -323,6 +337,52 @@ export default function Landing() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Sponsor Marquee */}
+      <section className="relative overflow-hidden px-6 py-10 lg:px-10 bg-[#030821] border-t border-slate-800/40 border-b border-slate-800/40">
+        <style>{`
+          @keyframes sponsorMarquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+          }
+        `}</style>
+        <div className="mx-auto max-w-7xl space-y-6">
+          <div className="text-center">
+            <p className="text-sm font-semibold tracking-[0.2em] uppercase text-slate-400">
+              Trusted By Sponsors
+            </p>
+          </div>
+
+          <div className="relative">
+            <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-24 bg-gradient-to-r from-[#030821] to-transparent" />
+            <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-24 bg-gradient-to-l from-[#030821] to-transparent" />
+
+            <div className="overflow-hidden">
+              <div
+                className="flex w-max gap-4 md:gap-6"
+                style={{ animation: "sponsorMarquee 24s linear infinite" }}
+              >
+                {[...sponsors, ...sponsors].map((sponsor, idx) => (
+                  <div
+                    key={`${sponsor.name}-${idx}`}
+                    className="min-w-[180px] md:min-w-[220px] rounded-2xl border border-slate-700/70 bg-slate-900/50 px-5 py-4 flex items-center gap-3"
+                  >
+                    <div className="h-9 w-9 rounded-full bg-white/95 p-1.5 flex items-center justify-center overflow-hidden">
+                      <img
+                        src={sponsor.logo}
+                        alt={`${sponsor.name} logo`}
+                        className="h-full w-full object-contain"
+                        loading="lazy"
+                      />
+                    </div>
+                    <span className="text-sm md:text-base font-semibold text-slate-200">{sponsor.name}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
