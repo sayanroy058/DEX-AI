@@ -2,14 +2,15 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, Target, Zap, Shield, TrendingUp, ArrowRight, Flame, Sparkles, Crown, Bolt, Users, CheckCircle2, Clock, Wallet, BarChart3 } from "lucide-react";
+import type { CSSProperties } from "react";
 import { useState, useEffect } from "react";
 
 const challenges = [
-  { name: "Starter", capital: "$5,000", fee: "$49", profit: "8%", drawdown: "5%", split: "80%", recommended: false, color: "border-slate-700/60", badge: "bg-slate-700/30 text-slate-300" },
-  { name: "Popular", capital: "$10,000", fee: "$99", profit: "8%", drawdown: "5%", split: "85%", recommended: true, color: "border-primary/40", badge: "bg-primary/20 text-primary" },
-  { name: "Pro", capital: "$25,000", fee: "$249", profit: "8%", drawdown: "8%", split: "90%", recommended: false, color: "border-violet-500/40", badge: "bg-violet-500/15 text-violet-400" },
-  { name: "Elite", capital: "$100,000", fee: "$499", profit: "10%", drawdown: "8%", split: "90%", recommended: false, color: "border-amber-500/40", badge: "bg-amber-500/15 text-amber-400" },
-  { name: "Whale", capital: "$500,000", fee: "$1,499", profit: "10%", drawdown: "10%", split: "90%", recommended: false, color: "border-cyan-500/30", badge: "bg-cyan-500/15 text-cyan-400" },
+  { name: "Starter", capital: "$5,000", fee: "$49", profit: "8%", drawdown: "5%", split: "80%", recommended: false, color: "border-slate-400/50", badge: "bg-slate-700/30 text-slate-300", glow: "148 163 184" },
+  { name: "Popular", capital: "$10,000", fee: "$99", profit: "8%", drawdown: "5%", split: "85%", recommended: true, color: "border-primary/50", badge: "bg-primary/20 text-primary", glow: "34 211 238" },
+  { name: "Pro", capital: "$25,000", fee: "$249", profit: "8%", drawdown: "8%", split: "90%", recommended: false, color: "border-violet-400/50", badge: "bg-violet-500/15 text-violet-400", glow: "167 139 250" },
+  { name: "Elite", capital: "$100,000", fee: "$499", profit: "10%", drawdown: "8%", split: "90%", recommended: false, color: "border-amber-400/50", badge: "bg-amber-500/15 text-amber-400", glow: "251 191 36" },
+  { name: "Whale", capital: "$500,000", fee: "$1,499", profit: "10%", drawdown: "10%", split: "90%", recommended: false, color: "border-cyan-400/50", badge: "bg-cyan-500/15 text-cyan-400", glow: "34 211 238" },
 ];
 
 const FEE_STRUCTURE = [
@@ -183,6 +184,7 @@ export default function PropFirm() {
                 <div
                   key={c.name}
                   onClick={() => setSelectedTier(c.name)}
+                  style={{ "--tier-glow": c.glow } as CSSProperties}
                   className={`relative cursor-pointer transition-all duration-300 group ${
                     selectedTier === c.name ? "lg:scale-105" : ""
                   }`}
@@ -198,7 +200,7 @@ export default function PropFirm() {
                   <div
                     className={`h-full rounded-2xl p-6 border-2 transition-all duration-300 flex flex-col ${
                       selectedTier === c.name
-                        ? `${c.color} bg-muted/10`
+                        ? `${c.color} bg-[rgb(var(--tier-glow)/0.08)] shadow-[0_0_28px_rgb(var(--tier-glow)/0.28),0_0_72px_rgb(var(--tier-glow)/0.12)]`
                         : "border-border/40 hover:border-primary/30 bg-glass hover:bg-muted/20"
                     }`}
                   >
