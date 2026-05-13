@@ -1,15 +1,13 @@
 import { useMarket } from "@/lib/useMarkets";
 import { formatCompact, formatPrice } from "@/lib/mockData";
-import { TrendingUp, TrendingDown, Bot, Sparkles, ChevronLeft, ChevronRight, Calculator } from "lucide-react";
+import { TrendingUp, TrendingDown, Bot, Sparkles, Calculator } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export function MarketHeader({ symbol, collapsed, onToggleCollapse, calculatorOpen, onToggleCalculator }: {
+export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator }: {
   symbol: string;
-  collapsed?: boolean;
-  onToggleCollapse?: () => void;
   calculatorOpen?: boolean;
   onToggleCalculator?: () => void;
 }) {
@@ -21,16 +19,6 @@ export function MarketHeader({ symbol, collapsed, onToggleCollapse, calculatorOp
 
   return (
     <div className="glass rounded-xl px-4 py-2.5 flex items-center gap-6 overflow-x-auto">
-      {onToggleCollapse && (
-        <button
-          onClick={onToggleCollapse}
-          className="p-1.5 rounded-lg hover:bg-muted/30 text-muted-foreground hover:text-primary transition-colors shrink-0"
-          title={collapsed ? "Expand market list" : "Collapse market list"}
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </button>
-      )}
-
       <div className="flex items-center gap-2 min-w-fit">
         <div className="h-9 w-9 rounded-full bg-gradient-primary flex items-center justify-center font-bold text-xs text-primary-foreground shadow-glow-primary">
           {market.base.slice(0, 3)}

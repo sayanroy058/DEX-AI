@@ -39,7 +39,7 @@ export function PositionsPanel({ markets }: { markets: ReturnType<typeof useMark
   const totalPnl = positions.reduce((s, p) => s + p.pnl, 0);
 
   return (
-    <div className="glass rounded-xl h-full flex flex-col overflow-hidden">
+    <div className="glass rounded-b-xl rounded-t-none h-full flex flex-col overflow-hidden">
       <Tabs defaultValue="positions" className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between border-b border-border/50 px-3">
           <TabsList className="bg-transparent h-9 p-0 gap-1">

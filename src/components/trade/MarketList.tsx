@@ -51,27 +51,27 @@ export function MarketList({
 
   if (collapsed) {
     return (
-      <div className="glass rounded-xl flex h-full flex-col overflow-hidden items-center justify-start py-2 gap-2">
+      <div className="glass rounded-b-lg rounded-t-none flex h-full flex-col overflow-hidden items-center justify-start py-1.5 gap-1.5">
         <button
           onClick={onToggleCollapse}
-          className="p-2 rounded hover:bg-muted/30 text-muted-foreground hover:text-primary shrink-0"
+          className="p-1.5 rounded hover:bg-muted/30 text-muted-foreground hover:text-primary shrink-0"
           title="Expand market list"
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-3.5 w-3.5" />
         </button>
-        <div className="h-px w-8 bg-border shrink-0" />
-        <div className="flex flex-col items-center gap-2">
+        <div className="h-px w-5 bg-border shrink-0" />
+        <div className="flex flex-col items-center gap-1.5">
           {ASSET_TABS.map(a => (
             <button
               key={a.id}
               onClick={() => { setAsset(a.id); onToggleCollapse(); }}
               className={cn(
-                "p-2 rounded transition-colors shrink-0",
+                "p-1.5 rounded transition-colors shrink-0",
                 asset === a.id ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
               )}
               title={a.label}
             >
-              <a.icon className="h-4 w-4" />
+              <a.icon className="h-3.5 w-3.5" />
             </button>
           ))}
         </div>
@@ -80,18 +80,7 @@ export function MarketList({
   }
 
   return (
-    <div className="glass rounded-xl flex flex-col h-full overflow-hidden">
-      <div className="flex items-center justify-between px-2 pt-2">
-        <span className="text-[10px] uppercase tracking-wide text-muted-foreground px-1">Markets</span>
-        <button
-          onClick={onToggleCollapse}
-          className="p-1 rounded hover:bg-muted/30 text-muted-foreground hover:text-primary"
-          title="Collapse"
-        >
-          <ChevronLeft className="h-3.5 w-3.5" />
-        </button>
-      </div>
-
+    <div className="glass rounded-b-xl rounded-t-none flex flex-col h-full overflow-hidden">
       <div className="px-3 py-2 border-b border-border/50 space-y-2">
         <div className="flex items-center gap-2 glass-strong px-2 py-1 rounded-md">
           <Search className="h-3 w-3 text-muted-foreground" />

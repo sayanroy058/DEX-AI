@@ -303,7 +303,7 @@ export function TradingChart({ symbol, price }: { symbol: string; price: number 
   const panes = layout.cols * layout.rows;
 
   return (
-    <div className="glass rounded-xl flex flex-col h-full overflow-hidden">
+    <div className="glass rounded-b-xl rounded-t-none flex flex-col h-full overflow-hidden">
       <div className="flex items-center gap-1 px-3 py-2 border-b border-border/50 flex-wrap">
         <div className="flex items-center gap-1 mr-2">
           {TIMEFRAMES.map(t => (

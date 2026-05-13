@@ -8,14 +8,15 @@ import { MarketHeader } from "@/components/trade/MarketHeader";
 import { useMarket, useMarkets } from "@/lib/useMarkets";
 import { cn } from "@/lib/utils";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
-import { Calculator, GripVertical, ChevronUp, ChevronDown, X } from "lucide-react";
+import { Calculator, GripVertical, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { generateOrderBook, generateTrade, formatPrice, Trade } from "@/lib/mockData";
 
 // ─── Default sizes ────────────────────────────────────────────────────────────
 const DEFAULT_COL_SIZES = [18, 52, 30];
 const DEFAULT_CENTER_SIZES = [65, 35];
-const COLLAPSED_LEFT_SIZE = 5;
+const COLLAPSED_LEFT_SIZE = 3;
+const MINIMIZED_POSITIONS_SIZE = 3;
 
 type PanelId = "marketList" | "chart" | "positions";
 
@@ -30,13 +31,31 @@ interface DraggableCardProps {
   id: PanelId;
   title: string;
   children: React.ReactNode;
+  compact?: boolean;
+  minimized?: boolean;
+  onToggleMinimize?: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
   draggingId: PanelId | null;
   onDragStart: (id: PanelId) => void;
   onDragEnd: () => void;
   onDrop: (id: PanelId) => void;
 }
 
-function DraggableCard({ id, title, children, draggingId, onDragStart, onDragEnd, onDrop }: DraggableCardProps) {
+function DraggableCard({
+  id,
+  title,
+  children,
+  compact = false,
+  minimized = false,
+  onToggleMinimize,
+  collapsed = false,
+  onToggleCollapse,
+  draggingId,
+  onDragStart,
+  onDragEnd,
+  onDrop,
+}: DraggableCardProps) {
   const [over, setOver] = useState(false);
   return (
     <div
@@ -53,13 +72,45 @@ function DraggableCard({ id, title, children, draggingId, onDragStart, onDragEnd
         draggable
         onDragStart={() => onDragStart(id)}
         onDragEnd={onDragEnd}
-        className="h-5 glass-strong border-b border-border/40 flex items-center px-2 cursor-grab active:cursor-grabbing shrink-0 select-none"
+        className={cn(
+          "h-5 glass-strong border-b border-border/40 flex items-center cursor-grab active:cursor-grabbing shrink-0 select-none",
+          compact ? "justify-center px-0" : "px-2",
+        )}
         title="Drag to swap panels"
       >
-        <GripVertical className="h-3 w-3 text-muted-foreground mr-1" />
-        <span className="text-[9px] text-muted-foreground uppercase tracking-wide">{title}</span>
+        <GripVertical className={cn("h-3 w-3 text-muted-foreground", !compact && "mr-1")} />
+        {!compact && <span className="text-[9px] text-muted-foreground uppercase tracking-wide">{title}</span>}
+        {onToggleCollapse && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleCollapse();
+            }}
+            className={cn(
+              "p-0.5 rounded text-muted-foreground hover:bg-muted/30 hover:text-primary transition-colors",
+              compact ? "ml-0" : "ml-auto",
+            )}
+            title={collapsed ? "Expand panel" : "Minimize panel"}
+          >
+            {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+          </button>
+        )}
+        {onToggleMinimize && !compact && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleMinimize();
+            }}
+            className="ml-auto p-0.5 rounded text-muted-foreground hover:bg-muted/30 hover:text-primary transition-colors"
+            title={minimized ? "Restore panel" : "Minimize panel"}
+          >
+            {minimized ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+        )}
       </div>
-      <div className="relative flex-1 min-h-0">
+      <div className={cn("relative flex-1 min-h-0", minimized && "hidden")}>
         <div className="absolute inset-0 overflow-hidden">
           {children}
         </div>
@@ -246,6 +297,7 @@ const Index = () => {
 
   const [slots, setSlots] = useState<[PanelId, PanelId, PanelId]>(["marketList", "chart", "positions"]);
   const leftPanelSizeRef = useRef(DEFAULT_COL_SIZES[0]);
+  const positionsPanelSizeRef = useRef(DEFAULT_CENTER_SIZES[1]);
 
   const leftPanelRef  = useRef<any>(null);
   const centerPanelRef = useRef<any>(null);
@@ -254,6 +306,7 @@ const Index = () => {
   const posPanelRef    = useRef<any>(null);
 
   const [draggingId, setDraggingId] = useState<PanelId | null>(null);
+  const [positionsMinimized, setPositionsMinimized] = useState(false);
 
   const handleDrop = useCallback((targetId: PanelId) => {
     if (!draggingId || draggingId === targetId) return;
@@ -302,6 +355,25 @@ const Index = () => {
     onDrop: handleDrop,
   };
 
+  const togglePositionsMinimized = useCallback(() => {
+    const posPanel = posPanelRef.current;
+    if (!posPanel) return;
+
+    setPositionsMinimized(prev => {
+      if (prev) {
+        posPanel.resize(positionsPanelSizeRef.current || DEFAULT_CENTER_SIZES[1]);
+        return false;
+      }
+
+      const currentSize = posPanel.getSize?.();
+      if (typeof currentSize === "number" && Number.isFinite(currentSize) && currentSize > MINIMIZED_POSITIONS_SIZE) {
+        positionsPanelSizeRef.current = currentSize;
+      }
+      posPanel.resize(MINIMIZED_POSITIONS_SIZE);
+      return true;
+    });
+  }, []);
+
   function renderContent(id: PanelId) {
     switch (id) {
       case "marketList":
@@ -320,8 +392,6 @@ const Index = () => {
         {/* Top bar */}
         <MarketHeader
           symbol={symbol}
-          collapsed={collapsed}
-          onToggleCollapse={() => setCollapsed(c => !c)}
           calculatorOpen={calcOpen}
           onToggleCalculator={() => setCalcOpen(o => !o)}
         />
@@ -400,8 +470,15 @@ const Index = () => {
         <PanelGroup direction="horizontal" className="flex-1 min-h-0">
 
           {/* Left — Market List */}
-          <Panel ref={leftPanelRef} defaultSize={DEFAULT_COL_SIZES[0]} minSize={5} maxSize={35}>
-            <DraggableCard id={slots[0]} title={PANEL_TITLES[slots[0]]} {...cardProps}>
+          <Panel ref={leftPanelRef} defaultSize={DEFAULT_COL_SIZES[0]} minSize={3} maxSize={35}>
+            <DraggableCard
+              id={slots[0]}
+              title={PANEL_TITLES[slots[0]]}
+              compact={collapsed && slots[0] === "marketList"}
+              collapsed={collapsed}
+              onToggleCollapse={slots[0] === "marketList" ? () => setCollapsed(c => !c) : undefined}
+              {...cardProps}
+            >
               {renderContent(slots[0])}
             </DraggableCard>
           </Panel>
@@ -421,8 +498,14 @@ const Index = () => {
               <PanelResizeHandle className="h-1.5 flex items-center justify-center group cursor-row-resize hidden lg:flex">
                 <div className="h-0.5 w-8 bg-border/50 rounded group-hover:bg-primary/50 group-active:bg-primary transition-colors" />
               </PanelResizeHandle>
-              <Panel ref={posPanelRef} defaultSize={DEFAULT_CENTER_SIZES[1]} minSize={15} className="hidden lg:block">
-                <DraggableCard id={slots[2]} title={PANEL_TITLES[slots[2]]} {...cardProps}>
+              <Panel ref={posPanelRef} defaultSize={DEFAULT_CENTER_SIZES[1]} minSize={MINIMIZED_POSITIONS_SIZE} className="hidden lg:block">
+                <DraggableCard
+                  id={slots[2]}
+                  title={PANEL_TITLES[slots[2]]}
+                  minimized={positionsMinimized}
+                  onToggleMinimize={slots[2] === "positions" ? togglePositionsMinimized : undefined}
+                  {...cardProps}
+                >
                   {renderContent(slots[2])}
                 </DraggableCard>
               </Panel>
