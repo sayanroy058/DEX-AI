@@ -318,21 +318,13 @@ const Index = () => {
       <div className="h-[calc(100vh-3.5rem)] flex flex-col gap-2 p-2 overflow-hidden">
 
         {/* Top bar */}
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="flex-1 min-w-0">
-            <MarketHeader symbol={symbol} collapsed={collapsed} onToggleCollapse={() => setCollapsed(c => !c)} />
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCalcOpen(o => !o)}
-            className="glass border-primary/30 text-primary hover:bg-primary/10 hover:text-primary h-8 px-2.5 shrink-0"
-            title="Trade Calculator & Risk Management"
-          >
-            <Calculator className="h-3.5 w-3.5 mr-1.5" />
-            <span className="text-xs">Calculator</span>
-          </Button>
-        </div>
+        <MarketHeader
+          symbol={symbol}
+          collapsed={collapsed}
+          onToggleCollapse={() => setCollapsed(c => !c)}
+          calculatorOpen={calcOpen}
+          onToggleCalculator={() => setCalcOpen(o => !o)}
+        />
 
         {/* Trade Calculator panel */}
         {calcOpen && (

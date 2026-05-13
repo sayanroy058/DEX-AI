@@ -70,102 +70,93 @@ export function TradePanel({ symbol, price }: { symbol: string; price: number })
   const longLabel = isSpot || isOptions ? "Buy" : "Long";
   const shortLabel = isSpot || isOptions ? "Sell" : "Short";
 
-  // row: label left, value right — ultra compact
   const Row = ({ label, value, valueClass = "" }: { label: React.ReactNode; value: React.ReactNode; valueClass?: string }) => (
-    <div className="flex justify-between items-center">
-      <span className="text-muted-foreground text-[10px]">{label}</span>
-      <span className={cn("font-mono text-[10px]", valueClass)}>{value}</span>
+    <div className="flex justify-between items-center gap-3">
+      <span className="text-muted-foreground text-xs">{label}</span>
+      <span className={cn("font-mono text-xs font-medium text-right", valueClass)}>{value}</span>
     </div>
   );
 
   return (
     <div className="glass rounded-xl flex flex-col h-full overflow-y-auto overflow-x-hidden">
-      {/* ── Mode tabs ── */}
-      <div className="px-2 pt-1.5">
+      <div className="px-3 pt-2.5">
         <Tabs value={mode} onValueChange={v => setMode(v as MarketMode)}>
-          <TabsList className="grid grid-cols-3 h-6 bg-muted/30 w-full">
-            <TabsTrigger value="spot"    className="text-[9px] h-5">Spot</TabsTrigger>
-            <TabsTrigger value="futures" className="text-[9px] h-5">Futures</TabsTrigger>
-            <TabsTrigger value="options" className="text-[9px] h-5">Options</TabsTrigger>
+          <TabsList className="grid grid-cols-3 h-8 bg-muted/30 w-full rounded-lg p-0.5">
+            <TabsTrigger value="spot" className="h-7 text-xs font-semibold rounded-md">Spot</TabsTrigger>
+            <TabsTrigger value="futures" className="h-7 text-xs font-semibold rounded-md">Futures</TabsTrigger>
+            <TabsTrigger value="options" className="h-7 text-xs font-semibold rounded-md">Options</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
-      {/* ── Buy / Sell ── */}
-      <div className="grid grid-cols-2 gap-1 px-2 pt-1">
+      <div className="grid grid-cols-2 gap-2 px-3 pt-2">
         <button onClick={() => setSide("buy")} className={cn(
-          "py-1 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1",
+          "h-9 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5",
           side === "buy" ? "bg-gradient-buy text-buy-foreground shadow-glow-buy" : "glass-strong text-muted-foreground hover:text-buy"
         )}>
-          <TrendingUp className="h-3 w-3" /> {longLabel}
+          <TrendingUp className="h-3.5 w-3.5" /> {longLabel}
         </button>
         <button onClick={() => setSide("sell")} className={cn(
-          "py-1 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1",
+          "h-9 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5",
           side === "sell" ? "bg-gradient-sell text-sell-foreground shadow-glow-sell" : "glass-strong text-muted-foreground hover:text-sell"
         )}>
-          <TrendingDown className="h-3 w-3" /> {shortLabel}
+          <TrendingDown className="h-3.5 w-3.5" /> {shortLabel}
         </button>
       </div>
 
-      {/* ── Options: Call / Put ── */}
       {isOptions && (
-        <div className="grid grid-cols-2 gap-1 px-2 pt-1">
+        <div className="grid grid-cols-2 gap-2 px-3 pt-2">
           <button onClick={() => setOptType("call")} className={cn(
-            "py-0.5 rounded text-[9px] font-semibold border transition-all",
+            "h-8 rounded-lg text-xs font-semibold border transition-all",
             optType === "call" ? "bg-buy/15 text-buy border-buy/40" : "border-border/50 text-muted-foreground hover:text-buy"
           )}>Call</button>
           <button onClick={() => setOptType("put")} className={cn(
-            "py-0.5 rounded text-[9px] font-semibold border transition-all",
+            "h-8 rounded-lg text-xs font-semibold border transition-all",
             optType === "put" ? "bg-sell/15 text-sell border-sell/40" : "border-border/50 text-muted-foreground hover:text-sell"
           )}>Put</button>
         </div>
       )}
 
-      {/* ── Order type ── */}
       {!isOptions && (
-        <div className="px-2 pt-1">
+        <div className="px-3 pt-2">
           <Tabs value={orderType} onValueChange={v => setOrderType(v as OrderType)}>
-            <TabsList className="grid grid-cols-4 h-6 bg-muted/30 w-full">
-              <TabsTrigger value="market" className="text-[9px] h-5">Market</TabsTrigger>
-              <TabsTrigger value="limit"  className="text-[9px] h-5">Limit</TabsTrigger>
-              <TabsTrigger value="stop"   className="text-[9px] h-5">Stop</TabsTrigger>
-              <TabsTrigger value="tpsl"   className="text-[9px] h-5">TP/SL</TabsTrigger>
+            <TabsList className="grid grid-cols-4 h-8 bg-muted/30 w-full rounded-lg p-0.5">
+              <TabsTrigger value="market" className="h-7 text-xs rounded-md">Market</TabsTrigger>
+              <TabsTrigger value="limit" className="h-7 text-xs rounded-md">Limit</TabsTrigger>
+              <TabsTrigger value="stop" className="h-7 text-xs rounded-md">Stop</TabsTrigger>
+              <TabsTrigger value="tpsl" className="h-7 text-xs rounded-md">TP/SL</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
       )}
 
-      {/* ── Body ── */}
-      <div className="px-2 pt-1.5 pb-2 flex flex-col gap-1.5 flex-1 min-h-0">
-        {/* Available */}
+      <div className="px-3 pt-2 pb-2 flex flex-col gap-2 flex-1 min-h-0">
         <Row label="Available" value={`$${BALANCE.toLocaleString()}`} />
 
-        {/* Limit price */}
         {orderType !== "market" && !isOptions && (
           <div>
-            <div className="flex justify-between text-[9px] text-muted-foreground mb-0.5">
+            <div className="flex justify-between text-xs text-muted-foreground mb-1">
               <span>Price (USD)</span>
-              <button onClick={() => setLimitPrice(price.toFixed(2))} className="text-primary hover:underline">Mid</button>
+              <button onClick={() => setLimitPrice(price.toFixed(2))} className="text-primary hover:underline font-medium">Mid</button>
             </div>
             <Input value={limitPrice} onChange={e => setLimitPrice(e.target.value)}
-              className="h-6 font-mono text-[10px] bg-muted/30 border-border px-1.5" />
+              className="h-9 rounded-lg font-mono text-sm bg-muted/30 border-border px-3" />
           </div>
         )}
 
-        {/* Options: Strike + Expiry */}
         {isOptions && (
-          <div className="grid grid-cols-2 gap-1">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <div className="text-[9px] text-muted-foreground mb-0.5">Strike</div>
+              <div className="text-xs text-muted-foreground mb-1.5">Strike</div>
               <Input value={strike} onChange={e => setStrike(e.target.value)}
-                className="h-6 font-mono text-[10px] bg-muted/30 border-border px-1.5" />
+                className="h-10 rounded-xl font-mono text-sm bg-muted/30 border-border px-3" />
             </div>
             <div>
-              <div className="text-[9px] text-muted-foreground mb-0.5">Expiry</div>
-              <div className="flex gap-0.5">
+              <div className="text-xs text-muted-foreground mb-1.5">Expiry</div>
+              <div className="flex gap-1">
                 {["7D", "30D", "90D"].map(e => (
                   <button key={e} onClick={() => setExpiry(e)}
-                    className={cn("flex-1 h-6 text-[9px] rounded transition-colors",
+                    className={cn("flex-1 h-10 text-xs rounded-xl transition-colors font-semibold",
                       expiry === e ? "bg-primary/20 text-primary" : "bg-muted/30 text-muted-foreground hover:text-foreground"
                     )}>{e}</button>
                 ))}
@@ -174,25 +165,24 @@ export function TradePanel({ symbol, price }: { symbol: string; price: number })
           </div>
         )}
 
-        {/* Leverage */}
         {isFutures && (
           <div>
-            <div className="flex justify-between text-[9px] text-muted-foreground mb-0.5">
-              <span className="flex items-center gap-0.5">
+            <div className="flex justify-between text-xs text-muted-foreground mb-1">
+              <span className="flex items-center gap-1">
                 Leverage
                 <Tooltip>
-                  <TooltipTrigger><Info className="h-2 w-2" /></TooltipTrigger>
+                  <TooltipTrigger><Info className="h-3 w-3" /></TooltipTrigger>
                   <TooltipContent>Higher leverage = higher liquidation risk</TooltipContent>
                 </Tooltip>
               </span>
               <span className="font-mono font-bold text-primary">{leverage}x</span>
             </div>
             <Slider value={[leverage]} min={1} max={100} step={1} onValueChange={v => setLeverage(v[0])}
-              className="my-0.5 h-3" />
-            <div className="flex gap-0.5 mt-0.5">
+              className="my-1 h-3" />
+            <div className="grid grid-cols-7 gap-1 mt-1">
               {[1, 5, 10, 25, 50, 75, 100].map(l => (
                 <button key={l} onClick={() => setLeverage(l)}
-                  className={cn("flex-1 py-0.5 text-[9px] rounded transition-colors",
+                  className={cn("h-7 text-xs rounded-md transition-colors",
                     leverage === l ? "bg-primary/20 text-primary" : "bg-muted/30 text-muted-foreground hover:text-foreground"
                   )}>{l}x</button>
               ))}
@@ -200,49 +190,46 @@ export function TradePanel({ symbol, price }: { symbol: string; price: number })
           </div>
         )}
 
-        {/* Size */}
         <div>
-          <div className="flex justify-between text-[9px] text-muted-foreground mb-0.5">
+          <div className="flex justify-between text-xs text-muted-foreground mb-1">
             <span>Size</span>
             <span className="font-mono">{positionSize.toFixed(4)} {symbol.split("-")[0]}</span>
           </div>
           <Slider value={[sizePct]} min={1} max={100} step={1} onValueChange={v => setSizePct(v[0])}
-            className="my-0.5 h-3" />
-          <div className="grid grid-cols-4 gap-0.5 mt-0.5">
+            className="my-1 h-3" />
+          <div className="grid grid-cols-4 gap-1 mt-1">
             {[25, 50, 75, 100].map(p => (
               <button key={p} onClick={() => setSizePct(p)}
-                className={cn("py-0.5 text-[9px] rounded transition-colors font-medium",
+                className={cn("h-7 text-xs rounded-md transition-colors font-semibold",
                   sizePct === p ? "bg-primary/20 text-primary" : "bg-muted/30 text-muted-foreground hover:text-foreground"
                 )}>{p}%</button>
             ))}
           </div>
         </div>
 
-        {/* TP / SL */}
         {!isOptions && (
-          <div className="space-y-0.5 pt-1 border-t border-border/50">
-            <div className="flex items-center gap-1">
+          <div className="space-y-1 pt-1.5 border-t border-border/50">
+            <div className="grid grid-cols-[auto_1fr_minmax(100px,0.9fr)_52px] items-center gap-2">
               <input type="checkbox" checked={tpEnabled} onChange={e => setTpEnabled(e.target.checked)}
-                className="accent-primary h-2.5 w-2.5 shrink-0" />
-              <span className="text-[9px] flex-1">Take Profit</span>
+                className="accent-primary h-3.5 w-3.5 shrink-0" />
+              <span className="text-xs">Take Profit</span>
               <Input disabled={!tpEnabled} value={tp} onChange={e => setTp(e.target.value)}
-                className="h-5 w-[72px] font-mono text-[9px] text-buy px-1" />
-              <span className="text-[9px] w-8 text-right text-buy font-mono">+{tpPct.toFixed(1)}%</span>
+                className="h-7 rounded-md font-mono text-xs text-buy px-2" />
+              <span className="text-xs text-right text-buy font-mono">+{tpPct.toFixed(1)}%</span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="grid grid-cols-[auto_1fr_minmax(100px,0.9fr)_52px] items-center gap-2">
               <input type="checkbox" checked={slEnabled} onChange={e => setSlEnabled(e.target.checked)}
-                className="accent-primary h-2.5 w-2.5 shrink-0" />
-              <span className="text-[9px] flex-1">Stop Loss</span>
+                className="accent-primary h-3.5 w-3.5 shrink-0" />
+              <span className="text-xs">Stop Loss</span>
               <Input disabled={!slEnabled} value={sl} onChange={e => setSl(e.target.value)}
-                className="h-5 w-[72px] font-mono text-[9px] text-sell px-1" />
-              <span className="text-[9px] w-8 text-right text-sell font-mono">-{Math.abs(slPct).toFixed(1)}%</span>
+                className="h-7 rounded-md font-mono text-xs text-sell px-2" />
+              <span className="text-xs text-right text-sell font-mono">-{Math.abs(slPct).toFixed(1)}%</span>
             </div>
           </div>
         )}
 
-        {/* Risk metrics box */}
         {isOptions ? (
-          <div className="glass-strong rounded-lg px-2 py-1.5 space-y-0.5">
+          <div className="glass-strong rounded-lg border border-border/50 px-3 py-1.5 space-y-0.5">
             <Row label="Type" value={`${optType.toUpperCase()} · ${expiry}`} />
             <Row label="Strike" value={`$${formatPrice(strikeNum)}`} />
             <Row label="Premium" value={`$${premium.toFixed(2)}`} valueClass="text-primary" />
@@ -252,12 +239,12 @@ export function TradePanel({ symbol, price }: { symbol: string; price: number })
             </div>
           </div>
         ) : (
-          <div className="glass-strong rounded-lg px-2 py-1.5 space-y-0.5">
+          <div className="glass-strong rounded-lg border border-border/50 px-3 py-1.5 space-y-0.5">
             <Row label="Order value" value={`$${orderValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
             {isFutures && <Row label="Margin" value={`$${margin.toFixed(2)}`} />}
             {isFutures && (
               <Row
-                label={<span className="flex items-center gap-0.5"><Shield className="h-2 w-2" />Liq. price</span>}
+                label={<span className="flex items-center gap-1"><Shield className="h-3 w-3" />Liq. price</span>}
                 value={`$${formatPrice(liqPrice)}`}
                 valueClass="text-warning"
               />
@@ -265,7 +252,7 @@ export function TradePanel({ symbol, price }: { symbol: string; price: number })
             <Row label="Fee" value={`$${fee.toFixed(2)}`} />
             <div className="border-t border-border/50 pt-0.5">
               <Row
-                label={<span className="flex items-center gap-0.5"><Calculator className="h-2 w-2" />R:R Ratio</span>}
+                label={<span className="flex items-center gap-1"><Calculator className="h-3 w-3" />R:R Ratio</span>}
                 value={`1 : ${rr}`}
                 valueClass="font-bold text-primary"
               />
@@ -273,16 +260,15 @@ export function TradePanel({ symbol, price }: { symbol: string; price: number })
           </div>
         )}
 
-        {/* Submit */}
         <Button onClick={handleSubmit}
           className={cn(
-            "w-full h-7 font-bold text-[11px] mt-auto",
+            "w-full h-8 rounded-lg font-bold text-sm mt-auto",
             side === "buy"
               ? "bg-gradient-buy text-buy-foreground hover:shadow-glow-buy"
               : "bg-gradient-sell text-sell-foreground hover:shadow-glow-sell"
           )}
         >
-          <Zap className="h-3 w-3 mr-1" />
+          <Zap className="h-3.5 w-3.5 mr-1.5" />
           {isOptions
             ? `${side === "buy" ? "Buy" : "Sell"} ${optType.toUpperCase()}`
             : isSpot

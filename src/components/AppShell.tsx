@@ -122,15 +122,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </PopoverContent>
         </Popover>
 
-        {/* Settings icon */}
-        <RouterNavLink to="/settings">
-          {({ isActive }) => (
-            <Button variant="ghost" size="icon" className={cn(isActive && "text-primary bg-primary/10")} title="Settings">
-              <Settings className="h-4 w-4" />
-            </Button>
-          )}
-        </RouterNavLink>
-
         <Button
           variant="outline"
           className={cn(
