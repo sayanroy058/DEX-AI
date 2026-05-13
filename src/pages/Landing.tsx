@@ -1,777 +1,390 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useState, useRef } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import {
-  Zap, TrendingUp, Shield, Bot, Globe, Layers, ArrowRight, BarChart3,
-  Wallet, Sparkles, Apple, Smartphone, Monitor, Download, QrCode,
-  TrendingDown, Activity, DollarSign, Users, Clock, Flame, Star,
-  ArrowUpRight, ArrowDownRight, ChevronRight,
-} from "lucide-react";
+import { Zap, ArrowRight, TrendingUp, Layers, Bot, Shield, Globe, Apple, Smartphone, Download, QrCode, Star } from "lucide-react";
 import { WalletDialog } from "@/components/wallet/WalletDialog";
-import hero from "@/assets/hero-trading.jpg";
-import { INITIAL_MARKETS, tickPrice, formatPrice, formatCompact, generateCandles } from "@/lib/mockData";
-import { AreaChart, Area, ResponsiveContainer, Tooltip as RechartsTip } from "recharts";
-import { cn } from "@/lib/utils";
-
-// ─── Types & helpers ────────────────────────────────────────────────────────
-
-type SparkData = { v: number }[];
-
-function buildSpark(base: number, n = 24): SparkData {
-  let p = base;
-  return Array.from({ length: n }, () => {
-    p = p * (1 + (Math.random() - 0.49) * 0.012);
-    return { v: p };
-  });
-}
-
-function MiniSpark({ data, positive }: { data: SparkData; positive: boolean }) {
-  return (
-    <ResponsiveContainer width="100%" height={40}>
-      <AreaChart data={data} margin={{ top: 2, bottom: 2, left: 0, right: 0 }}>
-        <defs>
-          <linearGradient id={positive ? "gUp" : "gDn"} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={positive ? "hsl(145 85% 50%)" : "hsl(350 90% 60%)"} stopOpacity={0.3} />
-            <stop offset="95%" stopColor={positive ? "hsl(145 85% 50%)" : "hsl(350 90% 60%)"} stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <Area
-          type="monotone"
-          dataKey="v"
-          stroke={positive ? "hsl(145 85% 50%)" : "hsl(350 90% 60%)"}
-          strokeWidth={1.5}
-          fill={`url(#${positive ? "gUp" : "gDn"})`}
-          dot={false}
-          isAnimationActive={false}
-        />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
-
-const features = [
-  { icon: TrendingUp, title: "Pro Charting", desc: "Lightning-fast charts with 50+ indicators & drawing tools." },
-  { icon: Layers, title: "Spot · Futures · Options", desc: "Trade every market type from one unified terminal." },
-  { icon: Bot, title: "AI Agents & Bots", desc: "Automate strategies with AI-powered trading assistants." },
-  { icon: Shield, title: "Self-Custody", desc: "Connect MetaMask, Coinbase, Trust, Binance, Bitget." },
-  { icon: Globe, title: "Multi-Asset", desc: "Crypto, Forex, Commodities and Stocks in one place." },
-  { icon: Sparkles, title: "Up to 100× Leverage", desc: "Deep liquidity and ultra-low fees on every fill." },
-];
-
-const ORBIT_SERVICES = [
-  { icon: TrendingUp, label: "Trade", color: "hsl(186 100% 55%)" },
-  { icon: Bot, label: "AI Bots", color: "hsl(270 70% 65%)" },
-  { icon: Shield, label: "Self-Custody", color: "hsl(145 70% 50%)" },
-  { icon: Globe, label: "Multi-Asset", color: "hsl(38 90% 55%)" },
-  { icon: BarChart3, label: "Analytics", color: "hsl(186 100% 55%)" },
-  { icon: Users, label: "Copy Trade", color: "hsl(320 70% 60%)" },
-];
-
-// Top 6 markets to feature
-const TOP_SYMBOLS = ["BTC-PERP", "ETH-PERP", "SOL-PERP", "HYPE-PERP", "DOGE-PERP", "TIA-PERP"];
-
-function OrbitAnimation() {
-  return (
-    <div className="relative w-80 h-80 flex items-center justify-center select-none">
-      {/* Outer glow */}
-      <div className="absolute w-64 h-64 rounded-full bg-blue-500/8 blur-3xl" />
-
-      {/* Center DEX.ai core */}
-      <div className="relative z-10 h-24 w-24 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex flex-col items-center justify-center shadow-[0_0_40px_hsl(210_100%_60%/0.5)] animate-float">
-        <Zap className="h-7 w-7 text-white" strokeWidth={2.5} />
-        <span className="text-[10px] font-bold text-white/90 mt-0.5">DEX.ai</span>
-      </div>
-
-      {/* Orbit rings */}
-      <div className="absolute w-72 h-72 rounded-full border border-blue-500/15 animate-spin" style={{ animationDuration: "24s" }} />
-      <div className="absolute w-56 h-56 rounded-full border border-cyan-500/10 animate-spin" style={{ animationDuration: "16s", animationDirection: "reverse" }} />
-
-      {/* Orbiting service nodes — positioned around orbit ring */}
-      {ORBIT_SERVICES.map((s, i) => {
-        const deg = (i / ORBIT_SERVICES.length) * 360;
-        return (
-          <div
-            key={s.label}
-            className="absolute w-full h-full"
-            style={{ animation: `spin 24s linear infinite`, animationDelay: `-${(i / ORBIT_SERVICES.length) * 24}s` }}
-          >
-            <div
-              className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1"
-              style={{ animation: `spin 24s linear infinite reverse`, animationDelay: `-${(i / ORBIT_SERVICES.length) * 24}s` }}
-            >
-              <div
-                className="h-10 w-10 rounded-full flex items-center justify-center border"
-                style={{ background: `${s.color}1a`, borderColor: `${s.color}50`, boxShadow: `0 0 14px ${s.color}40` }}
-              >
-                <s.icon className="h-4 w-4" style={{ color: s.color }} />
-              </div>
-              <span className="text-[9px] font-semibold text-slate-400 whitespace-nowrap">{s.label}</span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+import appStoreImg from "@/assets/app-store.png";
+import playStoreImg from "@/assets/play-store.png";
 
 export default function Landing() {
   const navigate = useNavigate();
   const [walletOpen, setWalletOpen] = useState(false);
-  const [email, setEmail] = useState("");
-
-  // Live prices
-  const [prices, setPrices] = useState<Record<string, number>>(() =>
-    Object.fromEntries(INITIAL_MARKETS.map(m => [m.symbol, m.price]))
-  );
-  const [changes, setChanges] = useState<Record<string, number>>(() =>
-    Object.fromEntries(INITIAL_MARKETS.map(m => [m.symbol, m.change24h]))
-  );
-  const [sparks, setSparks] = useState<Record<string, SparkData>>(() =>
-    Object.fromEntries(INITIAL_MARKETS.map(m => [m.symbol, buildSpark(m.price)]))
-  );
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setPrices(prev => {
-        const next = { ...prev };
-        INITIAL_MARKETS.forEach(m => { next[m.symbol] = tickPrice(prev[m.symbol]); });
-        return next;
-      });
-      setSparks(prev => {
-        const next = { ...prev };
-        INITIAL_MARKETS.forEach(m => {
-          const arr = [...prev[m.symbol]];
-          arr.shift();
-          arr.push({ v: tickPrice(arr[arr.length - 1].v) });
-          next[m.symbol] = arr;
-        });
-        return next;
-      });
-    }, 1200);
-    return () => clearInterval(id);
-  }, []);
-
-  // Wallet portfolio mock
-  const walletAssets = [
-    { symbol: "BTC", amount: 0.2418, color: "from-orange-400 to-yellow-500" },
-    { symbol: "ETH", amount: 1.842, color: "from-blue-400 to-indigo-500" },
-    { symbol: "SOL", amount: 24.5, color: "from-purple-400 to-pink-500" },
-    { symbol: "USDT", amount: 3420.0, color: "from-emerald-400 to-teal-500" },
-  ];
-  const totalUSD = walletAssets.reduce((acc, a) => {
-    const p = prices[a.symbol + "-PERP"] ?? prices[a.symbol + "-USDT"] ?? (a.symbol === "USDT" ? 1 : 0);
-    return acc + a.amount * p;
-  }, 0);
-
-  // Trending markets
-  const trending = INITIAL_MARKETS
-    .filter(m => m.trending)
-    .slice(0, 5)
-    .map(m => ({ ...m, currentPrice: prices[m.symbol] ?? m.price }));
-
-  // Volume leaders
-  const volumeLeaders = [...INITIAL_MARKETS]
-    .sort((a, b) => b.volume24h - a.volume24h)
-    .slice(0, 6)
-    .map(m => ({ ...m, currentPrice: prices[m.symbol] ?? m.price }));
 
   const goTrade = () => navigate("/trade");
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Nav */}
-      <header className="px-6 lg:px-10 h-16 flex items-center justify-between glass-strong border-b border-glass-border sticky top-0 z-30">
+    <div className="min-h-screen flex flex-col bg-[#0a0e27]">
+      {/* Navigation */}
+      <header className="px-6 lg:px-10 h-16 flex items-center justify-between border-b border-slate-800/50 sticky top-0 z-30 bg-[#0a0e27]/80 backdrop-blur">
         <Link to="/" className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow-primary">
-            <Zap className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
+          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center shadow-lg">
+            <Zap className="h-5 w-5 text-white" strokeWidth={2.5} />
           </div>
-          <span className="font-bold text-lg tracking-tight">DEX<span className="gradient-text">.ai</span></span>
+          <span className="font-bold text-lg tracking-tight text-white">DEX<span className="text-cyan-400">.ai</span></span>
         </Link>
-        <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
-          <Link to="/markets" className="hover:text-foreground transition-colors">Markets</Link>
-          <a href="#features" className="hover:text-foreground transition-colors">Features</a>
-          <Link to="/prop" className="hover:text-foreground transition-colors">Get Funded</Link>
-          <Link to="/prediction" className="hover:text-foreground transition-colors">Predict</Link>
-          <Link to="/trade" className="hover:text-foreground transition-colors">Trade</Link>
+
+        <nav className="hidden md:flex items-center gap-8 text-sm text-slate-400">
+          <Link to="/trade" className="hover:text-white transition-colors">Trade</Link>
+          <Link to="/markets" className="hover:text-white transition-colors">Market</Link>
+          <Link to="/copy" className="hover:text-white transition-colors">Copy</Link>
+          <Link to="/prop" className="hover:text-white transition-colors">Prop Firm</Link>
+          <Link to="/prediction" className="hover:text-white transition-colors">Prediction</Link>
+          <Link to="/p2p" className="hover:text-white transition-colors">P2P</Link>
+          <Link to="/token" className="hover:text-white transition-colors">Token</Link>
+          <Link to="/sip" className="hover:text-white transition-colors">DYP/SWAP</Link>
         </nav>
-        <div className="flex items-center gap-2">
-          <Button onClick={() => setWalletOpen(true)} className="bg-gradient-primary text-primary-foreground hover:shadow-glow-primary">
-            <Wallet className="h-4 w-4 mr-1.5" /> Connect Wallet
-          </Button>
-        </div>
+
+        <Button 
+          onClick={() => setWalletOpen(true)} 
+          className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 hover:from-cyan-300 hover:via-blue-400 hover:to-purple-500 text-white font-semibold px-6 h-10 rounded-lg shadow-lg shadow-blue-500/20"
+        >
+          Connect
+        </Button>
       </header>
 
-      {/* Live Ticker Bar */}
-      <TickerBar prices={prices} changes={changes} />
-
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-[#010409]">
-        {/* deep starfield / mesh */}
-        <div className="absolute inset-0 -z-0">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,hsl(210_100%_12%/0.9),transparent)]" />
-          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full bg-[hsl(210_100%_8%)] blur-[120px] opacity-70" />
-          {/* animated grid lines */}
-          <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-                <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#38bdf8" strokeWidth="0.5"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
-          {/* floating orbs */}
-          <div className="absolute top-20 left-10 w-2 h-2 rounded-full bg-blue-400 animate-ping opacity-60" style={{ animationDuration: "3s" }} />
-          <div className="absolute top-40 right-20 w-1.5 h-1.5 rounded-full bg-cyan-300 animate-ping opacity-40" style={{ animationDuration: "4.5s" }} />
-          <div className="absolute bottom-40 left-1/4 w-1 h-1 rounded-full bg-blue-300 animate-ping opacity-50" style={{ animationDuration: "2s" }} />
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-6 lg:px-10 pt-16 pb-8 grid lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-xs text-blue-400">
-              <Sparkles className="h-3 w-3" /> Next-gen on-chain trading · AI-powered
+      {/* Hero Section */}
+      <div className="flex-1 flex items-center justify-center px-6 py-20">
+        <div className="max-w-3xl w-full text-center space-y-8">
+          {/* Badge */}
+          <div className="inline-block">
+            <span className="text-sm font-semibold text-slate-300 px-4 py-2 rounded-full border border-slate-700 bg-slate-800/50">
+              ⚡ AI-Powered Multi-Asset Trading Platform
             </span>
-            <h1 className="mt-6 text-4xl md:text-5xl lg:text-6xl font-extrabold leading-[1.05] tracking-tight">
-              <span className="text-white">The</span>{" "}
-              <span className="bg-gradient-to-r from-blue-400 via-cyan-300 to-blue-500 bg-clip-text text-transparent">ALL-IN-ONE DEX</span>
-              <br />
-              <span className="text-white">Powered by</span>{" "}
-              <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">Artificial Intelligence</span>
+          </div>
+
+          {/* Main Heading */}
+          <div className="space-y-4">
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tight">
+              <span className="block text-white mb-2">ALL IN ONE</span>
+              <span className="block bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
+                AI-POWERED DEX
+              </span>
             </h1>
-            <p className="mt-5 text-lg text-slate-400 max-w-xl leading-relaxed">
-              Spot, Futures & Options across Crypto, Forex, Commodities and Stocks —
-              up to <strong className="text-blue-400">100× leverage</strong>, with AI agents, copy trading and self-custody, settled on Bitcoin L2.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Button size="lg" onClick={goTrade} className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-[0_0_24px_hsl(210_100%_60%/0.5)] h-12 px-6 font-semibold">
-                Launch Terminal <ArrowRight className="h-4 w-4 ml-1.5" />
-              </Button>
-              <Button size="lg" variant="outline" onClick={() => setWalletOpen(true)} className="border-blue-500/40 text-blue-400 hover:bg-blue-500/10 h-12 px-6 bg-transparent">
-                <Wallet className="h-4 w-4 mr-1.5" /> Connect Wallet
-              </Button>
-            </div>
-            <div className="mt-8 flex items-center gap-6 text-xs text-slate-500">
-              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live mainnet</span>
-              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-blue-400" /> Zero gas trading</span>
-              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-cyan-400" /> Audited contracts</span>
-            </div>
-            {/* Mini stats */}
-            <div className="mt-10 grid grid-cols-3 gap-4">
-              {[
-                { v: "$2.4B+", l: "Daily Volume" },
-                { v: "340K+", l: "Traders" },
-                { v: "100×", l: "Max Leverage" },
-              ].map(s => (
-                <div key={s.l} className="border border-blue-500/20 rounded-xl p-3 bg-blue-500/5 text-center">
-                  <div className="text-xl font-bold text-blue-400">{s.v}</div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">{s.l}</div>
-                </div>
-              ))}
-            </div>
           </div>
 
-          {/* Rotating orbit animation */}
-          <div className="lg:justify-self-end w-full flex items-center justify-center py-8 lg:py-0">
-            <OrbitAnimation />
-          </div>
-        </div>
+          {/* Description */}
+          <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
+            Trade Crypto, Forex, Stocks & Commodities with institutional-grade AI intelligence. One platform. Every market. Zero limits.
+          </p>
 
-        {/* Live Market Cards — hero bottom */}
-        <div className="relative max-w-7xl mx-auto px-6 lg:px-10 pb-12">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {TOP_SYMBOLS.map(sym => {
-              const mkt = INITIAL_MARKETS.find(m => m.symbol === sym)!;
-              const price = prices[sym] ?? mkt.price;
-              const chg = changes[sym] ?? mkt.change24h;
-              const positive = chg >= 0;
-              return (
-                <button key={sym} onClick={goTrade}
-                  className="border border-blue-500/10 bg-blue-500/5 backdrop-blur rounded-xl p-3 hover:border-blue-500/30 transition-all text-left group">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-white">{mkt.base}</span>
-                    <Badge variant="outline"
-                      className={cn("text-[9px] px-1 py-0 border-0 font-mono",
-                        positive ? "text-buy bg-buy/10" : "text-sell bg-sell/10")}>
-                      {positive ? "+" : ""}{chg.toFixed(2)}%
-                    </Badge>
-                  </div>
-                  <MiniSpark data={sparks[sym] ?? []} positive={positive} />
-                  <div className="mt-1 font-mono text-xs font-bold text-white">{formatPrice(price)}</div>
-                  <div className="text-[9px] text-slate-500">{formatCompact(mkt.volume24h)} vol</div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Stats */}
-      <section id="stats" className="border-y border-border/50 glass-strong">
-        <div className="max-w-7xl mx-auto px-6 lg:px-10 py-8 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-          {[
-            { v: "$184B+", l: "Volume traded", icon: DollarSign },
-            { v: "1.2M+", l: "Active traders", icon: Users },
-            { v: "350+", l: "Markets", icon: BarChart3 },
-            { v: "0.02%", l: "Maker fee", icon: Zap },
-          ].map(s => (
-            <div key={s.l} className="flex flex-col items-center">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-3">
-                <s.icon className="h-5 w-5" />
-              </div>
-              <div className="text-3xl font-bold gradient-text">{s.v}</div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wide mt-1">{s.l}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Live Markets Section */}
-      <section id="markets" className="max-w-7xl mx-auto px-6 lg:px-10 py-16">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold">Live Markets</h2>
-            <p className="text-sm text-muted-foreground mt-1">Real-time prices across all asset classes</p>
-          </div>
-          <Button variant="outline" onClick={goTrade} className="glass border-primary/40 text-primary hover:bg-primary/10">
-            View All Markets <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
-        </div>
-
-        <Tabs defaultValue="crypto">
-          <TabsList className="bg-muted/30 mb-4">
-            <TabsTrigger value="crypto">Crypto</TabsTrigger>
-            <TabsTrigger value="forex">Forex</TabsTrigger>
-            <TabsTrigger value="commodities">Commodities</TabsTrigger>
-            <TabsTrigger value="stocks">Stocks</TabsTrigger>
-          </TabsList>
-          {(["crypto", "forex", "commodities", "stocks"] as const).map(cat => {
-            const assetMap: Record<string, string> = { crypto: "crypto", forex: "forex", commodities: "commodity", stocks: "stocks" };
-            const catMarkets = INITIAL_MARKETS.filter(m => m.asset === assetMap[cat]).slice(0, 6);
-            return (
-              <TabsContent key={cat} value={cat}>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {catMarkets.map(m => {
-                    const price = prices[m.symbol] ?? m.price;
-                    const chg = changes[m.symbol] ?? m.change24h;
-                    const pos = chg >= 0;
-                    return (
-                      <button key={m.symbol} onClick={goTrade}
-                        className="glass rounded-xl p-4 hover:border-primary/40 transition-all text-left group flex items-center gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span className="font-bold text-sm">{m.base}/{m.quote}</span>
-                            <Badge variant="outline" className="text-[9px] px-1 py-0 capitalize">{m.category}</Badge>
-                          </div>
-                          <div className="font-mono font-bold">{formatPrice(price)}</div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className={cn("text-xs font-mono", pos ? "text-buy" : "text-sell")}>
-                              {pos ? "+" : ""}{chg.toFixed(2)}%
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">{formatCompact(m.volume24h)} vol</span>
-                          </div>
-                        </div>
-                        <div className="w-24 shrink-0">
-                          <MiniSpark data={sparks[m.symbol] ?? []} positive={pos} />
-                        </div>
-                        {pos
-                          ? <ArrowUpRight className="h-4 w-4 text-buy shrink-0" />
-                          : <ArrowDownRight className="h-4 w-4 text-sell shrink-0" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </TabsContent>
-            );
-          })}
-        </Tabs>
-      </section>
-
-      {/* Trending + Volume Leaders row */}
-      <section className="max-w-7xl mx-auto px-6 lg:px-10 pb-16 grid lg:grid-cols-2 gap-6">
-        {/* Trending */}
-        <div className="glass rounded-2xl p-5 border border-border/50">
-          <div className="flex items-center gap-2 mb-4">
-            <Flame className="h-4 w-4 text-orange-400" />
-            <h3 className="font-bold">Trending Now</h3>
-            <span className="ml-auto text-[10px] text-muted-foreground flex items-center gap-1">
-              <Activity className="h-3 w-3 animate-pulse text-buy" /> Live
-            </span>
-          </div>
-          <div className="space-y-2">
-            {trending.map((m, i) => {
-              const price = prices[m.symbol] ?? m.price;
-              const chg = changes[m.symbol] ?? m.change24h;
-              const pos = chg >= 0;
-              return (
-                <button key={m.symbol} onClick={goTrade}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/20 transition-colors">
-                  <span className="text-sm font-bold text-muted-foreground w-5 text-right">{i + 1}</span>
-                  <div className="flex-1 text-left">
-                    <div className="text-sm font-bold">{m.base}</div>
-                    <div className="text-[10px] text-muted-foreground">{m.symbol}</div>
-                  </div>
-                  <div className="w-20">
-                    <MiniSpark data={sparks[m.symbol] ?? []} positive={pos} />
-                  </div>
-                  <div className="text-right">
-                    <div className="font-mono text-xs font-bold">{formatPrice(price)}</div>
-                    <div className={cn("text-[10px] font-mono", pos ? "text-buy" : "text-sell")}>
-                      {pos ? "+" : ""}{chg.toFixed(2)}%
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Volume leaders */}
-        <div className="glass rounded-2xl p-5 border border-border/50">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="h-4 w-4 text-primary" />
-            <h3 className="font-bold">Top Volume</h3>
-            <span className="ml-auto text-[10px] text-muted-foreground">24h</span>
-          </div>
-          <div className="space-y-2">
-            {volumeLeaders.map((m, i) => {
-              const price = prices[m.symbol] ?? m.price;
-              const chg = changes[m.symbol] ?? m.change24h;
-              const pos = chg >= 0;
-              const pct = (m.volume24h / volumeLeaders[0].volume24h) * 100;
-              return (
-                <button key={m.symbol} onClick={goTrade}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/20 transition-colors">
-                  <span className="text-sm font-bold text-muted-foreground w-5 text-right">{i + 1}</span>
-                  <div className="flex-1 text-left">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-bold">{m.base}</span>
-                      <span className="font-mono text-xs">{formatCompact(m.volume24h)}</span>
-                    </div>
-                    <Progress value={pct} className="h-1" />
-                  </div>
-                  <div className="text-right min-w-[56px]">
-                    <div className="font-mono text-xs font-bold">{formatPrice(price)}</div>
-                    <div className={cn("text-[10px] font-mono", pos ? "text-buy" : "text-sell")}>
-                      {pos ? "+" : ""}{chg.toFixed(2)}%
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Wallet Portfolio Section */}
-      <section id="wallet" className="max-w-7xl mx-auto px-6 lg:px-10 pb-16">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold">Your Portfolio</h2>
-            <p className="text-sm text-muted-foreground mt-1">Connect a wallet to see your live balances</p>
-          </div>
-          <Button onClick={() => setWalletOpen(true)} className="bg-gradient-primary text-primary-foreground hover:shadow-glow-primary">
-            <Wallet className="h-4 w-4 mr-1.5" /> Connect Wallet
-          </Button>
-        </div>
-
-        <div className="grid lg:grid-cols-3 gap-5">
-          {/* Portfolio value card */}
-          <div className="glass-strong rounded-2xl p-6 border border-primary/20 shadow-glow-primary lg:col-span-1">
-            <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Estimated Balance</div>
-            <div className="text-3xl font-bold gradient-text font-mono">${totalUSD.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-            <div className="flex items-center gap-2 mt-1 text-xs text-buy">
-              <TrendingUp className="h-3 w-3" /> +$1,284.32 (5.2%) today
-            </div>
-            <div className="mt-5 space-y-3">
-              {walletAssets.map(a => {
-                const p = prices[a.symbol + "-PERP"] ?? prices[a.symbol + "-USDT"] ?? (a.symbol === "USDT" ? 1 : 0);
-                const usd = a.amount * p;
-                const pct = (usd / totalUSD) * 100;
-                return (
-                  <div key={a.symbol} className="flex items-center gap-3">
-                    <div className={`h-8 w-8 rounded-lg bg-gradient-to-br ${a.color} flex items-center justify-center text-[10px] font-bold text-white`}>
-                      {a.symbol.slice(0, 2)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between text-xs mb-0.5">
-                        <span className="font-bold">{a.symbol}</span>
-                        <span className="font-mono">${usd.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-                      </div>
-                      <Progress value={pct} className="h-1" />
-                      <div className="text-[9px] text-muted-foreground mt-0.5">{a.amount} {a.symbol} · {pct.toFixed(1)}%</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <Button onClick={() => setWalletOpen(true)} className="w-full mt-5 bg-gradient-primary text-primary-foreground" size="sm">
-              View Full Portfolio
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+            <Button 
+              onClick={goTrade}
+              className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 hover:from-cyan-300 hover:via-blue-400 hover:to-purple-500 text-white font-bold px-8 h-12 rounded-lg text-base flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
+            >
+              Start Trading <ArrowRight className="h-5 w-5" />
+            </Button>
+            <Button 
+              onClick={() => navigate("/markets")}
+              variant="outline"
+              className="border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 font-bold px-8 h-12 rounded-lg text-base bg-transparent"
+            >
+              Explore Markets
             </Button>
           </div>
+        </div>
+      </div>
 
-          {/* Wallet quick-access */}
-          <div className="lg:col-span-2 grid sm:grid-cols-2 gap-4">
-            {[
-              { title: "Spot Wallet", desc: "Hold and trade spot assets", icon: Wallet, val: "$12,420", tag: "+2.1%" },
-              { title: "Futures Margin", desc: "Available for perpetuals", icon: Zap, val: "$8,300", tag: "10x max" },
-              { title: "Options Account", desc: "Premium balance", icon: Shield, val: "$2,150", tag: "Active" },
-              { title: "P2P Balance", desc: "Peer-to-peer trading", icon: Users, val: "$1,130", tag: "Available" },
-            ].map(w => (
-              <button key={w.title} onClick={() => setWalletOpen(true)}
-                className="glass rounded-xl p-5 hover:border-primary/40 transition-all group text-left">
-                <div className="flex items-start justify-between">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:shadow-glow-primary transition-all">
-                    <w.icon className="h-5 w-5" />
-                  </div>
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-primary border-primary/30">{w.tag}</Badge>
+      {/* Features Section */}
+      <section className="py-20 px-6 lg:px-10 bg-[#0a0e27]">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16 space-y-4">
+            <h2 className="text-4xl md:text-5xl font-black text-white">Built for serious traders</h2>
+            <p className="text-lg text-slate-400 max-w-2xl mx-auto">
+              Every tool a professional needs, wrapped in a futuristic dark-glass interface.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Pro Charting */}
+            <div className="group border border-slate-700/50 bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur rounded-2xl p-6 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10 transition-all">
+              <div className="h-12 w-12 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-4 group-hover:shadow-lg group-hover:shadow-cyan-500/50 transition-all">
+                <TrendingUp className="h-6 w-6 text-cyan-400" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Pro Charting</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">Lightning-fast charts with 50+ indicators & drawing tools.</p>
+            </div>
+
+            {/* Spot · Futures · Options */}
+            <div className="group border border-slate-700/50 bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur rounded-2xl p-6 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10 transition-all">
+              <div className="h-12 w-12 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-4 group-hover:shadow-lg group-hover:shadow-cyan-500/50 transition-all">
+                <Layers className="h-6 w-6 text-cyan-400" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Spot · Futures · Options</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">Trade every market type from one unified terminal.</p>
+            </div>
+
+            {/* AI Agents & Bots */}
+            <div className="group border border-slate-700/50 bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur rounded-2xl p-6 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10 transition-all">
+              <div className="h-12 w-12 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-4 group-hover:shadow-lg group-hover:shadow-cyan-500/50 transition-all">
+                <Bot className="h-6 w-6 text-cyan-400" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">AI Agents & Bots</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">Automate strategies with AI-powered trading assistants.</p>
+            </div>
+
+            {/* Self-Custody */}
+            <div className="group border border-slate-700/50 bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur rounded-2xl p-6 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10 transition-all">
+              <div className="h-12 w-12 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-4 group-hover:shadow-lg group-hover:shadow-cyan-500/50 transition-all">
+                <Shield className="h-6 w-6 text-cyan-400" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Self-Custody</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">Connect MetaMask, Coinbase, Trust, Binance, Bitget.</p>
+            </div>
+
+            {/* Multi-Asset */}
+            <div className="group border border-slate-700/50 bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur rounded-2xl p-6 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10 transition-all">
+              <div className="h-12 w-12 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-4 group-hover:shadow-lg group-hover:shadow-cyan-500/50 transition-all">
+                <Globe className="h-6 w-6 text-cyan-400" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Multi-Asset</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">Crypto, Forex, Commodities and Stocks in one place.</p>
+            </div>
+
+            {/* Up to 100× Leverage */}
+            <div className="group border border-slate-700/50 bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur rounded-2xl p-6 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10 transition-all">
+              <div className="h-12 w-12 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-4 group-hover:shadow-lg group-hover:shadow-cyan-500/50 transition-all">
+                <Zap className="h-6 w-6 text-cyan-400" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Up to 100× Leverage</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">Deep liquidity and ultra-low fees on every fill.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Mobile App Download Section */}
+      <section className="py-20 px-6 lg:px-10 bg-[#0a0e27]">
+        <div className="max-w-7xl mx-auto grid lg:grid-cols-[1fr_auto_1fr] gap-12 items-center">
+          {/* Left Side - Content */}
+          <div className="space-y-6">
+            <div>
+              <span className="text-sm font-semibold text-cyan-400">TradePro</span>
+              <h2 className="text-4xl md:text-5xl font-black mt-3 leading-tight">
+                <span className="block text-white">Trade anywhere.</span>
+                <span className="block bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">On every device.</span>
+              </h2>
+            </div>
+            
+            <p className="text-lg text-slate-400">
+              Native apps for mobile and desktop with the same lightning-fast experience.
+            </p>
+
+            {/* App Store Buttons */}
+            <div className="space-y-3 pt-4 max-w-xs">
+              <button className="w-full border-2 border-slate-700/60 bg-slate-900/40 hover:border-cyan-500/50 hover:bg-slate-900/70 transition-all rounded-2xl px-5 py-3 flex items-center gap-4 group">
+                <div className="h-12 w-12 rounded-lg bg-black/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  <img src={appStoreImg} alt="App Store" className="w-8 h-8 object-contain" />
                 </div>
-                <div className="mt-3">
-                  <div className="font-bold text-sm">{w.title}</div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5">{w.desc}</div>
-                  <div className="font-mono font-bold text-lg mt-2 gradient-text">{w.val}</div>
+                <div className="text-left flex-1">
+                  <div className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Download on the</div>
+                  <div className="text-base font-bold text-white leading-tight">App Store</div>
                 </div>
               </button>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* Recent activity feed */}
-      <section className="max-w-7xl mx-auto px-6 lg:px-10 pb-16 grid lg:grid-cols-2 gap-6">
-        <div className="glass rounded-2xl p-5 border border-border/50">
-          <div className="flex items-center gap-2 mb-4">
-            <Clock className="h-4 w-4 text-primary" />
-            <h3 className="font-bold">Recent Platform Activity</h3>
-          </div>
-          <ActivityFeed prices={prices} />
-        </div>
-        <div className="glass rounded-2xl p-5 border border-border/50">
-          <div className="flex items-center gap-2 mb-4">
-            <Star className="h-4 w-4 text-yellow-400" />
-            <h3 className="font-bold">Watchlist Preview</h3>
-          </div>
-          <WatchlistPreview prices={prices} sparks={sparks} />
-        </div>
-      </section>
-
-      {/* Features */}
-      <section id="features" className="max-w-7xl mx-auto px-6 lg:px-10 py-16">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <h2 className="text-4xl font-bold">Built for serious traders</h2>
-          <p className="mt-3 text-muted-foreground">Every tool a professional needs, wrapped in a futuristic dark-glass interface.</p>
-        </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {features.map(f => (
-            <div key={f.title} className="glass rounded-xl p-6 hover:border-primary/40 transition-all group">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-4 group-hover:shadow-glow-primary">
-                <f.icon className="h-5 w-5" />
-              </div>
-              <h3 className="font-bold mb-1.5">{f.title}</h3>
-              <p className="text-sm text-muted-foreground">{f.desc}</p>
+              <button className="w-full border-2 border-slate-700/60 bg-slate-900/40 hover:border-cyan-500/50 hover:bg-slate-900/70 transition-all rounded-2xl px-5 py-3 flex items-center gap-4 group">
+                <div className="h-12 w-12 rounded-lg bg-black/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  <img src={playStoreImg} alt="Google Play" className="w-8 h-8 object-contain" />
+                </div>
+                <div className="text-left flex-1">
+                  <div className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">GET IT ON</div>
+                  <div className="text-base font-bold text-white leading-tight">Google Play</div>
+                </div>
+              </button>
             </div>
-          ))}
-        </div>
-      </section>
+          </div>
 
-      {/* CTA */}
-      <section className="max-w-7xl mx-auto px-6 lg:px-10 pb-16">
-        <div className="glass-strong rounded-2xl p-8 lg:p-12 text-center border border-primary/20 relative overflow-hidden">
-          <div className="absolute inset-0 opacity-30" style={{ background: "var(--gradient-glow)" }} />
-          <div className="relative">
-            <BarChart3 className="h-10 w-10 text-primary mx-auto mb-4" />
-            <h2 className="text-3xl md:text-4xl font-bold">Ready to trade the markets?</h2>
-            <p className="text-muted-foreground mt-3 max-w-lg mx-auto">Open the terminal and start trading in seconds. No signup required to explore.</p>
-            <Button size="lg" onClick={goTrade} className="mt-6 bg-gradient-primary text-primary-foreground hover:shadow-glow-primary h-12 px-8">
-              Launch Terminal <ArrowRight className="h-4 w-4 ml-1.5" />
-            </Button>
+          {/* Center - QR Code */}
+          <div className="flex flex-col items-center justify-center gap-4">
+            <div className="w-48 h-48 rounded-3xl bg-white p-4 flex items-center justify-center shadow-2xl shadow-cyan-500/30">
+              <img 
+                src="https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg"
+                alt="QR Code"
+                className="w-full h-full"
+              />
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                <QrCode className="h-4 w-4 text-cyan-400" />
+              </div>
+              <p className="text-sm text-slate-400">Scan to download on your mobile</p>
+            </div>
+          </div>
+
+          {/* Right Side - Mobile Mockup */}
+          <div className="flex justify-center lg:justify-end">
+            <div className="relative">
+              {/* Phone frame */}
+              <div className="w-72 rounded-[2.8rem] bg-gradient-to-b from-slate-700 to-slate-900 p-2 shadow-2xl shadow-cyan-500/30 border border-cyan-500/40">
+                {/* Notch */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-7 bg-black rounded-b-3xl z-20" />
+                
+                {/* Screen */}
+                <div className="relative w-full rounded-[2.3rem] bg-gradient-to-b from-blue-900 to-slate-950 overflow-hidden">
+                  {/* Content */}
+                  <div className="p-6 pt-10 flex flex-col h-[580px]">
+                    {/* Status bar area */}
+                    <div className="flex justify-between items-center mb-6 px-2">
+                      <span className="text-white text-sm font-semibold">9:41</span>
+                      <div className="flex gap-1">
+                        <div className="w-0.5 h-3 bg-white rounded-full opacity-70" />
+                        <div className="w-0.5 h-3 bg-white rounded-full opacity-70" />
+                      </div>
+                    </div>
+
+                    {/* Asset Selector */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-bold text-lg">BTC-PERP</span>
+                        <span className="text-slate-400 text-xs">▼</span>
+                      </div>
+                      <Star className="h-5 w-5 text-slate-400" />
+                    </div>
+
+                    {/* Price */}
+                    <div className="mb-4">
+                      <div className="text-4xl font-bold text-white">$67,454.42</div>
+                      <div className="text-sm text-emerald-400 mt-1">+2.34% (+1,542.81)</div>
+                    </div>
+
+                    {/* Time buttons */}
+                    <div className="flex gap-2 mb-4 text-xs">
+                      <button className="bg-blue-600 text-white px-3 py-1.5 rounded font-semibold">1H</button>
+                      <button className="text-slate-300 px-3 py-1.5">1D</button>
+                      <button className="text-slate-300 px-3 py-1.5">1W</button>
+                      <button className="text-slate-300 px-3 py-1.5">1M</button>
+                      <button className="text-slate-300 px-3 py-1.5">1Y</button>
+                    </div>
+
+                    {/* Chart */}
+                    <div className="flex-1 mb-4 relative">
+                      <svg className="w-full h-full" viewBox="0 0 240 80" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style={{stopColor: 'rgba(34,197,94,0.3)', stopOpacity: 1}} />
+                            <stop offset="100%" style={{stopColor: 'rgba(34,197,94,0)', stopOpacity: 1}} />
+                          </linearGradient>
+                        </defs>
+                        <polyline points="0,70 15,65 30,58 45,52 60,48 75,42 90,38 105,35 120,32 135,30 150,28 165,26 180,24 195,23 210,22 225,20 240,18" 
+                                  fill="none" stroke="#22c55e" strokeWidth="2" vectorEffect="non-scaling-stroke"/>
+                        <polygon points="0,70 15,65 30,58 45,52 60,48 75,42 90,38 105,35 120,32 135,30 150,28 165,26 180,24 195,23 210,22 225,20 240,18 240,80 0,80" 
+                                 fill="url(#chartGradient)"/>
+                      </svg>
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="flex gap-6 mb-4 text-sm border-b border-slate-700 pb-3">
+                      <button className="text-cyan-400 font-bold">Positions</button>
+                      <button className="text-slate-400">Orders</button>
+                    </div>
+
+                    {/* Position Details */}
+                    <div className="mb-4 text-sm space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-slate-300">BTC-PERP</span>
+                        <span className="text-emerald-400 font-semibold">Long</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-400">2.50 BTC</span>
+                        <span className="text-emerald-400 font-semibold">+1,542.81</span>
+                      </div>
+                      <div className="text-xs text-slate-500">$168,635.50</div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 mb-4">
+                      <button className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-2.5 rounded-lg font-bold text-sm transition-colors">↑ Long</button>
+                      <button className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-lg font-bold text-sm transition-colors">↓ Short</button>
+                    </div>
+
+                    {/* Bottom Nav */}
+                    <div className="flex justify-around pt-3 border-t border-slate-700 text-xs text-slate-400">
+                      <button className="flex flex-col items-center gap-1 flex-1">
+                        <span className="text-lg">🏠</span>
+                        <span className="text-[10px]">Home</span>
+                      </button>
+                      <button className="flex flex-col items-center gap-1 flex-1">
+                        <span className="text-lg">📊</span>
+                        <span className="text-[10px]">Markets</span>
+                      </button>
+                      <button className="flex flex-col items-center gap-1 flex-1">
+                        <span className="text-lg">⇄</span>
+                        <span className="text-[10px]">Trade</span>
+                      </button>
+                      <button className="flex flex-col items-center gap-1 flex-1">
+                        <span className="text-lg">📁</span>
+                        <span className="text-[10px]">Portfolio</span>
+                      </button>
+                      <button className="flex flex-col items-center gap-1 flex-1">
+                        <span className="text-lg">⚙️</span>
+                        <span className="text-[10px]">Settings</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Download App */}
-      <section id="download" className="max-w-7xl mx-auto px-6 lg:px-10 pb-16">
-        <div className="glass-strong rounded-2xl p-8 lg:p-12 border border-primary/20 grid lg:grid-cols-[1fr_auto_1fr] gap-8 items-center">
+      <footer className="border-t border-slate-800/70 bg-[#070b20] px-6 py-10 lg:px-10">
+        <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+          <div className="space-y-4">
+            <Link to="/" className="inline-flex items-center gap-2">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <Zap className="h-5 w-5 text-white" strokeWidth={2.5} />
+              </div>
+              <span className="font-bold text-xl tracking-tight text-white">DEX<span className="text-cyan-400">.ai</span></span>
+            </Link>
+            <p className="max-w-sm text-sm leading-6 text-slate-400">
+              Multi-asset trading, wallet connectivity, copy strategies, prediction markets, and AI tools in one exchange experience.
+            </p>
+          </div>
+
           <div>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full glass text-xs text-primary border border-primary/30">
-              <Download className="h-3 w-3" /> Get the app
-            </span>
-            <h2 className="text-3xl md:text-4xl font-bold mt-4">Trade anywhere.<br /><span className="gradient-text">On every device.</span></h2>
-            <p className="text-muted-foreground mt-3 max-w-md">Native apps for mobile and desktop with the same lightning-fast experience.</p>
-            <div className="grid grid-cols-2 gap-2 mt-6 max-w-md">
-              <DownloadBtn icon={Apple} label="App Store" sub="iPhone & iPad" />
-              <DownloadBtn icon={Smartphone} label="Google Play" sub="Android" />
-              <DownloadBtn icon={Apple} label="Mac" sub="Apple Silicon" />
-              <DownloadBtn icon={Monitor} label="Windows" sub=".exe installer" />
-              <DownloadBtn icon={Download} label="APK" sub="Direct download" />
-              <DownloadBtn icon={Monitor} label="Linux" sub=".AppImage" />
+            <h3 className="mb-4 text-sm font-bold text-white">Trade</h3>
+            <div className="space-y-3 text-sm text-slate-400">
+              <Link to="/trade" className="block hover:text-cyan-300 transition-colors">Trading Terminal</Link>
+              <Link to="/markets" className="block hover:text-cyan-300 transition-colors">Markets</Link>
+              <Link to="/copy" className="block hover:text-cyan-300 transition-colors">Copy Trading</Link>
+              <Link to="/prop" className="block hover:text-cyan-300 transition-colors">Prop Firm</Link>
             </div>
           </div>
 
-          <div className="hidden lg:flex flex-col items-center justify-center">
-            <div className="h-44 w-44 rounded-2xl glass border border-primary/30 p-3 flex items-center justify-center">
-              <QrPattern />
+          <div>
+            <h3 className="mb-4 text-sm font-bold text-white">Products</h3>
+            <div className="space-y-3 text-sm text-slate-400">
+              <Link to="/prediction" className="block hover:text-cyan-300 transition-colors">Prediction</Link>
+              <Link to="/p2p" className="block hover:text-cyan-300 transition-colors">P2P</Link>
+              <Link to="/token" className="block hover:text-cyan-300 transition-colors">Token</Link>
+              <Link to="/sip" className="block hover:text-cyan-300 transition-colors">DYP/SWAP</Link>
             </div>
-            <div className="mt-3 text-xs text-muted-foreground flex items-center gap-1.5"><QrCode className="h-3 w-3 text-primary" /> Scan to install</div>
           </div>
 
-          <div className="relative flex justify-center lg:justify-end">
-            <div className="relative w-56 h-[420px] rounded-[2.5rem] glass-strong border-2 border-border/60 p-2 shadow-glow-primary">
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 h-5 w-20 rounded-full bg-background z-10" />
-              <div className="h-full w-full rounded-[2rem] overflow-hidden bg-gradient-to-br from-background via-primary/10 to-secondary/10 p-3 flex flex-col">
-                <div className="text-[10px] text-muted-foreground">BTC-PERP</div>
-                <div className="text-2xl font-bold gradient-text">${formatPrice(prices["BTC-PERP"] ?? 67432)}</div>
-                <div className={cn("text-xs", (changes["BTC-PERP"] ?? 2.34) >= 0 ? "text-buy" : "text-sell")}>
-                  {(changes["BTC-PERP"] ?? 2.34) >= 0 ? "+" : ""}{(changes["BTC-PERP"] ?? 2.34).toFixed(2)}%
-                </div>
-                <div className="mt-3 flex-1 rounded-lg glass relative overflow-hidden">
-                  <MiniSpark data={sparks["BTC-PERP"] ?? []} positive={(changes["BTC-PERP"] ?? 2.34) >= 0} />
-                </div>
-                <div className="grid grid-cols-2 gap-1.5 mt-2">
-                  <div className="bg-buy/20 text-buy rounded py-1 text-[10px] text-center font-bold">LONG</div>
-                  <div className="bg-sell/20 text-sell rounded py-1 text-[10px] text-center font-bold">SHORT</div>
-                </div>
-              </div>
+          <div>
+            <h3 className="mb-4 text-sm font-bold text-white">Company</h3>
+            <div className="space-y-3 text-sm text-slate-400">
+              <Link to="/profile" className="block hover:text-cyan-300 transition-colors">Profile</Link>
+              <Link to="/refer" className="block hover:text-cyan-300 transition-colors">Refer</Link>
+              <Link to="/settings" className="block hover:text-cyan-300 transition-colors">Settings</Link>
+              <button onClick={() => setWalletOpen(true)} className="block text-left hover:text-cyan-300 transition-colors">Connect Wallet</button>
             </div>
           </div>
         </div>
-      </section>
 
-      <footer className="border-t border-border/50 py-6 text-center text-xs text-muted-foreground">
-        © 2026 DEX.ai · A next-generation trading terminal
+        <div className="mx-auto mt-10 flex max-w-6xl flex-col gap-4 border-t border-slate-800/70 pt-6 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+          <p>© 2026 DEX.ai. All rights reserved.</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            <a href="#" className="hover:text-cyan-300 transition-colors">Terms</a>
+            <a href="#" className="hover:text-cyan-300 transition-colors">Privacy</a>
+            <a href="#" className="hover:text-cyan-300 transition-colors">Risk Disclosure</a>
+          </div>
+        </div>
       </footer>
 
       <WalletDialog open={walletOpen} onOpenChange={setWalletOpen} />
-    </div>
-  );
-}
-
-// ─── Sub-components ──────────────────────────────────────────────────────────
-
-function TickerBar({ prices, changes }: { prices: Record<string, number>; changes: Record<string, number> }) {
-  const symbols = INITIAL_MARKETS.slice(0, 16);
-  return (
-    <div className="w-full overflow-hidden border-b border-border/50 bg-background/80 backdrop-blur py-1.5">
-      <div className="flex animate-[ticker_40s_linear_infinite] gap-6 whitespace-nowrap w-max">
-        {[...symbols, ...symbols].map((m, i) => {
-          const p = prices[m.symbol] ?? m.price;
-          const chg = changes[m.symbol] ?? m.change24h;
-          const pos = chg >= 0;
-          return (
-            <span key={i} className="inline-flex items-center gap-1.5 text-xs px-2">
-              <span className="font-bold text-foreground">{m.base}</span>
-              <span className="font-mono">{formatPrice(p)}</span>
-              <span className={pos ? "text-buy" : "text-sell"}>{pos ? "+" : ""}{chg.toFixed(2)}%</span>
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-const ACTIVITIES = [
-  { user: "0x7f...3a2b", action: "Opened Long", asset: "BTC-PERP", size: "2.4 BTC", lev: "10x", side: "buy" as const },
-  { user: "0x4c...8d91", action: "Opened Short", asset: "ETH-PERP", size: "15 ETH", lev: "5x", side: "sell" as const },
-  { user: "0x1a...fe02", action: "Closed Long", asset: "SOL-PERP", size: "200 SOL", lev: "20x", side: "buy" as const },
-  { user: "0x9b...22cf", action: "Limit Order", asset: "HYPE-PERP", size: "500", lev: "3x", side: "buy" as const },
-  { user: "0x3e...7711", action: "Liquidated", asset: "DOGE-PERP", size: "10,000", lev: "50x", side: "sell" as const },
-  { user: "0x6d...b440", action: "Opened Long", asset: "AAPL", size: "50 shares", lev: "2x", side: "buy" as const },
-];
-
-function ActivityFeed({ prices }: { prices: Record<string, number> }) {
-  const [items, setItems] = useState(ACTIVITIES);
-  useEffect(() => {
-    const id = setInterval(() => {
-      setItems(prev => {
-        const next = [...prev];
-        const r = ACTIVITIES[Math.floor(Math.random() * ACTIVITIES.length)];
-        next.unshift(r);
-        return next.slice(0, 6);
-      });
-    }, 3000);
-    return () => clearInterval(id);
-  }, []);
-  return (
-    <div className="space-y-1.5">
-      {items.map((a, i) => (
-        <div key={i} className="flex items-center gap-2 text-[11px] px-2 py-1.5 rounded-lg hover:bg-muted/20 transition-colors">
-          <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 text-[9px] font-mono">
-            {a.user.slice(2, 4).toUpperCase()}
-          </div>
-          <span className="text-muted-foreground font-mono">{a.user}</span>
-          <span className={cn("font-bold", a.side === "buy" ? "text-buy" : "text-sell")}>{a.action}</span>
-          <span className="text-foreground font-bold ml-auto">{a.asset}</span>
-          <span className="text-muted-foreground">{a.size}</span>
-          <Badge variant="outline" className="text-[9px] px-1 py-0">{a.lev}</Badge>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-const WATCHLIST = ["BTC-PERP", "ETH-PERP", "SOL-PERP", "TIA-PERP", "SUI-PERP"];
-
-function WatchlistPreview({ prices, sparks }: { prices: Record<string, number>; sparks: Record<string, SparkData> }) {
-  return (
-    <div className="space-y-2">
-      {WATCHLIST.map(sym => {
-        const m = INITIAL_MARKETS.find(x => x.symbol === sym)!;
-        const price = prices[sym] ?? m.price;
-        const chg = m.change24h;
-        const pos = chg >= 0;
-        return (
-          <div key={sym} className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-muted/20 transition-colors cursor-pointer">
-            <Star className="h-3.5 w-3.5 text-yellow-400 fill-yellow-400 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold">{m.base}</div>
-              <div className="text-[10px] text-muted-foreground">{sym}</div>
-            </div>
-            <div className="w-20 shrink-0">
-              <MiniSpark data={sparks[sym] ?? []} positive={pos} />
-            </div>
-            <div className="text-right min-w-[70px]">
-              <div className="font-mono text-xs font-bold">{formatPrice(price)}</div>
-              <div className={cn("text-[10px] font-mono", pos ? "text-buy" : "text-sell")}>
-                {pos ? "+" : ""}{chg.toFixed(2)}%
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function DownloadBtn({ icon: Icon, label, sub }: { icon: any; label: string; sub: string }) {
-  return (
-    <button className="glass hover:border-primary/40 rounded-lg px-3 py-2 flex items-center gap-2 transition-all text-left">
-      <Icon className="h-5 w-5 text-primary" />
-      <div>
-        <div className="text-[9px] text-muted-foreground leading-none">Download on</div>
-        <div className="text-sm font-bold leading-tight">{label}</div>
-        <div className="text-[9px] text-muted-foreground">{sub}</div>
-      </div>
-    </button>
-  );
-}
-
-function QrPattern() {
-  const cells = Array.from({ length: 21 * 21 }, (_, i) => {
-    const x = i % 21, y = Math.floor(i / 21);
-    const isCorner = (x < 7 && y < 7) || (x > 13 && y < 7) || (x < 7 && y > 13);
-    const cornerEdge = isCorner && (x === 0 || y === 0 || x === 6 || y === 6 || x === 14 || x === 20 || y === 14 || y === 20);
-    const inner = isCorner && x >= 2 && x <= 4 && y >= 2 && y <= 4;
-    const inner2 = isCorner && x >= 16 && x <= 18 && y >= 2 && y <= 4;
-    const inner3 = isCorner && x >= 2 && x <= 4 && y >= 16 && y <= 18;
-    const filled = cornerEdge || inner || inner2 || inner3 || (!isCorner && ((x * 7 + y * 13 + x * y) % 5 < 2));
-    return filled;
-  });
-  return (
-    <div className="grid grid-cols-[repeat(21,1fr)] gap-px w-full h-full">
-      {cells.map((on, i) => <div key={i} className={on ? "bg-foreground" : "bg-transparent"} />)}
     </div>
   );
 }
