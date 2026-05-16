@@ -3,27 +3,27 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Zap, TrendingUp, Users, ExternalLink, Copy, FileText,
   ShieldCheck, Flame, BarChart3, Clock, Activity,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
-  AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  BarChart, Bar, Legend,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend,
 } from "recharts";
 import { cn } from "@/lib/utils";
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
 const SUPPLY_ALLOC = [
-  { name: "Community",      value: 35, color: "#00e5ff" },
-  { name: "Ecosystem Fund", value: 22, color: "#a855f7" },
-  { name: "Team",           value: 18, color: "#f59e0b" },
-  { name: "Liquidity",      value: 10, color: "#10b981" },
-  { name: "Treasury",       value: 10, color: "#6366f1" },
-  { name: "Burned",         value: 5,  color: "#ef4444" },
+  { name: "Community + Ecosystem", value: 15, color: "#00e5ff" },
+  { name: "Staking/Emission", value: 20, color: "#a855f7" },
+  { name: "Liquidity", value: 10, color: "#f59e0b" },
+  { name: "Team", value: 5, color: "#10b981" },
+  { name: "Treasury", value: 8, color: "#6366f1" },
+  { name: "Strategic Reserve", value: 35, color: "#22c55e" },
+  { name: "Marketing", value: 5, color: "#06b6d4" },
+  { name: "Initial Burn", value: 2, color: "#ef4444" },
 ];
 
 const EMISSION_YEARS = [2022,2023,2024,2025,2026,2027,2028,2029,2030];
@@ -89,7 +89,6 @@ function CopyAddress({ addr }: { addr: string }) {
 
 export default function Token() {
   const [dexPrice, setDexPrice] = useState(3.42);
-  const [supplyTab, setSupplyTab] = useState<"allocation" | "distribution">("allocation");
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -148,8 +147,8 @@ export default function Token() {
 
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div>
-                  <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Market Cap</div>
-                  <div className="font-mono font-bold text-sm">${(marketCap / 1e9).toFixed(2)}B</div>
+                  <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Market Cap - FDV</div>
+                  <div className="font-mono font-bold text-sm">${(marketCap / 1e9).toFixed(2)}B / ${(fdv / 1e9).toFixed(2)}B</div>
                 </div>
                 <div>
                   <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Circulating</div>
@@ -159,10 +158,7 @@ export default function Token() {
                   <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Total Supply</div>
                   <div className="font-mono font-bold text-sm">1.0B</div>
                 </div>
-                <div>
-                  <div className="text-[9px] text-muted-foreground uppercase tracking-wide">FDV</div>
-                  <div className="font-mono font-bold text-sm">${(fdv / 1e9).toFixed(2)}B</div>
-                </div>
+                <div />
               </div>
 
               <div className="flex items-center gap-2 pt-3 border-t border-border/50">
@@ -180,15 +176,7 @@ export default function Token() {
                   <Clock className="h-4 w-4 text-primary" />
                   <span className="font-semibold text-sm">Supply Allocation</span>
                 </div>
-                <div className="flex gap-1">
-                  {(["allocation","distribution"] as const).map(t => (
-                    <button key={t} onClick={() => setSupplyTab(t)}
-                      className={cn("text-[10px] px-2 py-0.5 rounded capitalize transition-colors",
-                        supplyTab === t ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")}>
-                      {t === "allocation" ? "Allocation" : "Initial Distribution"}
-                    </button>
-                  ))}
-                </div>
+                <span className="text-[10px] text-muted-foreground">Total Token Supply: 1 Billion</span>
               </div>
 
               <div className="flex items-center justify-center">
@@ -210,7 +198,7 @@ export default function Token() {
                 <div className="text-[9px] text-muted-foreground uppercase">CAP</div>
               </div>
 
-              <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 mt-2">
+              <div className="grid grid-cols-1 gap-x-6 gap-y-1.5 mt-2">
                 {SUPPLY_ALLOC.map(s => (
                   <div key={s.name} className="flex items-center justify-between text-[11px]">
                     <div className="flex items-center gap-1.5">
@@ -224,7 +212,7 @@ export default function Token() {
             </div>
           </div>
 
-          {/* Supply over time bar chart */}
+          {/* Supply over time line chart */}
           <div className="glass rounded-2xl p-5 border border-border/50 mb-4">
             <div className="flex items-center justify-between mb-1">
               <div>
@@ -242,7 +230,7 @@ export default function Token() {
             </div>
 
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={EMISSION_DATA} barSize={28} margin={{ top: 12, right: 4, bottom: 0, left: -20 }}>
+              <LineChart data={EMISSION_DATA} margin={{ top: 12, right: 8, bottom: 0, left: -20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(230 25% 18% / 0.5)" vertical={false} />
                 <XAxis dataKey="year" tick={{ fill: "hsl(220 15% 55%)", fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: "hsl(220 15% 55%)", fontSize: 9 }} axisLine={false} tickLine={false} />
@@ -251,14 +239,13 @@ export default function Token() {
                   cursor={{ fill: "hsl(230 25% 18% / 0.4)" }}
                 />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10, paddingTop: 8 }} />
-                <Bar dataKey="Circulating" stackId="a" fill="#00e5ff" radius={[0,0,0,0]} />
-                <Bar dataKey="Locked / Vested" stackId="a" fill="#a855f7" />
-                <Bar dataKey="Burned" stackId="a" fill="#ef4444" radius={[4,4,0,0]} />
-              </BarChart>
+                <Line type="monotone" dataKey="Circulating" stroke="#00e5ff" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="Locked / Vested" stroke="#a855f7" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="Burned" stroke="#ef4444" strokeWidth={2} dot={false} />
+              </LineChart>
             </ResponsiveContainer>
           </div>
 
-          {/* DEX stat row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatCard label="Circulating" value="412.5M DEX" sub="41.25% of Total" />
             <StatCard label="Total Supply" value="1.0B DEX" sub="Fixed Hard Cap" />
@@ -299,14 +286,6 @@ export default function Token() {
                 Target: $1.00 <Activity className="h-3 w-3 text-buy animate-pulse" />
               </div>
 
-              <div className="glass rounded-lg p-2.5 space-y-2 mb-4">
-                <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Backing Strategy</div>
-                <div className="flex items-center gap-2 text-[11px]">
-                  <ShieldCheck className="h-3 w-3 text-buy" />
-                  <span>Backed 1:1 by USDC + T-Bills</span>
-                </div>
-              </div>
-
               <InfoRow k="Contract" v="0x402a...F981" />
               <Button variant="outline" size="sm" className="w-full mt-3 glass border-primary/40 text-primary hover:bg-primary/10 text-xs h-8">
                 View Reserve transparency <ExternalLink className="h-3 w-3 ml-1" />
@@ -324,8 +303,9 @@ export default function Token() {
               </div>
 
               <div className="text-xs text-muted-foreground mb-2 flex items-center gap-3">
-                <span>$1.08 peg</span>
+                <span>$1.010 high</span>
                 <span>$1.00 peg</span>
+                <span>$0.980 low</span>
               </div>
 
               <ResponsiveContainer width="100%" height={140}>
@@ -338,7 +318,7 @@ export default function Token() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(230 25% 18% / 0.5)" />
                   <XAxis dataKey="d" hide />
-                  <YAxis domain={[0.995, 1.005]} tick={{ fill: "hsl(220 15% 55%)", fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => `$${v.toFixed(3)}`} />
+                  <YAxis domain={[0.98, 1.01]} tick={{ fill: "hsl(220 15% 55%)", fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => `$${v.toFixed(3)}`} />
                   <Tooltip
                     contentStyle={{ background: "hsl(230 25% 9%)", border: "1px solid hsl(230 25% 18%)", borderRadius: 8, fontSize: 11 }}
                     formatter={(v: any) => [`$${v}`, "Price"]}
@@ -369,9 +349,9 @@ export default function Token() {
 
               <div className="space-y-3">
                 {[
-                  { label: "USDC", pct: 60, val: "$487.4M", color: "bg-cyan-400" },
-                  { label: "T-Bills", pct: 30, val: "$243.7M", color: "bg-indigo-500" },
-                  { label: "USD (Cash)", pct: 10, val: "$81.2M", color: "bg-emerald-500" },
+                  { label: "BTC", pct: 60, val: "$487.4M", color: "bg-cyan-400" },
+                  { label: "ETH", pct: 30, val: "$243.7M", color: "bg-indigo-500" },
+                  { label: "DEXUSD", pct: 10, val: "$81.2M", color: "bg-emerald-500" },
                 ].map(r => (
                   <div key={r.label} className="flex items-center gap-2 text-[11px]">
                     <div className={`h-2 w-2 rounded-full shrink-0 ${r.color}`} />
@@ -383,16 +363,9 @@ export default function Token() {
             </div>
           </div>
 
-          {/* DEXUSD stat row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <StatCard label="Total Issued" value="$812.4M" sub="Market Capitalization" />
-            <StatCard label="Reserve Ratio" value="102.3%" sub="Over-collateralized" accent />
             <StatCard label="Daily Volume" value="$1.2B" sub="Deep liquidity pools" />
-            <div className="glass rounded-xl p-4">
-              <div className="text-[9px] text-muted-foreground uppercase tracking-wide mb-1">Audits</div>
-              <div className="font-bold text-sm">Chainlink PoR</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">Monthly attestations</div>
-            </div>
           </div>
         </section>
 

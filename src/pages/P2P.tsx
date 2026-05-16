@@ -152,6 +152,7 @@ export default function P2P() {
   const [mode, setMode] = useState<"buy" | "sell">("buy");
   const [selectedPayment, setSelectedPayment] = useState("All");
   const [amount, setAmount] = useState("");
+  const [bankOption, setBankOption] = useState("HDFC Bank");
   const [searchTerm, setSearchTerm] = useState("");
   const todayPrice = 100; // Today's price in INR
 
@@ -182,13 +183,13 @@ export default function P2P() {
               <div className="flex gap-3">
                 <Button 
                   onClick={() => setMode("buy")}
-                  className={`px-6 font-semibold ${mode === "buy" ? "bg-buy text-buy-foreground hover:bg-buy/90" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+                  className={`px-10 min-w-36 h-11 font-semibold ${mode === "buy" ? "bg-buy text-buy-foreground hover:bg-buy/90" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
                 >
                   Buy
                 </Button>
                 <Button
                   onClick={() => setMode("sell")}
-                  className={`px-6 font-semibold ${mode === "sell" ? "bg-red-500 text-white hover:bg-red-600" : "border border-border"}`}
+                  className={`px-10 min-w-36 h-11 font-semibold ${mode === "sell" ? "bg-red-500 text-white hover:bg-red-600" : "border border-border"}`}
                   variant={mode === "sell" ? "default" : "outline"}
                 >
                   Sell
@@ -202,16 +203,9 @@ export default function P2P() {
                     <label className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
                       Asset
                     </label>
-                    <Select defaultValue="usdt">
-                      <SelectTrigger className="bg-background/50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="usdt">USDT</SelectItem>
-                        <SelectItem value="usdc">USDC</SelectItem>
-                        <SelectItem value="busd">BUSD</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex h-10 w-full items-center rounded-md border border-input bg-background/50 px-3 py-2 text-sm font-medium text-foreground">
+                      DEXUSD
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -369,9 +363,6 @@ export default function P2P() {
                   <span className="text-muted-foreground text-sm font-medium">
                     Today's Price
                   </span>
-                  <Badge className="bg-green-500/20 text-green-500">
-                    +1.08%
-                  </Badge>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-baseline gap-2">
@@ -395,6 +386,22 @@ export default function P2P() {
                   {mode === "buy" ? "Quick Trade" : "Quick Sell"}
                 </h3>
                 <div className="space-y-4">
+                  <div>
+                    <label className="text-xs text-muted-foreground font-medium mb-2 block">
+                      Bank / Payment Option
+                    </label>
+                    <Select value={bankOption} onValueChange={setBankOption}>
+                      <SelectTrigger className="bg-background/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="HDFC Bank">HDFC Bank</SelectItem>
+                        <SelectItem value="ICICI Bank">ICICI Bank</SelectItem>
+                        <SelectItem value="State Bank of India">State Bank of India</SelectItem>
+                        <SelectItem value="UPI - GPay">UPI - GPay</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div>
                     <label className="text-xs text-muted-foreground font-medium mb-2 block">
                       {mode === "buy" ? "I want to pay" : "I want to sell"}

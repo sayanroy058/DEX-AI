@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Zap, ArrowRight, TrendingUp, Layers, Bot, Shield, Globe, QrCode, Star } from "lucide-react";
+import { Zap, ArrowRight, TrendingUp, Layers, Bot, Shield, Globe, QrCode, Star, Download, Monitor, Laptop, Apple } from "lucide-react";
 import { WalletDialog } from "@/components/wallet/WalletDialog";
 import appStoreImg from "@/assets/app-store.png";
 import playStoreImg from "@/assets/play-store.png";
@@ -44,16 +44,18 @@ export default function Landing() {
           <Link to="/sip" className="hover:text-white transition-colors">SIP/SWP</Link>
         </nav>
 
-        <Button 
-          onClick={() => setWalletOpen(true)} 
-          className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 hover:from-cyan-300 hover:via-blue-400 hover:to-purple-500 text-white font-semibold px-6 h-10 rounded-lg shadow-lg shadow-blue-500/20"
-        >
-          Connect
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setWalletOpen(true)}
+            className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 hover:from-cyan-300 hover:via-blue-400 hover:to-purple-500 text-white font-semibold px-6 h-10 rounded-lg shadow-lg shadow-blue-500/20"
+          >
+            Connect
+          </Button>
+        </div>
       </header>
 
       {/* Hero Section */}
-      <div className="relative flex-1 flex items-center justify-center px-6 py-20 overflow-hidden">
+      <div className="relative min-h-[calc(100svh-4rem)] flex items-center justify-center px-6 py-12 md:py-16 overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(56,189,248,0.2),transparent_38%),radial-gradient(circle_at_82%_22%,rgba(124,58,237,0.16),transparent_34%),linear-gradient(180deg,rgba(6,11,42,0.35)_0%,rgba(6,11,42,0)_60%)]" />
         <div className="relative max-w-3xl w-full text-center space-y-8">
           {/* Badge */}
@@ -65,7 +67,7 @@ export default function Landing() {
 
           {/* Main Heading */}
           <div className="space-y-4">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight">
+            <h1 className="text-3xl md:text-5xl lg:text-[58px] font-black tracking-tight leading-[1.02]">
               <span className="block text-white mb-2">ALL IN ONE</span>
               <span className="block bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
                 AI-POWERED DEX
@@ -74,8 +76,11 @@ export default function Landing() {
           </div>
 
           {/* Description */}
-          <p className="text-base md:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed">
-            Trade Crypto, Forex, Stocks & Commodities with institutional-grade AI intelligence. One platform. Every market. Zero limits.
+          <p className="text-sm md:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed tracking-wide">
+            Trade Crypto, Forex, Stocks & Commodities with institutional-grade Al intelligence.
+            <br />
+            One platform. Every market. Zero limits.
+            
           </p>
 
           {/* CTA Buttons */}
@@ -96,6 +101,52 @@ export default function Landing() {
           </div>
         </div>
       </div>
+
+      {/* Stats + Asset Section */}
+      <section className="relative overflow-hidden px-6 py-16 lg:px-10 bg-[#040d1c] border-y border-cyan-900/30">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_18%,rgba(22,175,255,0.12),transparent_35%),radial-gradient(circle_at_85%_12%,rgba(90,92,255,0.1),transparent_35%)]" />
+        <div className="relative max-w-7xl mx-auto space-y-14">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { value: "$184B+", label: "Volume Traded" },
+              { value: "1.2M+", label: "Active Traders" },
+              { value: "350+", label: "Markets" },
+              { value: "90+", label: "Blockchains" },
+            ].map((item) => (
+              <div key={item.label} className="rounded-2xl border border-cyan-700/40 bg-[#0a1328]/90 px-5 py-6 text-center shadow-[0_0_20px_rgba(34,211,238,0.08)]">
+                <p className="text-3xl md:text-4xl font-black bg-gradient-to-r from-cyan-300 to-indigo-300 bg-clip-text text-transparent">{item.value}</p>
+                <p className="text-slate-400 text-sm mt-1">{item.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center space-y-3">
+            <p className="text-cyan-400 text-xs md:text-sm font-semibold tracking-[0.22em] uppercase">Everything In One Place</p>
+            <h2 className="text-3xl md:text-5xl font-black text-white">Trade Any Asset Class</h2>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { title: "Crypto", sub: "Spot, Futures & Options", icon: TrendingUp, color: "text-cyan-400 bg-cyan-500/15 border-cyan-500/35" },
+              { title: "Forex", sub: "150+ Currency Pairs", icon: Globe, color: "text-violet-300 bg-violet-500/15 border-violet-500/35" },
+              { title: "Commodities", sub: "Gold, Oil, Gas & More", icon: Layers, color: "text-emerald-300 bg-emerald-500/15 border-emerald-500/35" },
+              { title: "Stocks", sub: "US & Global Equities", icon: TrendingUp, color: "text-amber-300 bg-amber-500/15 border-amber-500/35" },
+              { title: "SIP", sub: "Systematic Investment Plan", icon: Shield, color: "text-cyan-300 bg-cyan-500/15 border-cyan-500/35" },
+              { title: "SWP", sub: "Systematic Withdrawal Plan", icon: Zap, color: "text-violet-300 bg-violet-500/15 border-violet-500/35" },
+              { title: "Algo Trading", sub: "Automated Strategies", icon: Bot, color: "text-emerald-300 bg-emerald-500/15 border-emerald-500/35" },
+              { title: "Bot Trading", sub: "AI-Powered Bots", icon: Bot, color: "text-amber-300 bg-amber-500/15 border-amber-500/35" },
+            ].map((item) => (
+              <div key={item.title} className="rounded-2xl border border-cyan-800/35 bg-[#071127]/90 p-5 md:p-6">
+                <div className={`h-10 w-10 rounded-xl border flex items-center justify-center mb-4 ${item.color}`}>
+                  <item.icon className="h-5 w-5" />
+                </div>
+                <h3 className="text-white text-2xl font-semibold mb-1">{item.title}</h3>
+                <p className="text-slate-400 text-sm">{item.sub}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* Features Section */}
       <section className="py-20 px-6 lg:px-10 bg-[#0a0e27]">
@@ -207,6 +258,25 @@ export default function Landing() {
                 </div>
               </button>
             </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {[
+                { label: "App Store", icon: Apple },
+                { label: "Google Play", icon: Download },
+                { label: "Windows", icon: Monitor },
+                { label: "Mac", icon: Apple },
+                { label: "Linux", icon: Laptop },
+                { label: "APK", icon: Download },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  className="h-12 rounded-2xl border border-cyan-800/30 bg-gradient-to-r from-[#0b1430] via-[#111a39] to-[#152347] hover:border-cyan-500/50 text-slate-200 px-4 flex items-center gap-2 text-sm"
+                >
+                  <item.icon className="h-3.5 w-3.5 text-cyan-400" />
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Center - QR Code */}
@@ -312,28 +382,12 @@ export default function Landing() {
                       <button className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-lg font-bold text-sm transition-colors">↓ Short</button>
                     </div>
 
-                    {/* Bottom Nav */}
-                    <div className="flex justify-around pt-3 border-t border-slate-700 text-xs text-slate-400">
-                      <button className="flex flex-col items-center gap-1 flex-1">
-                        <span className="text-lg">🏠</span>
-                        <span className="text-[10px]">Home</span>
-                      </button>
-                      <button className="flex flex-col items-center gap-1 flex-1">
-                        <span className="text-lg">📊</span>
-                        <span className="text-[10px]">Markets</span>
-                      </button>
-                      <button className="flex flex-col items-center gap-1 flex-1">
-                        <span className="text-lg">⇄</span>
-                        <span className="text-[10px]">Trade</span>
-                      </button>
-                      <button className="flex flex-col items-center gap-1 flex-1">
-                        <span className="text-lg">📁</span>
-                        <span className="text-[10px]">Portfolio</span>
-                      </button>
-                      <button className="flex flex-col items-center gap-1 flex-1">
-                        <span className="text-lg">⚙️</span>
-                        <span className="text-[10px]">Settings</span>
-                      </button>
+                    {/* Bottom Option Bar */}
+                    <div className="grid grid-cols-4 gap-2 pt-3 border-t border-slate-700 text-[10px]">
+                      <button className="h-8 rounded-md bg-slate-900/70 text-cyan-300 border border-cyan-700/40">Spot</button>
+                      <button className="h-8 rounded-md bg-slate-900/70 text-slate-300 border border-slate-700">Futures</button>
+                      <button className="h-8 rounded-md bg-slate-900/70 text-slate-300 border border-slate-700">Margin</button>
+                      <button className="h-8 rounded-md bg-slate-900/70 text-slate-300 border border-slate-700">More</button>
                     </div>
                   </div>
                 </div>

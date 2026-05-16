@@ -9,11 +9,11 @@ import { cn } from "@/lib/utils";
 import { WalletDialog } from "@/components/wallet/WalletDialog";
 import { TransferDialog } from "@/components/wallet/TransferDialog";
 import { useWallet, shortAddress } from "@/lib/useWallet";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 
 const navItems = [
   { to: "/trade", icon: LineChart, label: "Trade" },
   { to: "/markets", icon: LayoutDashboard, label: "Markets" },
-  { to: "/portfolio", icon: Wallet, label: "Portfolio" },
   { to: "/copy", icon: Users, label: "Copy" },
   { to: "/prop", icon: Building2, label: "Prop Firm" },
   { to: "/prediction", icon: Sparkles, label: "Predict" },
@@ -91,36 +91,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Button>
 
         {/* Wallet balance icon */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative" title="Wallet balance">
-              <Wallet className="h-4 w-4" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-72 glass-strong border-glass-border p-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground uppercase tracking-wide">Total Balance</span>
-              <span className="text-[10px] text-primary">{w.connected ? "Connected" : "Demo"}</span>
-            </div>
-            <div className="text-2xl font-bold font-mono mb-3">${totalUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-            <div className="space-y-1.5 max-h-48 overflow-y-auto">
-              {w.balances.map(b => (
-                <div key={b.asset} className="flex justify-between text-xs glass rounded px-2 py-1.5">
-                  <span className="font-medium">{b.asset}</span>
-                  <span className="font-mono">{b.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-2 mt-3">
-              <Button size="sm" variant="outline" className="h-8 text-xs text-buy border-buy/40 hover:bg-buy/10 hover:text-buy" onClick={() => openTransfer("deposit")}>
-                <ArrowDownToLine className="h-3 w-3 mr-1" /> Deposit
+        {w.connected && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative" title="Wallet balance">
+                <Wallet className="h-4 w-4" />
               </Button>
-              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => openTransfer("withdraw")}>
-                <ArrowUpFromLine className="h-3 w-3 mr-1" /> Withdraw
-              </Button>
-            </div>
-          </PopoverContent>
-        </Popover>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72 glass-strong border-glass-border p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-muted-foreground uppercase tracking-wide">Total Balance</span>
+                <span className="text-[10px] text-primary">Connected</span>
+              </div>
+              <div className="text-2xl font-bold font-mono mb-3">${totalUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {w.balances.map(b => (
+                  <div key={b.asset} className="flex justify-between text-xs glass rounded px-2 py-1.5">
+                    <span className="font-medium">{b.asset}</span>
+                    <span className="font-mono">{b.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                <Button size="sm" variant="outline" className="h-8 text-xs text-buy border-buy/40 hover:bg-buy/10 hover:text-buy" onClick={() => openTransfer("deposit")}>
+                  <ArrowDownToLine className="h-3 w-3 mr-1" /> Deposit
+                </Button>
+                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => openTransfer("withdraw")}>
+                  <ArrowUpFromLine className="h-3 w-3 mr-1" /> Withdraw
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
 
         <Button
           variant="outline"
@@ -143,10 +145,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <User className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="glass-strong border-glass-border w-56">
+          <DropdownMenuContent align="end" className="glass-strong border-glass-border w-64">
             <div className="px-2 py-2">
               <div className="text-sm font-semibold">{w.connected ? shortAddress(w.address) : "Anonymous Trader"}</div>
               <div className="text-[11px] text-muted-foreground">trader@dex.ai</div>
+            </div>
+            <DropdownMenuSeparator />
+            <div className="px-2 py-2">
+              <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Theme</div>
+              <ThemeSwitcher compact />
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild><Link to="/profile" className="cursor-pointer"><User className="h-3.5 w-3.5 mr-2 text-primary" /> My Profile</Link></DropdownMenuItem>

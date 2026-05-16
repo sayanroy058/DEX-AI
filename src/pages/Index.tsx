@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { generateOrderBook, generateTrade, formatPrice, Trade } from "@/lib/mockData";
 
 // ─── Default sizes ────────────────────────────────────────────────────────────
-const DEFAULT_COL_SIZES = [18, 52, 30];
+const DEFAULT_COL_SIZES = [18, 58, 24];
 const DEFAULT_CENTER_SIZES = [65, 35];
 const COLLAPSED_LEFT_SIZE = 3;
 const MINIMIZED_POSITIONS_SIZE = 3;
@@ -398,7 +398,8 @@ const Index = () => {
 
         {/* Trade Calculator panel */}
         {calcOpen && (
-          <div className="glass-strong rounded-xl border border-primary/20 px-4 py-3 shrink-0 animate-in slide-in-from-top-2 duration-200">
+          <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-[1px] flex items-center justify-center p-4">
+          <div className="glass-strong w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-xl border border-primary/30 px-4 py-3 shrink-0 animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-bold flex items-center gap-2"><Calculator className="h-4 w-4 text-primary" /> Trade Calculator & Risk Management</span>
               <button onClick={() => setCalcOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
@@ -464,6 +465,7 @@ const Index = () => {
               </div>
             </div>
           </div>
+          </div>
         )}
 
         {/* Main panel grid */}
@@ -517,7 +519,7 @@ const Index = () => {
           </PanelResizeHandle>
 
           {/* Right — Trade + OrderBook (fully custom, self-contained) */}
-          <Panel ref={rightPanelRef} defaultSize={DEFAULT_COL_SIZES[2]} minSize={18} maxSize={45}>
+          <Panel ref={rightPanelRef} defaultSize={DEFAULT_COL_SIZES[2]} minSize={14} maxSize={32}>
             <RightColumn symbol={symbol} price={price} />
           </Panel>
 

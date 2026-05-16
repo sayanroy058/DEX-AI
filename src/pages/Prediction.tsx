@@ -18,18 +18,19 @@ const STATS = [
 ];
 
 const markets = [
-  { q: "Will BTC close above $80k by year-end?", yes: 62, vol: "$4.2M", end: "Dec 31", category: "Crypto", participants: 1240 },
-  { q: "ETH ETF approved by Q3 2026?", yes: 48, vol: "$2.1M", end: "Sep 30", category: "Regulation", participants: 890 },
-  { q: "Will Fed cut rates next meeting?", yes: 71, vol: "$1.8M", end: "Jun 18", category: "Macro", participants: 2100 },
-  { q: "SOL > $300 by Aug?", yes: 34, vol: "$980K", end: "Aug 31", category: "Crypto", participants: 560 },
-  { q: "New AI token in top 10 by Q4?", yes: 56, vol: "$640K", end: "Oct 31", category: "AI", participants: 340 },
-  { q: "BTC dominance > 60%?", yes: 41, vol: "$1.2M", end: "Jul 15", category: "Crypto", participants: 780 },
-  { q: "US recession confirmed in 2026?", yes: 29, vol: "$2.4M", end: "Dec 31", category: "Macro", participants: 1560 },
-  { q: "Will Ethereum flip Bitcoin in market cap?", yes: 18, vol: "$890K", end: "Dec 31", category: "Crypto", participants: 420 },
-  { q: "Apple launch crypto wallet by EOY?", yes: 22, vol: "$540K", end: "Dec 31", category: "Tech", participants: 290 },
+  { q: "Will BTC close above $80k by year-end?", yes: 62, vol: "$4.2M", end: "Dec 31", category: "Crypto", participants: 1240, marketType: "Global" },
+  { q: "ETH ETF approved by Q3 2026?", yes: 48, vol: "$2.1M", end: "Sep 30", category: "Regulation", participants: 890, marketType: "Stock" },
+  { q: "Will Fed cut rates next meeting?", yes: 71, vol: "$1.8M", end: "Jun 18", category: "Macro", participants: 2100, marketType: "Global" },
+  { q: "SOL > $300 by Aug?", yes: 34, vol: "$980K", end: "Aug 31", category: "Crypto", participants: 560, marketType: "Crypto" },
+  { q: "New AI token in top 10 by Q4?", yes: 56, vol: "$640K", end: "Oct 31", category: "AI", participants: 340, marketType: "More" },
+  { q: "BTC dominance > 60%?", yes: 41, vol: "$1.2M", end: "Jul 15", category: "Crypto", participants: 780, marketType: "Crypto" },
+  { q: "US recession confirmed in 2026?", yes: 29, vol: "$2.4M", end: "Dec 31", category: "Macro", participants: 1560, marketType: "Global" },
+  { q: "Will Ethereum flip Bitcoin in market cap?", yes: 18, vol: "$890K", end: "Dec 31", category: "Crypto", participants: 420, marketType: "Crypto" },
+  { q: "Apple launch crypto wallet by EOY?", yes: 22, vol: "$540K", end: "Dec 31", category: "Tech", participants: 290, marketType: "Stock" },
 ];
 
-const CATEGORIES = ["All", "Crypto", "Macro", "Regulation", "AI", "Tech"];
+const CATEGORIES = ["All", "Crypto", "Stock", "Global", "More"] as const;
+const FILTERS = ["Top Volume", "Ending Soon", "Most Active"] as const;
 
 const CATEGORY_COLORS: Record<string, string> = {
   Crypto: "bg-orange-500/15 text-orange-400 border-orange-500/20",
@@ -41,6 +42,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export default function Prediction() {
   const [activeCat, setActiveCat] = useState("All");
+  const [activeFilter, setActiveFilter] = useState<(typeof FILTERS)[number]>("Top Volume");
   const [bannerIdx, setBannerIdx] = useState(0);
 
   useEffect(() => {
@@ -48,7 +50,12 @@ export default function Prediction() {
     return () => clearInterval(t);
   }, []);
 
-  const filtered = activeCat === "All" ? markets : markets.filter(m => m.category === activeCat);
+  const typeFiltered = activeCat === "All" ? markets : markets.filter(m => m.marketType === activeCat);
+  const filtered = [...typeFiltered].sort((a, b) => {
+    if (activeFilter === "Top Volume") return parseFloat(b.vol.replace(/[^0-9.]/g, "")) - parseFloat(a.vol.replace(/[^0-9.]/g, ""));
+    if (activeFilter === "Ending Soon") return a.end.localeCompare(b.end);
+    return b.participants - a.participants;
+  });
 
   return (
     <AppShell>
@@ -95,13 +102,33 @@ export default function Prediction() {
           </div>
         </div>
 
+        {/* Market type tabs + filter */}
+        <div className="rounded-xl border border-border/50 p-3 bg-gradient-to-r from-[#0a1533] to-[#0a1328]">
+          <div className="flex items-center gap-2 flex-wrap">
+            {CATEGORIES.map(c => (
+              <button key={c} onClick={() => setActiveCat(c)} className={cn(
+                "px-3 py-1.5 text-xs rounded-md border transition-all",
+                activeCat === c ? "bg-primary/15 text-primary border-primary/30" : "border-border/50 text-muted-foreground hover:bg-muted/40"
+              )}>{c}</button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            {FILTERS.map(filter => (
+              <button key={filter} onClick={() => setActiveFilter(filter)} className={cn(
+                "px-3 py-1 text-[11px] rounded-full border transition-all",
+                activeFilter === filter ? "bg-primary/15 text-primary border-primary/30" : "border-border/50 text-muted-foreground hover:bg-muted/40"
+              )}>{filter}</button>
+            ))}
+          </div>
+        </div>
+
         {/* Hot markets */}
         <div>
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
             <Zap className="h-4 w-4 text-primary" /> Hot Markets
           </h2>
           <div className="grid md:grid-cols-3 gap-4 mb-2">
-            {markets.slice(0, 3).map(m => <MarketCard key={m.q} m={m} featured />)}
+            {filtered.slice(0, 3).map(m => <MarketCard key={m.q} m={m} featured />)}
           </div>
         </div>
 
@@ -109,14 +136,7 @@ export default function Prediction() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold flex items-center gap-2"><Globe className="h-4 w-4 text-primary" /> All Markets</h2>
-            <div className="flex gap-1.5 flex-wrap">
-              {CATEGORIES.map(c => (
-                <button key={c} onClick={() => setActiveCat(c)} className={cn(
-                  "px-3 py-1 text-xs rounded-full border transition-all",
-                  activeCat === c ? "bg-primary/15 text-primary border-primary/30" : "border-border/50 text-muted-foreground hover:bg-muted/40"
-                )}>{c}</button>
-              ))}
-            </div>
+            <span className="text-xs text-muted-foreground">Filter: {activeFilter}</span>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map(m => <MarketCard key={m.q} m={m} />)}

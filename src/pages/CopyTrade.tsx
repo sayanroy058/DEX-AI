@@ -2,7 +2,7 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy as CopyIcon, ChevronDown, Globe, Shield, TrendingUp, Bot } from "lucide-react";
 
 // Mini SVG sparkline helper
@@ -110,8 +110,16 @@ const TRADERS = [
   { rank: 10, medal: null, name: "PepeWhale", region: "MEMES", roi30: "+12.45%", roi7: "-8.12%", winRate: 45.1, followers: "12,410", aum: "$0.45M", sharpe: 0.5, sparkData: [20, 25, 18, 12, 15, 10, 8, 12, 12], sparkColor: "#ef4444", initials: "PW", color: "#22c55e" },
 ];
 
-const ASSET_TABS = ["All Strategies", "Spot", "Futures", "AI Bots"] as const;
-type AssetTab = (typeof ASSET_TABS)[number];
+const MARKET_CATEGORY_TABS = {
+  Crypto: ["Spot", "Future", "Options", "AI Bots"],
+  Forex: ["Options", "AI Bots"],
+  Commodity: ["Options", "AI Bots"],
+  Stocks: ["Spot", "Future", "Options", "AI Bots"],
+} as const;
+
+const MARKET_CATEGORIES = Object.keys(MARKET_CATEGORY_TABS) as Array<keyof typeof MARKET_CATEGORY_TABS>;
+type MarketCategory = (typeof MARKET_CATEGORIES)[number];
+type AssetTab = (typeof MARKET_CATEGORY_TABS)[MarketCategory][number];
 
 const FILTER_TABS = ["ROI 30D", "Risk Level", "Followers", "Win Rate", "Asset Class"] as const;
 
@@ -123,9 +131,17 @@ function MedalIcon({ medal }: { medal: string | null }) {
 }
 
 const CopyTrade = () => {
-  const [activeTab, setActiveTab] = useState<AssetTab>("All Strategies");
+  const [activeMarketCategory, setActiveMarketCategory] = useState<MarketCategory>("Crypto");
+  const [activeTab, setActiveTab] = useState<AssetTab>("Spot");
   const [activeFilter, setActiveFilter] = useState("ROI 30D");
   const [copying, setCopying] = useState<Set<string>>(new Set());
+  const activeAssetTabs = MARKET_CATEGORY_TABS[activeMarketCategory];
+
+  useEffect(() => {
+    if (!activeAssetTabs.includes(activeTab as never)) {
+      setActiveTab(activeAssetTabs[0]);
+    }
+  }, [activeAssetTabs, activeTab]);
 
   const toggleCopy = (name: string) => {
     setCopying(prev => {
@@ -154,9 +170,28 @@ const CopyTrade = () => {
         </div>
         <p className="text-muted-foreground text-sm -mt-4">Mirror the best traders on DEX.ai with one tap.</p>
 
-        {/* Asset class tabs */}
-        <div className="flex items-center gap-2 border-b border-border/30 pb-1">
-          {ASSET_TABS.map(tab => (
+        {/* Top categories */}
+        <div className="flex items-center gap-2 border-b border-border/30 pb-1 flex-wrap">
+          {MARKET_CATEGORIES.map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveMarketCategory(tab)}
+              className={cn(
+                "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                activeMarketCategory === tab
+                  ? "text-white"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              style={activeMarketCategory === tab ? { background: "linear-gradient(90deg,#0ea5e9,#2563eb)" } : {}}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {/* Under category options */}
+        <div className="flex items-center gap-2 border-b border-border/30 pb-1 flex-wrap">
+          {activeAssetTabs.map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}

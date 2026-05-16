@@ -15,11 +15,21 @@ const HOLDINGS = [
 ];
 
 const ASSET_BREAKDOWN = [
+  { asset: "DEXUSD", value: 12006, pct: 42, color: "hsl(145 65% 52%)" },
   { asset: "BTC", value: 9524, pct: 38, color: "hsl(38 90% 55%)" },
   { asset: "ETH", value: 6318, pct: 25, color: "hsl(225 70% 65%)" },
   { asset: "SOL", value: 3762, pct: 15, color: "hsl(280 80% 65%)" },
-  { asset: "USDT", value: 3006, pct: 12, color: "hsl(145 60% 50%)" },
-  { asset: "Others", value: 2510, pct: 10, color: "hsl(220 20% 45%)" },
+  { asset: "USDT", value: 2006, pct: 7, color: "hsl(178 70% 50%)" },
+  { asset: "Others", value: 988, pct: 3, color: "hsl(220 20% 45%)" },
+];
+
+const FROZEN_AMOUNT = [
+  { bucket: "Spot", value: 8240 },
+  { bucket: "Future", value: 5932 },
+  { bucket: "Option", value: 2480 },
+  { bucket: "P2P", value: 3615 },
+  { bucket: "Copy Trading", value: 4180 },
+  { bucket: "Funding A/C", value: 3025 },
 ];
 
 const TRANSACTIONS = [
@@ -53,6 +63,7 @@ const Portfolio = () => {
   const balance = 25000;
   const equity = balance + totalPnl;
   const totalFunds = equity + totalValue;
+  const totalFrozen = FROZEN_AMOUNT.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <AppShell>
@@ -78,6 +89,22 @@ const Portfolio = () => {
           <StatCard label="Available Balance" value={`$${balance.toLocaleString()}`} sub="Ready to trade" icon={Wallet} />
           <StatCard label="Unrealized PnL" value={`${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(2)}`} sub={`${totalPnl >= 0 ? "+" : ""}${((totalPnl / balance) * 100).toFixed(2)}% return`} icon={totalPnl >= 0 ? ArrowUpRight : ArrowDownRight} tone={totalPnl >= 0 ? "buy" : "sell"} />
           <StatCard label="Position Value" value={`$${totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} sub={`${positions.length} open positions`} icon={BarChart3} />
+        </div>
+
+        {/* Frozen amount allocation */}
+        <div className="glass rounded-xl p-4 border border-primary/25">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold flex items-center gap-2"><Wallet className="h-4 w-4 text-primary" /> Frozen Amount</h3>
+            <span className="text-xs text-muted-foreground">Total frozen: <span className="font-mono text-foreground">${totalFrozen.toLocaleString()}</span></span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+            {FROZEN_AMOUNT.map((item) => (
+              <div key={item.bucket} className="glass rounded-lg p-2.5">
+                <div className="text-[10px] text-muted-foreground">{item.bucket}</div>
+                <div className="font-mono font-bold text-sm mt-0.5">${item.value.toLocaleString()}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">

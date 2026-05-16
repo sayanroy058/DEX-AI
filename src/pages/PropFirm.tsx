@@ -13,20 +13,12 @@ const challenges = [
   { name: "Whale", capital: "$500,000", fee: "$1,499", profit: "10%", drawdown: "10%", split: "90%", recommended: false, color: "border-cyan-400/50", badge: "bg-cyan-500/15 text-cyan-400", glow: "34 211 238" },
 ];
 
-const FEE_STRUCTURE = [
-  { category: "Crypto Futures", maker: "0.02%", taker: "0.05%", overnight: "0.01%/day" },
-  { category: "Crypto Spot", maker: "0.05%", taker: "0.10%", overnight: "N/A" },
-  { category: "Forex", maker: "0.01%", taker: "0.03%", overnight: "0.005%/day" },
-  { category: "Commodities", maker: "0.03%", taker: "0.07%", overnight: "0.008%/day" },
-  { category: "Stocks / ETFs", maker: "0.05%", taker: "0.12%", overnight: "0.012%/day" },
-];
-
 const features = [
-  { icon: CheckCircle2, title: "Instant Funding", desc: "Get approved and funded within 24 hours" },
-  { icon: Shield, title: "Protected Trades", desc: "Stop losses and risk management built-in" },
+  { icon: CheckCircle2, title: "Instant Funding", desc: "As you clear stages and get instant funding in minutes" },
+  { icon: Shield, title: "Protected Trades", desc: "Multiple built in tools so trade make there risk managment more easier" },
   { icon: BarChart3, title: "Live Analytics", desc: "Real-time performance tracking dashboard" },
-  { icon: Wallet, title: "Direct Payouts", desc: "Withdraw profits weekly or monthly" },
-  { icon: Users, title: "Community", desc: "Access to exclusive trader network" },
+  { icon: Wallet, title: "Instant Payout", desc: "Give freedom to get payout instantly as you make profit, no dealy, no holding period" },
+  { icon: Users, title: "Bot & Strategy Trading", desc: "Make your own bot & startegy to trade with the help of AI" },
   { icon: Bolt, title: "Zero Restrictions", desc: "Trade any asset, any strategy, anytime" },
 ];
 
@@ -333,36 +325,6 @@ export default function PropFirm() {
                   View All Traders
                 </Button>
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Fee Structure */}
-        <section className="px-6 lg:px-10 py-10">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold mb-2">Trading Fee Structure</h2>
-            <p className="text-muted-foreground text-sm mb-6">Fees vary by asset class. Funded accounts benefit from reduced fees.</p>
-            <div className="glass rounded-xl overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="text-[11px] text-muted-foreground uppercase border-b border-border/50">
-                  <tr>
-                    <th className="text-left px-5 py-3">Asset Category</th>
-                    <th className="text-right px-4 py-3">Maker Fee</th>
-                    <th className="text-right px-4 py-3">Taker Fee</th>
-                    <th className="text-right px-5 py-3">Overnight / Swap</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {FEE_STRUCTURE.map(f => (
-                    <tr key={f.category} className="border-b border-border/30 hover:bg-muted/20">
-                      <td className="px-5 py-3 font-medium">{f.category}</td>
-                      <td className="text-right px-4 py-3 font-mono text-buy">{f.maker}</td>
-                      <td className="text-right px-4 py-3 font-mono text-sell">{f.taker}</td>
-                      <td className="text-right px-5 py-3 font-mono text-muted-foreground">{f.overnight}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         </section>
