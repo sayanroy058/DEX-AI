@@ -16,14 +16,12 @@ import { cn } from "@/lib/utils";
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
 const SUPPLY_ALLOC = [
-  { name: "Community + Ecosystem", value: 15, color: "#00e5ff" },
-  { name: "Staking/Emission", value: 20, color: "#a855f7" },
-  { name: "Liquidity", value: 10, color: "#f59e0b" },
-  { name: "Team", value: 5, color: "#10b981" },
-  { name: "Treasury", value: 8, color: "#6366f1" },
-  { name: "Strategic Reserve", value: 35, color: "#22c55e" },
-  { name: "Marketing", value: 5, color: "#06b6d4" },
-  { name: "Initial Burn", value: 2, color: "#ef4444" },
+  { name: "Community", value: 35, color: "#00e5ff" },
+  { name: "Ecosystem Fund", value: 22, color: "#a855f7" },
+  { name: "Team", value: 18, color: "#f59e0b" },
+  { name: "Liquidity", value: 10, color: "#10b981" },
+  { name: "Treasury", value: 10, color: "#6366f1" },
+  { name: "Burned", value: 5, color: "#ef4444" },
 ];
 
 const EMISSION_YEARS = [2022,2023,2024,2025,2026,2027,2028,2029,2030];
@@ -171,39 +169,43 @@ export default function Token() {
 
             {/* Supply allocation donut */}
             <div className="glass rounded-2xl p-5 border border-border/50">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-primary" />
                   <span className="font-semibold text-sm">Supply Allocation</span>
                 </div>
-                <span className="text-[10px] text-muted-foreground">Total Token Supply: 1 Billion</span>
+                <div className="flex items-center gap-2 text-[10px]">
+                  <button className="rounded-md bg-primary/20 px-2.5 py-1 text-primary">Allocation</button>
+                  <button className="rounded-md px-2.5 py-1 text-muted-foreground hover:text-foreground transition-colors">
+                    Initial Distribution
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center justify-center">
-                <ResponsiveContainer width={180} height={180}>
+                <ResponsiveContainer width={190} height={190}>
                   <PieChart>
-                    <Pie data={SUPPLY_ALLOC} cx="50%" cy="50%" innerRadius={55} outerRadius={80}
+                    <Pie data={SUPPLY_ALLOC} cx="50%" cy="50%" innerRadius={58} outerRadius={85}
                       dataKey="value" stroke="none">
                       {SUPPLY_ALLOC.map((s, i) => <Cell key={i} fill={s.color} />)}
                     </Pie>
                     <Tooltip
                       contentStyle={{ background: "hsl(230 25% 9%)", border: "1px solid hsl(230 25% 18%)", borderRadius: 8, fontSize: 11 }}
-                      formatter={(v: any) => [`${v}%`, ""]}
+                      formatter={(v: number | string) => [`${v}%`, ""]}
                     />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="text-center -mt-16 mb-10 pointer-events-none">
+              <div className="text-center -mt-[70px] mb-12 pointer-events-none">
                 <div className="text-lg font-bold font-mono">1.0B</div>
-                <div className="text-[9px] text-muted-foreground uppercase">CAP</div>
               </div>
 
-              <div className="grid grid-cols-1 gap-x-6 gap-y-1.5 mt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 mt-4">
                 {SUPPLY_ALLOC.map(s => (
-                  <div key={s.name} className="flex items-center justify-between text-[11px]">
-                    <div className="flex items-center gap-1.5">
+                  <div key={s.name} className="grid grid-cols-[1fr_auto] items-center gap-3 text-[11px]">
+                    <div className="flex min-w-0 items-center gap-1.5">
                       <div className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color }} />
-                      <span className="text-muted-foreground">{s.name}</span>
+                      <span className="truncate text-muted-foreground">{s.name}</span>
                     </div>
                     <span className="font-mono font-semibold">{s.value}%</span>
                   </div>
