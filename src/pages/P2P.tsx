@@ -198,16 +198,7 @@ export default function P2P() {
 
               {/* Trading Panel */}
               <Card className="border-border/50 bg-card/30 backdrop-blur-sm p-6">
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div className="space-y-2">
-                    <label className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
-                      Asset
-                    </label>
-                    <div className="flex h-10 w-full items-center rounded-md border border-input bg-background/50 px-3 py-2 text-sm font-medium text-foreground">
-                      DEXUSD
-                    </div>
-                  </div>
-
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div className="space-y-2">
                     <label className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
                       Fiat
