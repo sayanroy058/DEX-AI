@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { generateOrderBook, generateTrade, formatPrice, Trade } from "@/lib/mockData";
 
 // ─── Default sizes ────────────────────────────────────────────────────────────
-const DEFAULT_COL_SIZES = [14, 62, 24];
+const DEFAULT_COL_SIZES = [14, 66, 20];
 const DEFAULT_CENTER_SIZES = [65, 35];
 const COLLAPSED_LEFT_SIZE = 3;
 const MINIMIZED_POSITIONS_SIZE = 3;
