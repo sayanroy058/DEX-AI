@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Zap, ArrowRight, TrendingUp, Layers, Bot, Shield, Globe, QrCode, Star, Download, Monitor, Laptop, Apple } from "lucide-react";
+import { Zap, ArrowRight, TrendingUp, Layers, Bot, Shield, Globe, QrCode, Star, Download, Monitor, Laptop, Apple, Home, BarChart2, Wallet } from "lucide-react";
 import { WalletDialog } from "@/components/wallet/WalletDialog";
 import appStoreImg from "@/assets/app-store.png";
 import playStoreImg from "@/assets/play-store.png";
@@ -362,9 +362,9 @@ export default function Landing() {
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-7 bg-black rounded-b-3xl z-20" />
                 
                 {/* Screen */}
-                <div className="relative w-full rounded-[2.3rem] bg-gradient-to-b from-blue-900 to-slate-950 overflow-hidden">
+                <div className="relative w-full rounded-[2.3rem] bg-gradient-to-b from-blue-900 to-slate-950 overflow-hidden flex flex-col" style={{height: '580px'}}>
                   {/* Content */}
-                  <div className="p-6 pt-10 flex flex-col h-[580px]">
+                  <div className="p-6 pt-10 flex flex-col flex-1 overflow-hidden">
                     {/* Status bar area */}
                     <div className="flex justify-between items-center mb-6 px-2">
                       <span className="text-white text-sm font-semibold">9:41</span>
@@ -434,18 +434,23 @@ export default function Landing() {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex gap-3 mb-4">
+                    <div className="flex gap-3 mb-2">
                       <button className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-2.5 rounded-lg font-bold text-sm transition-colors">↑ Long</button>
                       <button className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-lg font-bold text-sm transition-colors">↓ Short</button>
                     </div>
+                  </div>
 
-                    {/* Bottom Option Bar */}
-                    <div className="grid grid-cols-4 gap-2 pt-3 border-t border-slate-700 text-[10px]">
-                      <button className="h-8 rounded-md bg-slate-900/70 text-cyan-300 border border-cyan-700/40">Spot</button>
-                      <button className="h-8 rounded-md bg-slate-900/70 text-slate-300 border border-slate-700">Futures</button>
-                      <button className="h-8 rounded-md bg-slate-900/70 text-slate-300 border border-slate-700">Margin</button>
-                      <button className="h-8 rounded-md bg-slate-900/70 text-slate-300 border border-slate-700">More</button>
-                    </div>
+                  {/* Bottom Nav Bar — pinned outside scroll area */}
+                  <div className="grid grid-cols-3 gap-2 px-4 py-3 border-t border-slate-700 bg-slate-950/90 flex-shrink-0">
+                    <button className="h-10 rounded-xl bg-slate-900/70 border border-cyan-700/40 flex items-center justify-center">
+                      <Home className="h-4 w-4 text-cyan-300" />
+                    </button>
+                    <button className="h-10 rounded-xl bg-slate-900/70 border border-slate-700 flex items-center justify-center">
+                      <BarChart2 className="h-4 w-4 text-slate-300" />
+                    </button>
+                    <button className="h-10 rounded-xl bg-slate-900/70 border border-slate-700 flex items-center justify-center">
+                      <Wallet className="h-4 w-4 text-slate-300" />
+                    </button>
                   </div>
                 </div>
               </div>
