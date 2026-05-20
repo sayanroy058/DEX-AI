@@ -33,7 +33,7 @@ const merchants = [
     price: 91.24,
     limit: "₹1,00,000 - ₹5,00,000",
     payment: "Bank Transfer",
-    available: "4,500 USDT",
+    available: "4,500 DEXUSD",
   },
   {
     id: 2,
@@ -44,7 +44,7 @@ const merchants = [
     price: 91.25,
     limit: "₹5,00,000 - ₹25,00,000",
     payment: "UPI, GPay",
-    available: "4,430 USDT",
+    available: "4,430 DEXUSD",
   },
   {
     id: 3,
@@ -55,7 +55,7 @@ const merchants = [
     price: 91.28,
     limit: "₹10,000 - ₹75,00,000",
     payment: "IMPS",
-    available: "5,300.25 USDT",
+    available: "5,300.25 DEXUSD",
   },
   {
     id: 4,
@@ -66,7 +66,7 @@ const merchants = [
     price: 91.30,
     limit: "₹15,000 - ₹1,00,00,000",
     payment: "Bank Transfer",
-    available: "15,000 USDT",
+    available: "15,000 DEXUSD",
   },
   {
     id: 5,
@@ -77,7 +77,7 @@ const merchants = [
     price: 91.32,
     limit: "₹3,400 - ₹50,000",
     payment: "Payim, UPI",
-    available: "3,400 USDT",
+    available: "3,400 DEXUSD",
   },
   {
     id: 6,
@@ -88,7 +88,7 @@ const merchants = [
     price: 91.35,
     limit: "₹50,000 - ₹25,00,000",
     payment: "NEFTX",
-    available: "45,000 USDT",
+    available: "45,000 DEXUSD",
   },
   {
     id: 7,
@@ -99,7 +99,7 @@ const merchants = [
     price: 91.38,
     limit: "₹2,900 - ₹3,00,000",
     payment: "GPay",
-    available: "2,900 USDT",
+    available: "2,900 DEXUSD",
   },
   {
     id: 8,
@@ -110,7 +110,7 @@ const merchants = [
     price: 91.40,
     limit: "₹8,000 - ₹10,00,000",
     payment: "IMPS",
-    available: "8,000 USDT",
+    available: "8,000 DEXUSD",
   },
 ];
 
@@ -344,7 +344,7 @@ export default function P2P() {
                               size="sm"
                               className={`text-xs ${mode === "buy" ? "bg-buy text-buy-foreground hover:bg-buy/90" : "bg-red-500 text-white hover:bg-red-600"}`}
                             >
-                              {mode === "buy" ? "BUY" : "SELL"} USDT
+                              {mode === "buy" ? "BUY" : "SELL"} DEXUSD
                             </Button>
                           </td>
                         </tr>
