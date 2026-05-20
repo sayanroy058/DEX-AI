@@ -325,7 +325,7 @@ export function TradePanel({ symbol, price }: { symbol: string; price: number })
             <Slider value={[leverage]} min={1} max={100} step={1} onValueChange={v => setLeverageValue(v[0])}
               className="my-1 h-3" />
             <div className="mt-2 flex flex-wrap gap-1">
-              {[1, 10, 25, 50, 75, 100].map(l => (
+              {[1, 10, 50, 75, 100].map(l => (
                 <button key={l} onClick={() => setLeverageValue(l)}
                   className={cn("h-8 min-w-[4rem] flex-1 text-[11px] rounded-md border transition-colors",
                     leverage === l ? "border-primary bg-primary/20 text-primary shadow-[0_0_14px_hsl(var(--primary)/0.35)]" : "border-border bg-muted/20 text-muted-foreground hover:text-foreground"
