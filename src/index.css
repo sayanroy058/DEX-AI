@@ -82,28 +82,72 @@
   }
 
   :root[data-theme="light"] {
-    --background: 210 28% 97%;
-    --foreground: 222 35% 14%;
+    /* Clean, crisp light surfaces */
+    --background: 220 20% 96%;
+    --foreground: 220 30% 12%;
+
     --card: 0 0% 100%;
-    --card-foreground: 222 35% 14%;
+    --card-foreground: 220 30% 12%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 222 35% 14%;
-    --primary: 202 90% 46%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 35% 90%;
-    --secondary-foreground: 222 35% 14%;
-    --muted: 210 30% 93%;
-    --muted-foreground: 220 15% 42%;
-    --accent: 190 80% 45%;
-    --accent-foreground: 210 40% 98%;
-    --border: 215 28% 84%;
-    --input: 215 28% 88%;
-    --glass: 0 0% 100% / 0.72;
-    --glass-border: 215 28% 70% / 0.5;
-    --glass-strong: 0 0% 100% / 0.86;
-    --gradient-bg: radial-gradient(ellipse 80% 60% at 20% 0%, hsl(200 92% 75% / 0.25), transparent 60%),
-                   radial-gradient(ellipse 80% 60% at 80% 100%, hsl(220 80% 78% / 0.2), transparent 60%),
-                   hsl(210 28% 97%);
+    --popover-foreground: 220 30% 12%;
+
+    /* Rich indigo-blue primary */
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 221 83% 63%;
+
+    /* Soft indigo secondary */
+    --secondary: 220 14% 92%;
+    --secondary-foreground: 220 30% 20%;
+
+    --muted: 220 16% 91%;
+    --muted-foreground: 220 12% 46%;
+
+    --accent: 221 83% 53%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Trading semantic — vivid but not neon */
+    --buy: 152 69% 38%;
+    --buy-foreground: 0 0% 100%;
+    --buy-glow: 152 69% 48%;
+    --sell: 0 72% 51%;
+    --sell-foreground: 0 0% 100%;
+    --sell-glow: 0 72% 61%;
+    --warning: 38 92% 50%;
+
+    --border: 220 16% 86%;
+    --input: 220 16% 94%;
+    --ring: 221 83% 53%;
+
+    /* Flat, no-blur glass — just clean whites */
+    --glass: 0 0% 100% / 1;
+    --glass-border: 220 16% 82% / 1;
+    --glass-strong: 0 0% 100% / 1;
+
+    /* No glow / no shadows in light mode */
+    --shadow-glow-primary: none;
+    --shadow-glow-buy: none;
+    --shadow-glow-sell: none;
+    --shadow-card: none;
+
+    /* Subtle gradient bg */
+    --gradient-primary: linear-gradient(135deg, hsl(221 83% 53%), hsl(250 80% 62%));
+    --gradient-buy: linear-gradient(135deg, hsl(152 69% 38%), hsl(160 65% 45%));
+    --gradient-sell: linear-gradient(135deg, hsl(0 72% 51%), hsl(15 78% 52%));
+    --gradient-bg: hsl(220 20% 96%);
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 20% 30%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 16% 94%;
+    --sidebar-accent-foreground: 220 30% 12%;
+    --sidebar-border: 220 16% 88%;
+    --sidebar-ring: 221 83% 53%;
   }
 
   :root[data-theme="ocean"] {
@@ -173,6 +217,12 @@
     box-shadow: var(--shadow-card), inset 0 1px 0 hsl(220 60% 80% / 0.05);
   }
 
+  :root[data-theme="light"] .glass {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+  }
+
   .glass-strong {
     background: hsl(var(--glass-strong));
     backdrop-filter: blur(24px) saturate(160%);
@@ -180,13 +230,28 @@
     border: 1px solid hsl(var(--glass-border));
   }
 
+  :root[data-theme="light"] .glass-strong {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+  }
+
   .neon-text {
     text-shadow: 0 0 12px hsl(var(--primary) / 0.6);
+  }
+
+  :root[data-theme="light"] .neon-text {
+    text-shadow: none;
   }
 
   .neon-border {
     border: 1px solid hsl(var(--primary) / 0.5);
     box-shadow: 0 0 16px hsl(var(--primary) / 0.25), inset 0 0 16px hsl(var(--primary) / 0.05);
+  }
+
+  :root[data-theme="light"] .neon-border {
+    border: 1px solid hsl(var(--primary) / 0.4);
+    box-shadow: none;
   }
 
   .gradient-text {
@@ -245,6 +310,17 @@
 @keyframes glow-pulse {
   0%, 100% { box-shadow: 0 0 16px hsl(var(--primary) / 0.3); }
   50% { box-shadow: 0 0 24px hsl(var(--primary) / 0.6); }
+}
+
+:root[data-theme="light"] .animate-glow-pulse,
+:root[data-theme="light"] [style*="glow-pulse"] {
+  animation: none;
+  box-shadow: none;
+}
+
+/* Light mode: strip all box-shadows from active nav items */
+:root[data-theme="light"] a[class*="shadow-"] {
+  box-shadow: none !important;
 }
 
 @keyframes ticker {
