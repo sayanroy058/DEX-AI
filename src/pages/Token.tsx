@@ -289,9 +289,6 @@ export default function Token() {
               </div>
 
               <InfoRow k="Contract" v="0x402a...F981" />
-              <Button variant="outline" size="sm" className="w-full mt-3 glass border-primary/40 text-primary hover:bg-primary/10 text-xs h-8">
-                View Reserve transparency <ExternalLink className="h-3 w-3 ml-1" />
-              </Button>
             </div>
 
             {/* Price stability sparkline */}
@@ -362,6 +359,10 @@ export default function Token() {
                   </div>
                 ))}
               </div>
+
+              <Button variant="outline" size="sm" className="w-full mt-4 glass border-primary/40 text-primary hover:bg-primary/10 text-xs h-8">
+                View Reserve transparency <ExternalLink className="h-3 w-3 ml-1" />
+              </Button>
             </div>
           </div>
 
