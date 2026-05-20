@@ -266,12 +266,6 @@ export default function Token() {
             </ResponsiveContainer>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard label="Circulating" value="412.5M DEX" sub="41.25% of Total" />
-            <StatCard label="Total Supply" value="1.0B DEX" sub="Fixed Hard Cap" />
-            <StatCard label="Burned" value="52.4M DEX" sub="5.24% Total Supply" accent />
-            <StatCard label="Holders" value="248,302" sub="+1,204 last 24h" />
-          </div>
         </section>
 
         {/* ══════════════════════════════════════════════
