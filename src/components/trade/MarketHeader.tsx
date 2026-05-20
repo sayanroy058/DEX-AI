@@ -1,15 +1,16 @@
 import { useMarket } from "@/lib/useMarkets";
 import { formatCompact, formatPrice } from "@/lib/mockData";
-import { TrendingUp, TrendingDown, Bot, Sparkles, Calculator } from "lucide-react";
+import { TrendingUp, TrendingDown, Bot, Sparkles, Calculator, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator }: {
+export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onResetLayout }: {
   symbol: string;
   calculatorOpen?: boolean;
   onToggleCalculator?: () => void;
+  onResetLayout?: () => void;
 }) {
   const market = useMarket(symbol);
   const [aiActive, setAiActive] = useState(false);
@@ -97,6 +98,21 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator }: {
           >
             <Calculator className="h-3.5 w-3.5 mr-1.5" />
             Calculator
+          </Button>
+        )}
+        {onResetLayout && (
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              onResetLayout();
+              toast.success("Layout reset to default");
+            }}
+            className="h-8 w-8 glass border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+            title="Reset trade layout"
+            aria-label="Reset trade layout"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
           </Button>
         )}
       </div>

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { generateOrderBook, generateTrade, formatPrice, Trade } from "@/lib/mockData";
 
 // ─── Default sizes ────────────────────────────────────────────────────────────
-const DEFAULT_COL_SIZES = [18, 58, 24];
+const DEFAULT_COL_SIZES = [14, 62, 24];
 const DEFAULT_CENTER_SIZES = [65, 35];
 const COLLAPSED_LEFT_SIZE = 3;
 const MINIMIZED_POSITIONS_SIZE = 3;
@@ -374,6 +374,19 @@ const Index = () => {
     });
   }, []);
 
+  const resetLayout = useCallback(() => {
+    setSlots(["marketList", "chart", "positions"]);
+    setCollapsed(false);
+    setPositionsMinimized(false);
+    leftPanelSizeRef.current = DEFAULT_COL_SIZES[0];
+    positionsPanelSizeRef.current = DEFAULT_CENTER_SIZES[1];
+    leftPanelRef.current?.resize?.(DEFAULT_COL_SIZES[0]);
+    centerPanelRef.current?.resize?.(DEFAULT_COL_SIZES[1]);
+    rightPanelRef.current?.resize?.(DEFAULT_COL_SIZES[2]);
+    chartPanelRef.current?.resize?.(DEFAULT_CENTER_SIZES[0]);
+    posPanelRef.current?.resize?.(DEFAULT_CENTER_SIZES[1]);
+  }, []);
+
   function renderContent(id: PanelId) {
     switch (id) {
       case "marketList":
@@ -394,6 +407,7 @@ const Index = () => {
           symbol={symbol}
           calculatorOpen={calcOpen}
           onToggleCalculator={() => setCalcOpen(o => !o)}
+          onResetLayout={resetLayout}
         />
 
         {/* Trade Calculator panel */}
