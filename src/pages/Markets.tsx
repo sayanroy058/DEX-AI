@@ -91,8 +91,8 @@ const Markets = () => {
                    key={k}
                    onClick={() => setKind(k as any)}
                    className={cn(
-                     "px-2.5 py-1 rounded text-[11px] transition-colors",
-                     kind === k ? "bg-secondary/20 text-secondary" : "text-muted-foreground hover:text-foreground"
+                     "px-2.5 py-1 rounded text-[11px] font-medium transition-colors",
+                     kind === k ? "bg-primary/15 text-primary border border-primary/30" : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                    )}
                 >
                   {KIND_LABEL[k]}

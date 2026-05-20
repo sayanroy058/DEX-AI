@@ -96,8 +96,20 @@ function ChartPane({ symbol, price, indicators }: { symbol: string; price: numbe
     const candleW = chartW / candles.length;
     const bodyW = Math.max(candleW * 0.65, 1);
 
+    const isLight = document.documentElement.getAttribute("data-theme") === "light";
+    const gridColor = isLight ? "hsl(220 16% 86% / 0.8)" : "hsl(230 25% 18% / 0.6)";
+    const labelColor = isLight ? "hsl(220 12% 46%)" : "hsl(220 15% 60%)";
+    const priceLineColor = isLight ? "hsl(221 83% 53%)" : "hsl(186 100% 55%)";
+    const priceLabelBg = isLight ? "hsl(221 83% 53%)" : "hsl(186 100% 55%)";
+    const priceLabelFg = isLight ? "hsl(0 0% 100%)" : "hsl(230 30% 6%)";
+    const crosshairBg = isLight ? "hsl(0 0% 100%)" : "hsl(230 35% 12%)";
+    const crosshairBorder = isLight ? "hsl(221 83% 53%)" : "hsl(186 100% 55%)";
+    const maColor = isLight ? "hsl(221 83% 53%)" : "hsl(186 100% 55%)";
+    const buyColor = isLight ? "hsl(152 69% 38%)" : "hsl(145 85% 50%)";
+    const sellColor = isLight ? "hsl(0 72% 51%)" : "hsl(350 90% 60%)";
+
     // grid
-    ctx.strokeStyle = "hsl(230 25% 18% / 0.6)";
+    ctx.strokeStyle = gridColor;
     ctx.lineWidth = 1;
     for (let i = 0; i <= 6; i++) {
       const y = padT + (chartH / 6) * i;
@@ -108,7 +120,7 @@ function ChartPane({ symbol, price, indicators }: { symbol: string; price: numbe
       ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + chartH); ctx.stroke();
     }
 
-    ctx.fillStyle = "hsl(220 15% 60%)";
+    ctx.fillStyle = labelColor;
     ctx.font = "9px JetBrains Mono";
     for (let i = 0; i <= 6; i++) {
       const y = padT + (chartH / 6) * i;
@@ -118,7 +130,7 @@ function ChartPane({ symbol, price, indicators }: { symbol: string; price: numbe
 
     if (indicators.includes("MA")) {
       const period = 20;
-      ctx.strokeStyle = "hsl(186 100% 55%)";
+      ctx.strokeStyle = maColor;
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       candles.forEach((_, i) => {
@@ -135,7 +147,7 @@ function ChartPane({ symbol, price, indicators }: { symbol: string; price: numbe
     candles.forEach((c, i) => {
       const x = padL + i * candleW + candleW / 2;
       const isUp = c.c >= c.o;
-      const color = isUp ? "hsl(145 85% 50%)" : "hsl(350 90% 60%)";
+      const color = isUp ? buyColor : sellColor;
       const yO = padT + ((yMax - c.o) / yRange) * chartH;
       const yC = padT + ((yMax - c.c) / yRange) * chartH;
       const yH = padT + ((yMax - c.h) / yRange) * chartH;
@@ -155,20 +167,20 @@ function ChartPane({ symbol, price, indicators }: { symbol: string; price: numbe
         const x = padL + i * candleW;
         const h = (c.v / maxV) * (volH - 4);
         const isUp = c.c >= c.o;
-        ctx.fillStyle = isUp ? "hsl(145 85% 50% / 0.4)" : "hsl(350 90% 60% / 0.4)";
+        ctx.fillStyle = isUp ? (isLight ? "hsl(152 69% 38% / 0.35)" : "hsl(145 85% 50% / 0.4)") : (isLight ? "hsl(0 72% 51% / 0.35)" : "hsl(350 90% 60% / 0.4)");
         ctx.fillRect(x + (candleW - bodyW) / 2, volTop + (volH - 4 - h), bodyW, h);
       });
     }
 
     // live price line
     const yPrice = padT + ((yMax - price) / yRange) * chartH;
-    ctx.strokeStyle = "hsl(186 100% 55%)";
+    ctx.strokeStyle = priceLineColor;
     ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
     ctx.beginPath(); ctx.moveTo(padL, yPrice); ctx.lineTo(W - padR, yPrice); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = "hsl(186 100% 55%)";
+    ctx.fillStyle = priceLabelBg;
     ctx.fillRect(W - padR + 2, yPrice - 7, padR - 4, 14);
-    ctx.fillStyle = "hsl(230 30% 6%)";
+    ctx.fillStyle = priceLabelFg;
     ctx.font = "bold 9px JetBrains Mono";
     ctx.fillText(price.toFixed(price < 1 ? 4 : 2), W - padR + 5, yPrice + 3);
 
@@ -206,17 +218,17 @@ function ChartPane({ symbol, price, indicators }: { symbol: string; price: numbe
 
     // crosshair
     if ((tool === "cross" || tool === "cursor") && mouse) {
-      ctx.strokeStyle = "hsl(220 15% 50% / 0.6)";
+      ctx.strokeStyle = isLight ? "hsl(220 12% 46% / 0.5)" : "hsl(220 15% 50% / 0.6)";
       ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
       ctx.beginPath(); ctx.moveTo(mouse.x, padT); ctx.lineTo(mouse.x, padT + chartH); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(padL, mouse.y); ctx.lineTo(W - padR, mouse.y); ctx.stroke();
       ctx.setLineDash([]);
       const py = yMax - ((mouse.y - padT) / chartH) * yRange;
-      ctx.fillStyle = "hsl(230 35% 12%)";
+      ctx.fillStyle = crosshairBg;
       ctx.fillRect(W - padR + 2, mouse.y - 7, padR - 4, 14);
-      ctx.strokeStyle = "hsl(186 100% 55%)";
+      ctx.strokeStyle = crosshairBorder;
       ctx.strokeRect(W - padR + 2, mouse.y - 7, padR - 4, 14);
-      ctx.fillStyle = "hsl(186 100% 55%)";
+      ctx.fillStyle = crosshairBorder;
       ctx.font = "bold 9px JetBrains Mono";
       ctx.fillText(py.toFixed(py < 1 ? 4 : 2), W - padR + 5, mouse.y + 3);
     }
@@ -331,7 +343,7 @@ export function TradingChart({ symbol, price }: { symbol: string; price: number 
                 onClick={() => setActiveIndicators(p => active ? p.filter(i => i !== ind) : [...p, ind])}
                 className={cn(
                   "px-2 py-1 text-[10px] font-medium rounded border transition-all",
-                  active ? "bg-secondary/15 text-secondary border-secondary/40"
+                  active ? "bg-primary/15 text-primary border-primary/30"
                          : "border-border/50 text-muted-foreground hover:text-foreground"
                 )}
               >

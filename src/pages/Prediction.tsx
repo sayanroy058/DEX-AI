@@ -103,7 +103,7 @@ export default function Prediction() {
         </div>
 
         {/* Market type tabs + filter */}
-        <div className="rounded-xl border border-border/50 p-3 bg-gradient-to-r from-[#0a1533] to-[#0a1328]">
+        <div className="rounded-xl border border-border/50 p-3 bg-muted/40">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none flex-nowrap">
             {CATEGORIES.map(c => (
               <button key={c} onClick={() => setActiveCat(c)} className={cn(
