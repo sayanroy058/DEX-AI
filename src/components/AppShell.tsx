@@ -19,7 +19,7 @@ const navItems = [
   { to: "/prediction", icon: Sparkles, label: "Predict" },
   { to: "/p2p", icon: Repeat, label: "P2P" },
   { to: "/token", icon: Coins, label: "Token" },
-  { to: "/sip", icon: CalendarClock, label: "SIP" },
+  { to: "/sip", icon: CalendarClock, label: "SIP/SWP" },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
