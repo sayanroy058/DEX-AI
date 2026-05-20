@@ -83,12 +83,48 @@ export default function Landing() {
             backgroundImage: 'linear-gradient(rgba(56,189,248,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,0.8) 1px, transparent 1px)',
             backgroundSize: '80px 80px',
           }} />
+          {/* Sweeping aurora beam */}
+          <div className="absolute inset-0 opacity-20" style={{
+            background: 'conic-gradient(from 0deg at 50% 50%, transparent 0deg, rgba(56,189,248,0.15) 40deg, rgba(124,58,237,0.15) 80deg, transparent 120deg)',
+            animation: 'spin-slow 18s linear infinite',
+          }} />
+          {/* Shooting stars */}
+          {[...Array(5)].map((_, i) => (
+            <div
+              key={`star-${i}`}
+              className="absolute h-px"
+              style={{
+                width: `${60 + i * 20}px`,
+                top: `${15 + i * 14}%`,
+                left: '-10%',
+                background: 'linear-gradient(90deg, transparent, rgba(56,189,248,0.8), transparent)',
+                animation: `shooting-star ${5 + i * 1.5}s linear ${i * 1.8}s infinite`,
+              }}
+            />
+          ))}
+          {/* Orbiting ring */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border border-cyan-500/5" style={{ animation: 'spin-slow 30s linear infinite' }}>
+            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-cyan-400/50 blur-[2px]" />
+          </div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full border border-purple-500/5" style={{ animation: 'spin-slow 45s linear reverse infinite' }}>
+            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-purple-400/50 blur-[2px]" />
+          </div>
         </div>
         <style>{`
           @keyframes float-particle {
             0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.3; }
             33% { transform: translateY(-18px) translateX(8px); opacity: 0.7; }
             66% { transform: translateY(-8px) translateX(-10px); opacity: 0.5; }
+          }
+          @keyframes spin-slow {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to   { transform: translate(-50%, -50%) rotate(360deg); }
+          }
+          @keyframes shooting-star {
+            0%   { left: -15%; opacity: 0; }
+            5%   { opacity: 1; }
+            60%  { opacity: 0.6; }
+            100% { left: 110%; opacity: 0; }
           }
         `}</style>
         <div className="relative max-w-3xl w-full text-center space-y-8">
