@@ -296,8 +296,11 @@ export default function Landing() {
         <div className="relative max-w-7xl mx-auto flex flex-col lg:grid lg:grid-cols-[1fr_auto_1fr] gap-10 items-center">
           {/* Left Side - Content */}
           <div className="space-y-7">
-            <div className="flex items-start gap-4 md:gap-6">
+            <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 md:gap-6">
               <div className="hidden sm:block text-cyan-400/95 text-[64px] md:text-[84px] font-black tracking-tight leading-[0.8] [writing-mode:vertical-rl] rotate-180">
+                Trade
+              </div>
+              <div className="block sm:hidden text-cyan-400/95 text-2xl font-black tracking-tight mb-1">
                 Trade
               </div>
               <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[0.88] tracking-tight">
@@ -333,7 +336,7 @@ export default function Landing() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-2 gap-3">
               {[
                 { label: "Windows", sub: "Download for", img: windowsIconImg },
                 { label: "Mac", sub: "Download for", img: "https://cdn.simpleicons.org/apple/ffffff" },
@@ -342,14 +345,14 @@ export default function Landing() {
               ].map((item) => (
                 <button
                   key={item.label}
-                  className="border border-slate-700/80 bg-slate-900/55 hover:border-cyan-500/60 hover:bg-slate-900/80 transition-all rounded-2xl pl-5 pr-4 py-2.5 flex items-center gap-4 group"
+                  className="border border-slate-700/80 bg-slate-900/55 hover:border-cyan-500/60 hover:bg-slate-900/80 transition-all rounded-2xl px-3 py-2.5 flex items-center gap-2 sm:gap-4 group min-w-0"
                 >
-                  <div className="h-12 w-12 rounded-lg bg-black/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    <img src={item.img} alt={item.label} className="w-8 h-8 object-contain" />
+                  <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-black/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    <img src={item.img} alt={item.label} className="w-7 h-7 sm:w-8 sm:h-8 object-contain" />
                   </div>
-                  <div className="text-left">
-                    <div className="text-[9px] text-slate-400 group-hover:text-slate-300 transition-colors">{item.sub}</div>
-                    <div className="text-[22px] leading-none font-extrabold text-white">{item.label}</div>
+                  <div className="text-left min-w-0">
+                    <div className="text-[9px] text-slate-400 group-hover:text-slate-300 transition-colors truncate">{item.sub}</div>
+                    <div className="text-base sm:text-[22px] leading-none font-extrabold text-white truncate">{item.label}</div>
                   </div>
                 </button>
               ))}
