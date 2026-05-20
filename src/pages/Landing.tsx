@@ -300,7 +300,7 @@ export default function Landing() {
               <div className="hidden sm:block text-cyan-400/95 text-[64px] md:text-[84px] font-black tracking-tight leading-[0.8] [writing-mode:vertical-rl] rotate-180">
                 Trade
               </div>
-              <div className="block sm:hidden text-cyan-400/95 text-2xl font-black tracking-tight mb-1">
+              <div className="block sm:hidden text-cyan-400/95 text-4xl font-black tracking-tight leading-[0.88] mb-0">
                 Trade
               </div>
               <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[0.88] tracking-tight">
