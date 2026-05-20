@@ -146,19 +146,33 @@ export default function Token() {
               <div className="text-[11px] text-muted-foreground mb-4">Real-time price · USD</div>
 
               <div className="grid grid-cols-2 gap-3 mb-4">
-                <div>
-                  <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Market Cap - FDV</div>
-                  <div className="font-mono font-bold text-sm">${(marketCap / 1e9).toFixed(2)}B / ${(fdv / 1e9).toFixed(2)}B</div>
+                <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
+                  <div className="text-[9px] text-muted-foreground uppercase tracking-wide mb-1">Market Cap</div>
+                  <div className="font-mono font-bold text-sm">${(marketCap / 1e9).toFixed(2)}B</div>
                 </div>
-                <div>
-                  <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Circulating</div>
+                <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
+                  <div className="text-[9px] text-muted-foreground uppercase tracking-wide mb-1">FDV</div>
+                  <div className="font-mono font-bold text-sm">${(fdv / 1e9).toFixed(2)}B</div>
+                </div>
+                <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
+                  <div className="text-[9px] text-muted-foreground uppercase tracking-wide mb-1">Circulating</div>
                   <div className="font-mono font-bold text-sm">412.5M</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">41.25% of Total</div>
                 </div>
-                <div>
-                  <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Total Supply</div>
+                <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
+                  <div className="text-[9px] text-muted-foreground uppercase tracking-wide mb-1">Total Supply</div>
                   <div className="font-mono font-bold text-sm">1.0B</div>
                 </div>
-                <div />
+                <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
+                  <div className="text-[9px] text-muted-foreground uppercase tracking-wide mb-1">Burned</div>
+                  <div className="font-mono font-bold text-sm text-cyan-400">52.4M DEX</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">5.24% Total Supply</div>
+                </div>
+                <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
+                  <div className="text-[9px] text-muted-foreground uppercase tracking-wide mb-1">Holders</div>
+                  <div className="font-mono font-bold text-sm">248,302</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">+1,204 last 24h</div>
+                </div>
               </div>
 
               <div className="flex items-center gap-2 pt-3 border-t border-border/50">
@@ -184,10 +198,10 @@ export default function Token() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-center">
-                <ResponsiveContainer width={190} height={190}>
+              <div className="flex items-center justify-center relative">
+                <ResponsiveContainer width={280} height={280}>
                   <PieChart>
-                    <Pie data={SUPPLY_ALLOC} cx="50%" cy="50%" innerRadius={58} outerRadius={85}
+                    <Pie data={SUPPLY_ALLOC} cx="50%" cy="50%" innerRadius={85} outerRadius={125}
                       dataKey="value" stroke="none">
                       {SUPPLY_ALLOC.map((s, i) => <Cell key={i} fill={s.color} />)}
                     </Pie>
@@ -199,9 +213,9 @@ export default function Token() {
                     />
                   </PieChart>
                 </ResponsiveContainer>
-              </div>
-              <div className="text-center -mt-[70px] mb-12 pointer-events-none">
-                <div className="text-lg font-bold font-mono">1.0B</div>
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <span className="text-lg font-bold font-mono">1.0B</span>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 mt-4">
