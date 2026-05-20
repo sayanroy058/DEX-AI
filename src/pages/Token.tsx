@@ -234,7 +234,7 @@ export default function Token() {
 
           {/* Supply over time line chart */}
           <div className="glass rounded-2xl p-5 border border-border/50 mb-4">
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
               <div>
                 <div className="flex items-center gap-2">
                   <BarChart3 className="h-4 w-4 text-primary" />
@@ -242,7 +242,7 @@ export default function Token() {
                 </div>
                 <div className="text-[11px] text-muted-foreground mt-0.5">Projected emission schedule 2022 — 2030</div>
               </div>
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-1">
                 {["Circulating","Burned","Total Supply"].map(t => (
                   <button key={t} className="text-[10px] px-2 py-0.5 rounded glass hover:border-primary/40 text-muted-foreground hover:text-foreground transition-colors">{t}</button>
                 ))}
@@ -386,14 +386,14 @@ export default function Token() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <StatCard label="Total Issued" value="$812.4M" sub="Market Capitalization" />
             <StatCard label="Daily Volume" value="$1.2B" sub="Deep liquidity pools" />
           </div>
         </section>
 
         {/* ── Whitepaper CTA ── */}
-        <div className="glass rounded-2xl p-6 border border-primary/20 flex items-center justify-between gap-4">
+        <div className="glass rounded-2xl p-6 border border-primary/20 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
               <FileText className="h-5 w-5" />
@@ -403,14 +403,14 @@ export default function Token() {
               <div className="text-sm text-muted-foreground">Learn about the governance, emissions, and stability mechanisms.</div>
             </div>
           </div>
-          <Button className="bg-gradient-primary text-primary-foreground hover:shadow-glow-primary shrink-0">
+          <Button className="bg-gradient-primary text-primary-foreground hover:shadow-glow-primary w-full sm:w-auto shrink-0">
             Read Whitepaper <ExternalLink className="h-3.5 w-3.5 ml-1.5" />
           </Button>
         </div>
 
         {/* ── Footer ── */}
         <footer className="pt-8 border-t border-border/50">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <div className="h-7 w-7 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow-primary">

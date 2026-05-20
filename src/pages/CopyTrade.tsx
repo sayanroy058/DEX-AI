@@ -210,7 +210,7 @@ const CopyTrade = () => {
         </div>
 
         {/* Featured cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {FEATURED.map(f => (
             <div key={f.id} className="rounded-xl p-4 flex flex-col gap-2 border border-white/10"
               style={{ background: "rgba(255,255,255,0.04)" }}>
@@ -319,97 +319,101 @@ const CopyTrade = () => {
 
         {/* Leaderboard table */}
         <div className="rounded-xl border border-white/10 overflow-hidden" style={{ background: "rgba(255,255,255,0.02)" }}>
-          {/* Table header */}
-          <div className="grid items-center text-[10px] font-semibold text-muted-foreground tracking-widest uppercase px-4 py-3 border-b border-white/10"
-            style={{ gridTemplateColumns: "48px 1fr 100px 90px 160px 90px 90px 70px 100px 80px" }}>
-            <span>RANK</span>
-            <span>TRADER</span>
-            <span>ROI 30D</span>
-            <span>ROI 7D</span>
-            <span>WIN RATE</span>
-            <span>FOLLOWERS</span>
-            <span>AUM</span>
-            <span>SHARPE</span>
-            <span>PERFORMANCE</span>
-            <span></span>
-          </div>
-
-          {TRADERS.map((t, idx) => (
-            <div
-              key={t.name}
-              className="grid items-center px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors"
-              style={{ gridTemplateColumns: "48px 1fr 100px 90px 160px 90px 90px 70px 100px 80px" }}
-            >
-              {/* Rank */}
-              <div className="flex items-center justify-center">
-                {t.medal ? <MedalIcon medal={t.medal} /> : <span className="text-sm text-muted-foreground font-mono">{t.rank}</span>}
+          <div className="overflow-x-auto scrollbar-none">
+            <div className="min-w-[950px]">
+              {/* Table header */}
+              <div className="grid items-center text-[10px] font-semibold text-muted-foreground tracking-widest uppercase px-4 py-3 border-b border-white/10"
+                style={{ gridTemplateColumns: "48px 1fr 100px 90px 160px 90px 90px 70px 100px 80px" }}>
+                <span>RANK</span>
+                <span>TRADER</span>
+                <span>ROI 30D</span>
+                <span>ROI 7D</span>
+                <span>WIN RATE</span>
+                <span>FOLLOWERS</span>
+                <span>AUM</span>
+                <span>SHARPE</span>
+                <span>PERFORMANCE</span>
+                <span></span>
               </div>
 
-              {/* Trader */}
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-                  style={{ background: t.color }}>
-                  {t.initials}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1">
-                    <span className="text-sm font-semibold truncate">{t.name}</span>
-                    <Shield className="h-3 w-3 text-muted-foreground shrink-0" />
+              {TRADERS.map((t, idx) => (
+                <div
+                  key={t.name}
+                  className="grid items-center px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors"
+                  style={{ gridTemplateColumns: "48px 1fr 100px 90px 160px 90px 90px 70px 100px 80px" }}
+                >
+                  {/* Rank */}
+                  <div className="flex items-center justify-center">
+                    {t.medal ? <MedalIcon medal={t.medal} /> : <span className="text-sm text-muted-foreground font-mono">{t.rank}</span>}
                   </div>
-                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <Globe className="h-2.5 w-2.5" />
-                    {t.region}
+
+                  {/* Trader */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                      style={{ background: t.color }}>
+                      {t.initials}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm font-semibold truncate">{t.name}</span>
+                        <Shield className="h-3 w-3 text-muted-foreground shrink-0" />
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <Globe className="h-2.5 w-2.5" />
+                        {t.region}
+                      </div>
+                    </div>
                   </div>
+
+                  {/* ROI 30D */}
+                  <span className="text-sm font-mono font-bold" style={{ color: "#00d4aa" }}>{t.roi30}</span>
+
+                  {/* ROI 7D */}
+                  <span className={cn("text-sm font-mono font-bold", t.roi7.startsWith("-") ? "text-red-400" : "text-green-400")}>
+                    {t.roi7}
+                  </span>
+
+                  {/* Win rate */}
+                  <WinBar pct={t.winRate} color="#00d4aa" />
+
+                  {/* Followers */}
+                  <span className="text-sm font-mono text-foreground">{t.followers}</span>
+
+                  {/* AUM */}
+                  <span className="text-sm font-mono text-foreground">{t.aum}</span>
+
+                  {/* Sharpe */}
+                  <span className="text-sm font-mono text-foreground">{t.sharpe}</span>
+
+                  {/* Performance mini chart */}
+                  <div>
+                    <svg width="80" height="28" viewBox="0 0 80 28" fill="none">
+                      {(() => {
+                        const d = t.sparkData;
+                        const min = Math.min(...d);
+                        const max = Math.max(...d);
+                        const range = max - min || 1;
+                        const pts = d.map((v, i) => `${(i / (d.length - 1)) * 80},${28 - ((v - min) / range) * 24}`).join(" ");
+                        return <polyline points={pts} stroke={t.sparkColor} strokeWidth="1.5" fill="none" strokeLinejoin="round" strokeLinecap="round" />;
+                      })()}
+                    </svg>
+                  </div>
+
+                  {/* Copy button */}
+                  <button
+                    onClick={() => toggleCopy(t.name)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                      copying.has(t.name) ? "bg-white/10 text-muted-foreground" : "text-white"
+                    )}
+                    style={!copying.has(t.name) ? { background: "linear-gradient(90deg,#7c3aed,#4f46e5)" } : {}}
+                  >
+                    {copying.has(t.name) ? "Following" : "Copy"}
+                  </button>
                 </div>
-              </div>
-
-              {/* ROI 30D */}
-              <span className="text-sm font-mono font-bold" style={{ color: "#00d4aa" }}>{t.roi30}</span>
-
-              {/* ROI 7D */}
-              <span className={cn("text-sm font-mono font-bold", t.roi7.startsWith("-") ? "text-red-400" : "text-green-400")}>
-                {t.roi7}
-              </span>
-
-              {/* Win rate */}
-              <WinBar pct={t.winRate} color="#00d4aa" />
-
-              {/* Followers */}
-              <span className="text-sm font-mono text-foreground">{t.followers}</span>
-
-              {/* AUM */}
-              <span className="text-sm font-mono text-foreground">{t.aum}</span>
-
-              {/* Sharpe */}
-              <span className="text-sm font-mono text-foreground">{t.sharpe}</span>
-
-              {/* Performance mini chart */}
-              <div>
-                <svg width="80" height="28" viewBox="0 0 80 28" fill="none">
-                  {(() => {
-                    const d = t.sparkData;
-                    const min = Math.min(...d);
-                    const max = Math.max(...d);
-                    const range = max - min || 1;
-                    const pts = d.map((v, i) => `${(i / (d.length - 1)) * 80},${28 - ((v - min) / range) * 24}`).join(" ");
-                    return <polyline points={pts} stroke={t.sparkColor} strokeWidth="1.5" fill="none" strokeLinejoin="round" strokeLinecap="round" />;
-                  })()}
-                </svg>
-              </div>
-
-              {/* Copy button */}
-              <button
-                onClick={() => toggleCopy(t.name)}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
-                  copying.has(t.name) ? "bg-white/10 text-muted-foreground" : "text-white"
-                )}
-                style={!copying.has(t.name) ? { background: "linear-gradient(90deg,#7c3aed,#4f46e5)" } : {}}
-              >
-                {copying.has(t.name) ? "Following" : "Copy"}
-              </button>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       </div>
     </AppShell>

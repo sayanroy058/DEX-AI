@@ -68,16 +68,16 @@ const Portfolio = () => {
   return (
     <AppShell>
       <div className="max-w-7xl mx-auto p-6 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Portfolio</h1>
             <p className="text-muted-foreground text-sm mt-1">Account overview, performance, and analytics</p>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => openTransfer("deposit")} className="bg-buy/15 text-buy hover:bg-buy/25 border border-buy/30 h-9" variant="outline">
+            <Button onClick={() => openTransfer("deposit")} className="flex-1 sm:flex-none bg-buy/15 text-buy hover:bg-buy/25 border border-buy/30 h-9" variant="outline">
               <ArrowDownToLine className="h-3.5 w-3.5 mr-1.5" /> Deposit
             </Button>
-            <Button onClick={() => openTransfer("withdraw")} variant="outline" className="glass h-9">
+            <Button onClick={() => openTransfer("withdraw")} variant="outline" className="flex-1 sm:flex-none glass h-9">
               <ArrowUpFromLine className="h-3.5 w-3.5 mr-1.5" /> Withdraw
             </Button>
           </div>
@@ -145,8 +145,8 @@ const Portfolio = () => {
             <h3 className="font-semibold flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Open Positions</h3>
             <span className="text-xs text-muted-foreground">{positions.length} active</span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto scrollbar-none">
+            <table className="w-full text-sm min-w-[700px]">
               <thead className="text-[11px] text-muted-foreground uppercase">
                 <tr className="border-b border-border/50">
                   <th className="text-left px-4 py-2">Symbol</th>
@@ -190,8 +190,8 @@ const Portfolio = () => {
               ))}
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto scrollbar-none">
+            <table className="w-full text-sm min-w-[600px]">
               <thead className="text-[11px] text-muted-foreground uppercase">
                 <tr className="border-b border-border/50">
                   <th className="text-left px-4 py-2">Type</th>

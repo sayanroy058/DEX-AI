@@ -127,15 +127,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Button
           variant="outline"
           className={cn(
-            "glass",
+            "glass px-2.5 sm:px-4",
             w.connected
               ? "border-buy/40 text-buy hover:bg-buy/10 hover:text-buy"
               : "border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
           )}
           onClick={() => setWalletOpen(true)}
         >
-          <span className={cn("mr-1.5 h-1.5 w-1.5 rounded-full animate-pulse", w.connected ? "bg-buy" : "bg-primary")} />
-          {w.connected ? shortAddress(w.address) : "Connect Wallet"}
+          <span className={cn("mr-1 sm:mr-1.5 h-1.5 w-1.5 rounded-full animate-pulse", w.connected ? "bg-buy" : "bg-primary")} />
+          <span className="hidden sm:inline">{w.connected ? shortAddress(w.address) : "Connect Wallet"}</span>
+          <span className="sm:hidden">{w.connected ? shortAddress(w.address) : "Connect"}</span>
         </Button>
 
         {/* Profile menu (after Connect Wallet) */}
@@ -168,7 +169,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <WalletDialog open={walletOpen} onOpenChange={setWalletOpen} />
       <TransferDialog open={transferOpen} onOpenChange={setTransferOpen} defaultMode={transferMode} />
 
-      <nav className="lg:hidden flex items-center gap-1 px-2 py-2 glass-strong border-b border-glass-border overflow-x-auto">
+      <nav className="lg:hidden flex items-center gap-1 px-2 py-2 glass-strong border-b border-glass-border overflow-x-auto scrollbar-none">
         {navItems.map(item => (
           <RouterNavLink
             key={item.to}

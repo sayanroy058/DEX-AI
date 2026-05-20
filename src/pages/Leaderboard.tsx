@@ -38,39 +38,41 @@ const Leaderboard = () => {
 
         {/* Table */}
         <div className="glass rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="text-[11px] text-muted-foreground uppercase">
-              <tr className="border-b border-border/50">
-                <th className="text-left px-4 py-3">Rank</th>
-                <th className="text-left">Trader</th>
-                <th className="text-right">PnL (30d)</th>
-                <th className="text-right">ROI</th>
-                <th className="text-right">Win Rate</th>
-                <th className="text-right">Trades</th>
-                <th className="text-right pr-4">Volume</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rest.map(t => (
-                <tr key={t.rank} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-3 font-mono font-bold text-muted-foreground">#{t.rank}</td>
-                  <td>
-                    <div className="flex items-center gap-2">
-                      <div className="h-7 w-7 rounded-full bg-gradient-primary flex items-center justify-center text-[10px] font-bold text-primary-foreground">
-                        {t.name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <span className="font-medium">{t.name}</span>
-                    </div>
-                  </td>
-                  <td className="text-right font-mono font-bold text-buy">+${(t.pnl / 1000).toFixed(1)}K</td>
-                  <td className="text-right font-mono text-buy">+{t.roi.toFixed(1)}%</td>
-                  <td className="text-right font-mono">{t.winrate}%</td>
-                  <td className="text-right font-mono text-muted-foreground">{t.trades.toLocaleString()}</td>
-                  <td className="text-right pr-4 font-mono text-muted-foreground">${(t.vol / 1e6).toFixed(0)}M</td>
+          <div className="overflow-x-auto scrollbar-none">
+            <table className="w-full text-sm min-w-[750px]">
+              <thead className="text-[11px] text-muted-foreground uppercase">
+                <tr className="border-b border-border/50">
+                  <th className="text-left px-4 py-3">Rank</th>
+                  <th className="text-left">Trader</th>
+                  <th className="text-right">PnL (30d)</th>
+                  <th className="text-right">ROI</th>
+                  <th className="text-right">Win Rate</th>
+                  <th className="text-right">Trades</th>
+                  <th className="text-right pr-4">Volume</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rest.map(t => (
+                  <tr key={t.rank} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                    <td className="px-4 py-3 font-mono font-bold text-muted-foreground">#{t.rank}</td>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <div className="h-7 w-7 rounded-full bg-gradient-primary flex items-center justify-center text-[10px] font-bold text-primary-foreground">
+                          {t.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <span className="font-medium">{t.name}</span>
+                      </div>
+                    </td>
+                    <td className="text-right font-mono font-bold text-buy">+${(t.pnl / 1000).toFixed(1)}K</td>
+                    <td className="text-right font-mono text-buy">+{t.roi.toFixed(1)}%</td>
+                    <td className="text-right font-mono">{t.winrate}%</td>
+                    <td className="text-right font-mono text-muted-foreground">{t.trades.toLocaleString()}</td>
+                    <td className="text-right pr-4 font-mono text-muted-foreground">${(t.vol / 1e6).toFixed(0)}M</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </AppShell>
@@ -86,9 +88,9 @@ function PodiumCard({ trader, place, icon: Icon }: { trader: any; place: number;
   return (
     <div className={cn(
       "glass rounded-xl p-5 relative overflow-hidden",
-      place === 1 && "md:scale-105 md:order-2 neon-border",
-      place === 2 && "md:order-1",
-      place === 3 && "md:order-3"
+      place === 1 && "md:scale-105 order-1 md:order-2 neon-border",
+      place === 2 && "order-2 md:order-1",
+      place === 3 && "order-3 md:order-3"
     )}>
       <div className={cn("absolute top-0 right-0 h-16 w-16 rounded-full blur-2xl opacity-30 bg-gradient-to-br", colors[place])} />
       <div className="flex items-center gap-3 mb-3">

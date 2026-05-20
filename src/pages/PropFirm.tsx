@@ -78,7 +78,7 @@ export default function PropFirm() {
                 </div>
 
                 {/* Quick stats */}
-                <div className="grid grid-cols-3 gap-4 py-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-6">
                   <div className="space-y-1">
                     <div className="text-sm font-bold text-primary">$4.2M+</div>
                     <div className="text-xs text-muted-foreground">Paid to Traders</div>

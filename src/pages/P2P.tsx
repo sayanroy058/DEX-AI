@@ -239,8 +239,8 @@ export default function P2P() {
 
               {/* Payment Methods */}
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="secondary">
                       <Users className="w-3 h-3 mr-1" />
                       Verified merchants
@@ -276,8 +276,8 @@ export default function P2P() {
 
               {/* Merchants Table */}
               <Card className="border-border/50 bg-card/20 backdrop-blur-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto scrollbar-none">
+                  <table className="w-full text-sm min-w-[650px]">
                     <thead>
                       <tr className="border-b border-border/30 bg-muted/20">
                         <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">

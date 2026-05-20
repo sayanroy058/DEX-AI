@@ -22,24 +22,32 @@ export default function SIP() {
             <h1 className="text-3xl font-bold tracking-tight">SIP / SWP Investments</h1>
             <p className="text-muted-foreground text-sm mt-1">Build long-term wealth with systematic investing and withdrawals.</p>
           </div>
-          <div className="glass rounded-xl px-4 py-3 border border-primary/30 min-w-52">
-            <div className="text-[11px] text-muted-foreground uppercase tracking-wide flex items-center gap-1"><Wallet className="h-3 w-3" /> Wallet Balance</div>
-            <div className="text-xl font-bold font-mono mt-1">$84,260.00</div>
-          </div>
+            <div className="glass rounded-xl px-4 py-3 border border-primary/30 w-full sm:w-auto sm:min-w-52">
+              <div className="text-[11px] text-muted-foreground uppercase tracking-wide flex items-center gap-1"><Wallet className="h-3 w-3" /> Wallet Balance</div>
+              <div className="text-xl font-bold font-mono mt-1">$84,260.00</div>
+            </div>
         </div>
 
         <div className="glass-strong rounded-xl p-6 border border-border/50">
           <Tabs defaultValue="sip">
-            <TabsList className="bg-muted/30">
-              <TabsTrigger value="sip"><TrendingUp className="h-3.5 w-3.5 mr-1.5" /> Systematic Investment Plan</TabsTrigger>
-              <TabsTrigger value="swp"><TrendingDown className="h-3.5 w-3.5 mr-1.5" /> Systematic Withdrawal Plan</TabsTrigger>
+            <TabsList className="bg-muted/30 w-full justify-start overflow-x-auto scrollbar-none flex-nowrap">
+              <TabsTrigger value="sip" className="shrink-0">
+                <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
+                <span className="hidden sm:inline">Systematic Investment Plan</span>
+                <span className="inline sm:hidden">SIP Plan</span>
+              </TabsTrigger>
+              <TabsTrigger value="swp" className="shrink-0">
+                <TrendingDown className="h-3.5 w-3.5 mr-1.5" />
+                <span className="hidden sm:inline">Systematic Withdrawal Plan</span>
+                <span className="inline sm:hidden">SWP Plan</span>
+              </TabsTrigger>
             </TabsList>
           </Tabs>
 
           <div className="grid lg:grid-cols-2 gap-5 mt-5">
             <div className="glass rounded-xl p-4 border border-border/40 space-y-3">
               <div className="text-sm font-semibold">Set Up Your Plan</div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Asset">
                   <select className="w-full h-10 rounded-md bg-muted/30 border border-border px-3 text-sm">
                     <option>BTC</option><option>ETH</option><option>SOL</option><option>DEXUSD</option>
@@ -88,7 +96,7 @@ export default function SIP() {
                   <Area type="monotone" dataKey="value" stroke="#22d3ee" strokeWidth={2} fill="url(#sipProjection)" />
                 </AreaChart>
               </ResponsiveContainer>
-              <div className="grid grid-cols-3 gap-2 mt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
                 <Mini label="Final Value" value={`$${finalValue.toLocaleString()}`} />
                 <Mini label="Total Invested" value="$36,000" />
                 <Mini label="Estimated Return" value="+$48,235" />

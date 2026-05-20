@@ -219,6 +219,12 @@
   .bg-sell\/20 { background-color: hsl(var(--sell) / 0.2); }
   .border-buy { border-color: hsl(var(--buy)); }
   .border-sell { border-color: hsl(var(--sell)); }
+  .scrollbar-none {
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
 }
 
 @keyframes ticker-pulse {

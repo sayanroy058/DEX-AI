@@ -20,17 +20,17 @@ const Settings = () => {
         </div>
 
         <Tabs defaultValue="appearance">
-          <TabsList className="glass">
-            <TabsTrigger value="appearance"><Palette className="h-3.5 w-3.5 mr-1.5" />Appearance</TabsTrigger>
-            <TabsTrigger value="notifications"><Bell className="h-3.5 w-3.5 mr-1.5" />Notifications</TabsTrigger>
-            <TabsTrigger value="security"><Shield className="h-3.5 w-3.5 mr-1.5" />Security</TabsTrigger>
-            <TabsTrigger value="api"><Key className="h-3.5 w-3.5 mr-1.5" />API Keys</TabsTrigger>
-            <TabsTrigger value="locale"><Globe className="h-3.5 w-3.5 mr-1.5" />Language</TabsTrigger>
+          <TabsList className="glass w-full justify-start overflow-x-auto scrollbar-none flex-nowrap">
+            <TabsTrigger value="appearance" className="shrink-0"><Palette className="h-3.5 w-3.5 mr-1.5" />Appearance</TabsTrigger>
+            <TabsTrigger value="notifications" className="shrink-0"><Bell className="h-3.5 w-3.5 mr-1.5" />Notifications</TabsTrigger>
+            <TabsTrigger value="security" className="shrink-0"><Shield className="h-3.5 w-3.5 mr-1.5" />Security</TabsTrigger>
+            <TabsTrigger value="api" className="shrink-0"><Key className="h-3.5 w-3.5 mr-1.5" />API Keys</TabsTrigger>
+            <TabsTrigger value="locale" className="shrink-0"><Globe className="h-3.5 w-3.5 mr-1.5" />Language</TabsTrigger>
           </TabsList>
 
           <TabsContent value="appearance" className="space-y-4 mt-4">
             <Card title="Theme">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
                   { name: "DEX Dark", desc: "Default neon glass", active: true },
                   { name: "Pure Black", desc: "OLED minimal" },
@@ -45,7 +45,7 @@ const Settings = () => {
             </Card>
 
             <Card title="Trading Mode">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <ModeButton title="Beginner" desc="Simplified UI, guided tooltips, lower default leverage" />
                 <ModeButton title="Pro" desc="Full features, advanced order types, hotkeys enabled" active />
               </div>
@@ -129,7 +129,7 @@ const Settings = () => {
               </div>
             </Card>
             <Card title="Currency Display">
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {["USD", "EUR", "GBP", "JPY"].map((c, i) => (
                   <button key={c} className={`glass rounded-lg py-2 font-mono text-sm hover:bg-muted/30 ${i === 0 ? "neon-border" : ""}`}>{c}</button>
                 ))}

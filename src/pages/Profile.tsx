@@ -40,10 +40,10 @@ export default function Profile() {
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-warning/15 text-warning border border-warning/30"><Award className="h-2.5 w-2.5" /> Pro tier</span>
             </div>
           </div>
-          <Button variant="outline" className="glass"><Edit className="h-3.5 w-3.5 mr-1.5" /> Edit profile</Button>
+          <Button variant="outline" className="glass w-full md:w-auto"><Edit className="h-3.5 w-3.5 mr-1.5" /> Edit profile</Button>
         </div>
 
-        <div className="grid md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { icon: TrendingUp, k: "Total PnL", v: "+$12,840" },
             { icon: Calendar, k: "Member since", v: "Jan 2025" },
@@ -88,7 +88,7 @@ export default function Profile() {
           </div>
         ) : (
           <div className="space-y-5">
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="glass rounded-xl p-5"><Users className="h-5 w-5 text-primary mb-2" /><div className="text-2xl font-bold gradient-text">0</div><div className="text-xs text-muted-foreground">Total Referrals</div></div>
               <div className="glass rounded-xl p-5"><DollarSign className="h-5 w-5 text-primary mb-2" /><div className="text-2xl font-bold gradient-text">$0.00</div><div className="text-xs text-muted-foreground">Commission Earned</div></div>
               <div className="glass rounded-xl p-5"><Star className="h-5 w-5 text-primary mb-2" /><div className="text-2xl font-bold gradient-text">Bronze</div><div className="text-xs text-muted-foreground">Current Tier</div></div>
@@ -98,19 +98,19 @@ export default function Profile() {
               <h3 className="font-bold flex items-center gap-2"><Gift className="h-4 w-4 text-primary" /> Your Referral Details</h3>
               <div>
                 <div className="text-xs text-muted-foreground mb-1.5">Referral Code</div>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 glass rounded-lg px-4 py-2.5 font-mono font-bold text-primary tracking-widest text-lg">{referralCode}</div>
-                  <Button variant="outline" onClick={copyCode} className="glass shrink-0"><Copy className="h-3.5 w-3.5 mr-1.5" /> Copy Code</Button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex-1 glass rounded-lg px-4 py-2.5 font-mono font-bold text-primary tracking-widest text-lg text-center sm:text-left">{referralCode}</div>
+                  <Button variant="outline" onClick={copyCode} className="glass w-full sm:w-auto shrink-0"><Copy className="h-3.5 w-3.5 mr-1.5" /> Copy Code</Button>
                 </div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground mb-1.5">Referral Link</div>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 glass rounded-lg px-3 py-2 font-mono text-xs text-muted-foreground truncate">{referralLink}</div>
-                  <Button onClick={copyLink} className="bg-gradient-primary text-primary-foreground shrink-0"><Copy className="h-3.5 w-3.5 mr-1.5" /> Copy Link</Button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex-1 glass rounded-lg px-3 py-2 font-mono text-xs text-muted-foreground truncate text-center sm:text-left">{referralLink}</div>
+                  <Button onClick={copyLink} className="bg-gradient-primary text-primary-foreground w-full sm:w-auto shrink-0"><Copy className="h-3.5 w-3.5 mr-1.5" /> Copy Link</Button>
                 </div>
               </div>
-              <div className="grid md:grid-cols-3 gap-3 text-sm pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm pt-2">
                 <div className="glass rounded-lg p-3 text-center"><div className="text-xs text-muted-foreground">Your commission</div><div className="text-xl font-bold mt-1 text-primary">20%</div></div>
                 <div className="glass rounded-lg p-3 text-center"><div className="text-xs text-muted-foreground">Friend's discount</div><div className="text-xl font-bold mt-1">10%</div></div>
                 <div className="glass rounded-lg p-3 text-center"><div className="text-xs text-muted-foreground">Signup bonus</div><div className="text-xl font-bold mt-1 text-buy">$25</div></div>

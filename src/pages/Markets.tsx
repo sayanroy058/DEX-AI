@@ -55,7 +55,7 @@ const Markets = () => {
         {/* Asset class tabs */}
         <div className="glass rounded-xl p-2 space-y-2">
           <div className="flex items-center gap-2">
-            <div className="flex-1 min-w-0 overflow-x-auto">
+            <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none">
               <div className="flex items-center gap-1.5 whitespace-nowrap">
                 {ASSET_TABS.map(a => (
                   <button
@@ -84,28 +84,28 @@ const Markets = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-none">
               {activeAsset.kinds.map(k => (
                 <button
-                  key={k}
-                  onClick={() => setKind(k as any)}
-                  className={cn(
-                    "px-2.5 py-1 rounded text-[11px] transition-colors",
-                    kind === k ? "bg-secondary/20 text-secondary" : "text-muted-foreground hover:text-foreground"
-                  )}
+                   key={k}
+                   onClick={() => setKind(k as any)}
+                   className={cn(
+                     "px-2.5 py-1 rounded text-[11px] transition-colors",
+                     kind === k ? "bg-secondary/20 text-secondary" : "text-muted-foreground hover:text-foreground"
+                   )}
                 >
                   {KIND_LABEL[k]}
                 </button>
               ))}
             </div>
-            <div className="md:hidden flex items-center gap-2 glass-strong px-2.5 py-1 rounded-md w-[165px] shrink-0">
+            <div className="md:hidden flex items-center gap-2 glass-strong px-2.5 py-1 rounded-md w-full sm:w-[165px] shrink-0">
               <Search className="h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="Search..."
-                className="h-6 border-0 bg-transparent p-0 text-xs focus-visible:ring-0"
+                className="h-6 border-0 bg-transparent p-0 text-xs focus-visible:ring-0 w-full"
               />
             </div>
           </div>
@@ -113,47 +113,49 @@ const Markets = () => {
 
         {/* All markets table */}
         <div className="glass rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="text-[11px] text-muted-foreground uppercase">
-              <tr className="border-b border-border/50">
-                <th className="text-left px-4 py-3">Pair</th>
-                <th className="text-right">Price</th>
-                <th className="text-right">24h Change</th>
-                <th className="text-right">24h Volume</th>
-                <th className="text-right">Open Interest</th>
-                <th className="text-right pr-4">Funding</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(m => (
-                <tr key={m.symbol} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-3">
-                    <Link to="/trade" className="flex items-center gap-2 group">
-                      <div className="h-8 w-8 rounded-full bg-gradient-primary flex items-center justify-center font-bold text-[10px] text-primary-foreground">
-                        {m.base.slice(0, 3)}
-                      </div>
-                      <div>
-                        <div className="font-semibold group-hover:text-primary transition-colors">{m.symbol}</div>
-                        <div className="text-[10px] text-muted-foreground uppercase">{m.asset} · {m.category}</div>
-                      </div>
-                    </Link>
-                  </td>
-                  <td className="text-right font-mono">${formatPrice(m.price)}</td>
-                  <td className={cn("text-right font-mono font-semibold", m.change24h >= 0 ? "text-buy" : "text-sell")}>
-                    <span className="inline-flex items-center gap-1 justify-end">
-                      {m.change24h >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                      {m.change24h >= 0 ? "+" : ""}{m.change24h.toFixed(2)}%
-                    </span>
-                  </td>
-                  <td className="text-right font-mono text-muted-foreground">${formatCompact(m.volume24h)}</td>
-                  <td className="text-right font-mono text-muted-foreground">{m.openInterest ? `$${formatCompact(m.openInterest)}` : "—"}</td>
-                  <td className={cn("text-right pr-4 font-mono", m.funding === undefined ? "" : m.funding >= 0 ? "text-buy" : "text-sell")}>
-                    {m.funding !== undefined ? `${m.funding >= 0 ? "+" : ""}${(m.funding * 100).toFixed(4)}%` : "—"}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[700px]">
+              <thead className="text-[11px] text-muted-foreground uppercase">
+                <tr className="border-b border-border/50">
+                  <th className="text-left px-4 py-3">Pair</th>
+                  <th className="text-right">Price</th>
+                  <th className="text-right">24h Change</th>
+                  <th className="text-right">24h Volume</th>
+                  <th className="text-right">Open Interest</th>
+                  <th className="text-right pr-4">Funding</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map(m => (
+                  <tr key={m.symbol} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                    <td className="px-4 py-3">
+                      <Link to="/trade" className="flex items-center gap-2 group">
+                        <div className="h-8 w-8 rounded-full bg-gradient-primary flex items-center justify-center font-bold text-[10px] text-primary-foreground">
+                          {m.base.slice(0, 3)}
+                        </div>
+                        <div>
+                          <div className="font-semibold group-hover:text-primary transition-colors">{m.symbol}</div>
+                          <div className="text-[10px] text-muted-foreground uppercase">{m.asset} · {m.category}</div>
+                        </div>
+                      </Link>
+                    </td>
+                    <td className="text-right font-mono">${formatPrice(m.price)}</td>
+                    <td className={cn("text-right font-mono font-semibold", m.change24h >= 0 ? "text-buy" : "text-sell")}>
+                      <span className="inline-flex items-center gap-1 justify-end">
+                        {m.change24h >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                        {m.change24h >= 0 ? "+" : ""}{m.change24h.toFixed(2)}%
+                      </span>
+                    </td>
+                    <td className="text-right font-mono text-muted-foreground">${formatCompact(m.volume24h)}</td>
+                    <td className="text-right font-mono text-muted-foreground">{m.openInterest ? `$${formatCompact(m.openInterest)}` : "—"}</td>
+                    <td className={cn("text-right pr-4 font-mono", m.funding === undefined ? "" : m.funding >= 0 ? "text-buy" : "text-sell")}>
+                      {m.funding !== undefined ? `${m.funding >= 0 ? "+" : ""}${(m.funding * 100).toFixed(4)}%` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </AppShell>

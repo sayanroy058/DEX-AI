@@ -26,7 +26,7 @@ export default function Refer() {
           <p className="text-muted-foreground text-sm mt-1">Earn up to 40% of every trading fee your friends pay — for life.</p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             { icon: Users, k: "Referrals", v: "0" },
             { icon: DollarSign, k: "Earned", v: "$0.00" },
@@ -47,11 +47,11 @@ export default function Refer() {
           {/* Code */}
           <div>
             <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Referral Code</div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1 glass rounded-xl px-5 py-3 font-mono font-black text-primary text-2xl tracking-[0.2em] text-center border border-primary/20 select-all">
                 {code}
               </div>
-              <Button variant="outline" onClick={() => copy(code, "Code")} className="glass h-12 px-4 shrink-0">
+              <Button variant="outline" onClick={() => copy(code, "Code")} className="glass w-full sm:w-auto h-12 px-4 shrink-0">
                 <Copy className="h-4 w-4 mr-1.5" /> Copy Code
               </Button>
             </div>
@@ -60,11 +60,11 @@ export default function Refer() {
           {/* Link */}
           <div>
             <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Referral Link</div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 glass rounded-lg px-3 py-2.5 font-mono text-sm text-muted-foreground truncate border border-border/40">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex-1 glass rounded-lg px-3 py-2.5 font-mono text-sm text-muted-foreground truncate border border-border/40 text-center sm:text-left">
                 {link}
               </div>
-              <Button onClick={() => copy(link, "Link")} className="bg-gradient-primary text-primary-foreground shrink-0">
+              <Button onClick={() => copy(link, "Link")} className="bg-gradient-primary text-primary-foreground w-full sm:w-auto shrink-0">
                 <Copy className="h-3.5 w-3.5 mr-1.5" /> Copy Link
               </Button>
             </div>
@@ -73,7 +73,7 @@ export default function Refer() {
           {/* Share buttons */}
           <div>
             <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Share via</div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" className="glass gap-1.5 text-xs" onClick={() => window.open(`https://twitter.com/intent/tweet?text=Trade+on+DEX.ai+with+my+referral+code+${code}+and+get+10%25+discount!&url=${encodeURIComponent(link)}`)}>
                 <Twitter className="h-3.5 w-3.5 text-[#1DA1F2]" /> Twitter
               </Button>
@@ -86,7 +86,7 @@ export default function Refer() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4 pt-2 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 text-sm">
             <div className="glass rounded-lg p-4 text-center"><div className="text-xs text-muted-foreground">Your commission</div><div className="text-2xl font-bold mt-1 text-primary">20%</div></div>
             <div className="glass rounded-lg p-4 text-center"><div className="text-xs text-muted-foreground">Friend's discount</div><div className="text-2xl font-bold mt-1">10%</div></div>
             <div className="glass rounded-lg p-4 text-center"><div className="text-xs text-muted-foreground">Signup bonus</div><div className="text-2xl font-bold mt-1 text-buy">$25</div></div>
@@ -116,8 +116,8 @@ export default function Refer() {
         {/* Fee structure */}
         <div className="glass rounded-xl p-5">
           <h3 className="font-bold mb-4">Commission by Trade Type</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto scrollbar-none">
+            <table className="w-full text-sm min-w-[500px]">
               <thead className="text-[11px] text-muted-foreground uppercase">
                 <tr className="border-b border-border/50">
                   <th className="text-left py-2">Trade Type</th>

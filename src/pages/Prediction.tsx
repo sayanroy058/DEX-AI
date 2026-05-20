@@ -91,7 +91,7 @@ export default function Prediction() {
                 <Timer className="h-3 w-3 text-muted-foreground" />
               </div>
             </div>
-            <Button className="bg-gradient-primary text-primary-foreground hover:shadow-glow-primary shrink-0">
+            <Button className="bg-gradient-primary text-primary-foreground hover:shadow-glow-primary w-full md:w-auto shrink-0">
               Predict Now <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
@@ -104,18 +104,18 @@ export default function Prediction() {
 
         {/* Market type tabs + filter */}
         <div className="rounded-xl border border-border/50 p-3 bg-gradient-to-r from-[#0a1533] to-[#0a1328]">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none flex-nowrap">
             {CATEGORIES.map(c => (
               <button key={c} onClick={() => setActiveCat(c)} className={cn(
-                "px-3 py-1.5 text-xs rounded-md border transition-all",
+                "px-3 py-1.5 text-xs rounded-md border transition-all shrink-0",
                 activeCat === c ? "bg-primary/15 text-primary border-primary/30" : "border-border/50 text-muted-foreground hover:bg-muted/40"
               )}>{c}</button>
             ))}
           </div>
-          <div className="flex items-center gap-2 mt-3 flex-wrap">
+          <div className="flex items-center gap-2 mt-3 overflow-x-auto scrollbar-none flex-nowrap">
             {FILTERS.map(filter => (
               <button key={filter} onClick={() => setActiveFilter(filter)} className={cn(
-                "px-3 py-1 text-[11px] rounded-full border transition-all",
+                "px-3 py-1 text-[11px] rounded-full border transition-all shrink-0",
                 activeFilter === filter ? "bg-primary/15 text-primary border-primary/30" : "border-border/50 text-muted-foreground hover:bg-muted/40"
               )}>{filter}</button>
             ))}

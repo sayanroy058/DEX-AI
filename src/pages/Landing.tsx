@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Zap, ArrowRight, TrendingUp, Layers, Bot, Shield, Globe, QrCode, Star, Download, Monitor, Laptop, Apple, Home, BarChart2, Wallet } from "lucide-react";
+import { Zap, ArrowRight, TrendingUp, Layers, Bot, Shield, Globe, QrCode, Star, Download, Monitor, Laptop, Apple, Home, BarChart2, Wallet, Menu, X } from "lucide-react";
 import { WalletDialog } from "@/components/wallet/WalletDialog";
 import appStoreImg from "@/assets/app-store.png";
 import playStoreImg from "@/assets/play-store.png";
@@ -12,6 +12,7 @@ import windowsIconImg from "@/assets/windows-icon.png";
 export default function Landing() {
   const navigate = useNavigate();
   const [walletOpen, setWalletOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const sponsors = [
     { name: "Binance", logo: "https://logo.clearbit.com/binance.com" },
     { name: "Coinbase", logo: "https://logo.clearbit.com/coinbase.com" },
@@ -50,12 +51,31 @@ export default function Landing() {
         <div className="flex items-center gap-2">
           <Button
             onClick={() => setWalletOpen(true)}
-            className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 hover:from-cyan-300 hover:via-blue-400 hover:to-purple-500 text-white font-semibold px-6 h-10 rounded-lg shadow-lg shadow-blue-500/20"
+            className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 hover:from-cyan-300 hover:via-blue-400 hover:to-purple-500 text-white font-semibold px-4 sm:px-6 h-10 rounded-lg shadow-lg shadow-blue-500/20 text-xs sm:text-sm"
           >
             Connect
           </Button>
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 text-slate-400 hover:text-white transition-colors"
+          >
+            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
         </div>
       </header>
+
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-x-0 top-16 bg-[#0a0e27]/95 backdrop-blur-lg border-b border-glass-border z-40 py-6 px-6 flex flex-col gap-4">
+          <Link to="/trade" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Trade</Link>
+          <Link to="/markets" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Market</Link>
+          <Link to="/copy" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Copy</Link>
+          <Link to="/prop" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Prop Firm</Link>
+          <Link to="/prediction" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Prediction</Link>
+          <Link to="/p2p" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>P2P</Link>
+          <Link to="/token" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Token</Link>
+          <Link to="/sip" className="text-slate-300 hover:text-white font-medium py-2" onClick={() => setMobileMenuOpen(false)}>SIP/SWP</Link>
+        </div>
+      )}
 
       {/* Hero Section */}
       <div className="relative min-h-[calc(100svh-4rem)] flex items-center justify-center px-6 py-12 md:py-16 overflow-hidden">
