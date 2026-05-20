@@ -5,6 +5,9 @@ import { Zap, ArrowRight, TrendingUp, Layers, Bot, Shield, Globe, QrCode, Star, 
 import { WalletDialog } from "@/components/wallet/WalletDialog";
 import appStoreImg from "@/assets/app-store.png";
 import playStoreImg from "@/assets/play-store.png";
+import linuxIconImg from "@/assets/linux-icon.png";
+import androidIconImg from "@/assets/android-icon.png";
+import windowsIconImg from "@/assets/windows-icon.png";
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -289,42 +292,45 @@ export default function Landing() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3.5 pt-1">
-              <button className="sm:w-[300px] border border-slate-700/80 bg-slate-900/55 hover:border-cyan-500/60 hover:bg-slate-900/80 transition-all rounded-2xl px-5 py-2.5 flex items-center gap-4 group">
+              <button className="sm:w-[300px] border border-slate-700/80 bg-slate-900/55 hover:border-cyan-500/60 hover:bg-slate-900/80 transition-all rounded-2xl pl-5 pr-4 py-2.5 flex items-center gap-4 group">
                 <div className="h-12 w-12 rounded-lg bg-black/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
                   <img src={appStoreImg} alt="App Store" className="w-8 h-8 object-contain" />
                 </div>
-                <div className="text-left flex-1">
+                <div className="text-left">
                   <div className="text-[9px] text-slate-400 group-hover:text-slate-300 transition-colors">Download on the</div>
                   <div className="text-[22px] leading-none font-extrabold text-white">App Store</div>
                 </div>
               </button>
 
-              <button className="sm:w-[300px] border border-slate-700/80 bg-slate-900/55 hover:border-cyan-500/60 hover:bg-slate-900/80 transition-all rounded-2xl px-5 py-2.5 flex items-center gap-4 group">
+              <button className="sm:w-[300px] border border-slate-700/80 bg-slate-900/55 hover:border-cyan-500/60 hover:bg-slate-900/80 transition-all rounded-2xl pl-5 pr-4 py-2.5 flex items-center gap-4 group">
                 <div className="h-12 w-12 rounded-lg bg-black/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
                   <img src={playStoreImg} alt="Google Play" className="w-8 h-8 object-contain" />
                 </div>
-                <div className="text-left flex-1">
+                <div className="text-left">
                   <div className="text-[9px] text-slate-400 group-hover:text-slate-300 transition-colors">GET IT ON</div>
                   <div className="text-[22px] leading-none font-extrabold text-white">Google Play</div>
                 </div>
               </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3.5">
               {[
-                { label: "App Store", icon: Apple },
-                { label: "Google Play", icon: Download },
-                { label: "Windows", icon: Monitor },
-                { label: "Mac", icon: Apple },
-                { label: "Linux", icon: Laptop },
-                { label: "APK", icon: Download },
+                { label: "Windows", sub: "Download for", img: windowsIconImg },
+                { label: "Mac", sub: "Download for", img: "https://cdn.simpleicons.org/apple/ffffff" },
+                { label: "Linux", sub: "Download for", img: linuxIconImg },
+                { label: "APK", sub: "Download", img: androidIconImg },
               ].map((item) => (
                 <button
                   key={item.label}
-                  className="h-12 rounded-2xl border border-cyan-800/30 bg-gradient-to-r from-[#0b1430] via-[#111a39] to-[#152347] hover:border-cyan-500/50 text-slate-200 px-4 flex items-center gap-2 text-sm"
+                  className="border border-slate-700/80 bg-slate-900/55 hover:border-cyan-500/60 hover:bg-slate-900/80 transition-all rounded-2xl pl-5 pr-4 py-2.5 flex items-center gap-4 group"
                 >
-                  <item.icon className="h-3.5 w-3.5 text-cyan-400" />
-                  {item.label}
+                  <div className="h-12 w-12 rounded-lg bg-black/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    <img src={item.img} alt={item.label} className="w-8 h-8 object-contain" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-[9px] text-slate-400 group-hover:text-slate-300 transition-colors">{item.sub}</div>
+                    <div className="text-[22px] leading-none font-extrabold text-white">{item.label}</div>
+                  </div>
                 </button>
               ))}
             </div>
