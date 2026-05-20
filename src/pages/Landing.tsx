@@ -154,7 +154,7 @@ export default function Landing() {
           <div className="text-center mb-16 space-y-4">
             <h2 className="text-4xl md:text-5xl font-black text-white">Built for serious traders</h2>
             <p className="text-lg text-slate-400 max-w-2xl mx-auto">
-              Every tool a professional needs, wrapped in a futuristic dark-glass interface.
+              FROM FIRST TRADE TO FULL TIME PRO ---- ALL TOOLS INCLUDED
             </p>
           </div>
 
