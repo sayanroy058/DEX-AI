@@ -94,7 +94,7 @@ export default function PropFirm() {
                 </div>
 
                 <Button size="lg" className="bg-gradient-primary text-primary-foreground hover:shadow-glow-primary w-full sm:w-auto h-12 px-8 text-base">
-                  Start Free Challenge <ArrowRight className="h-4 w-4 ml-2" />
+                  Start Challenge <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               </div>
 
