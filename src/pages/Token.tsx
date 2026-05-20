@@ -16,12 +16,14 @@ import { cn } from "@/lib/utils";
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
 const SUPPLY_ALLOC = [
-  { name: "Community", value: 35, color: "#00e5ff" },
-  { name: "Ecosystem Fund", value: 22, color: "#a855f7" },
-  { name: "Team", value: 18, color: "#f59e0b" },
+  { name: "Community + Ecosystem", value: 15, color: "#00e5ff" },
+  { name: "Staking/Emission (100 years)", value: 20, color: "#a855f7" },
   { name: "Liquidity", value: 10, color: "#10b981" },
-  { name: "Treasury", value: 10, color: "#6366f1" },
-  { name: "Burned", value: 5, color: "#ef4444" },
+  { name: "Team", value: 5, color: "#6366f1" },
+  { name: "Treasury", value: 8, color: "#ef4444" },
+  { name: "Strategic Reserve", value: 35, color: "#22d3ee" },
+  { name: "Marketing", value: 5, color: "#f59e0b" },
+  { name: "Initial Burn", value: 2, color: "#fb7185" },
 ];
 
 const EMISSION_YEARS = [2022,2023,2024,2025,2026,2027,2028,2029,2030];
@@ -191,6 +193,8 @@ export default function Token() {
                     </Pie>
                     <Tooltip
                       contentStyle={{ background: "hsl(230 25% 9%)", border: "1px solid hsl(230 25% 18%)", borderRadius: 8, fontSize: 11 }}
+                      itemStyle={{ color: "hsl(0 0% 98%)" }}
+                      labelStyle={{ color: "hsl(220 15% 70%)" }}
                       formatter={(v: number | string) => [`${v}%`, ""]}
                     />
                   </PieChart>
