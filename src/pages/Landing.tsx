@@ -60,14 +60,14 @@ export default function Landing() {
         <div className="relative max-w-3xl w-full text-center space-y-8">
           {/* Badge */}
           <div className="mx-auto max-w-full">
-            <span className="inline-block max-w-[92vw] sm:max-w-none text-center whitespace-normal break-words leading-snug text-sm font-semibold text-slate-300 px-4 py-2 rounded-full border border-slate-700 bg-slate-800/50">
+            <span className="inline-block max-w-[92vw] sm:max-w-none text-center whitespace-normal break-words leading-snug text-base font-semibold text-slate-300 px-4 py-2 rounded-full border border-slate-700 bg-slate-800/50">
               ⚡ AI-Powered Multi-Asset Trading Platform
             </span>
           </div>
 
           {/* Main Heading */}
           <div className="space-y-4">
-            <h1 className="text-3xl md:text-5xl lg:text-[58px] font-black tracking-tight leading-[1.02]">
+            <h1 className="text-4xl md:text-6xl lg:text-[64px] font-black tracking-tight leading-[1.02]">
               <span className="block text-white mb-2">ALL IN ONE</span>
               <span className="block bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
                 AI-POWERED DEX
@@ -76,7 +76,7 @@ export default function Landing() {
           </div>
 
           {/* Description */}
-          <p className="text-sm md:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed tracking-wide">
+          <p className="text-base md:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed tracking-wide">
             Trade Crypto, Forex, Stocks & Commodities with institutional-grade Al intelligence.
             <br />
             One platform. Every market. Zero limits.
