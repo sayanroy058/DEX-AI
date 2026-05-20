@@ -288,7 +288,15 @@ export default function Token() {
                 Target: $1.00 <Activity className="h-3 w-3 text-buy animate-pulse" />
               </div>
 
-              <InfoRow k="Contract" v="0x402a...F981" />
+              <div className="pt-3 border-t border-border/50 space-y-2">
+                <div className="text-[11px] text-muted-foreground">Contract</div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <CopyAddress addr="0x402a3f89b21c77d4e10e4a52c908f8ab13c4F981" />
+                  <button className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
+                    Etherscan <ExternalLink className="h-2.5 w-2.5" />
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Price stability sparkline */}
