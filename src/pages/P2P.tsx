@@ -76,7 +76,7 @@ const merchants = [
     completion: 97.5,
     price: 91.32,
     limit: "₹3,400 - ₹50,000",
-    payment: "Payim, UPI",
+    payment: "Paytm, UPI",
     available: "3,400 DEXUSD",
   },
   {
@@ -120,7 +120,7 @@ const paymentMethods = [
   "Bank Transfer",
   "Wise",
   "NEFT",
-  "Payim",
+  "Paytm",
   "More",
 ];
 
