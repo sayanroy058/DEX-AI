@@ -401,16 +401,30 @@ export default function Landing() {
                     {/* Chart */}
                     <div className="flex-1 mb-4 relative">
                       <svg className="w-full h-full" viewBox="0 0 240 80" preserveAspectRatio="none">
-                        <defs>
-                          <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" style={{stopColor: 'rgba(34,197,94,0.3)', stopOpacity: 1}} />
-                            <stop offset="100%" style={{stopColor: 'rgba(34,197,94,0)', stopOpacity: 1}} />
-                          </linearGradient>
-                        </defs>
-                        <polyline points="0,70 15,65 30,58 45,52 60,48 75,42 90,38 105,35 120,32 135,30 150,28 165,26 180,24 195,23 210,22 225,20 240,18" 
-                                  fill="none" stroke="#22c55e" strokeWidth="2" vectorEffect="non-scaling-stroke"/>
-                        <polygon points="0,70 15,65 30,58 45,52 60,48 75,42 90,38 105,35 120,32 135,30 150,28 165,26 180,24 195,23 210,22 225,20 240,18 240,80 0,80" 
-                                 fill="url(#chartGradient)"/>
+                        {/* Subtle grid lines */}
+                        <line x1="0" y1="20" x2="240" y2="20" stroke="rgba(99,102,241,0.15)" strokeWidth="0.5"/>
+                        <line x1="0" y1="40" x2="240" y2="40" stroke="rgba(99,102,241,0.15)" strokeWidth="0.5"/>
+                        <line x1="0" y1="60" x2="240" y2="60" stroke="rgba(99,102,241,0.15)" strokeWidth="0.5"/>
+                        {/* Candlesticks — wick then body, bullish=green, bearish=red */}
+                        {/* c1 bear */ }<line x1="9" y1="68" x2="9" y2="58" stroke="#ef4444" strokeWidth="0.8"/><rect x="6" y="62" width="6" height="6" fill="#ef4444" rx="0.5"/>
+                        {/* c2 bull */ }<line x1="22" y1="62" x2="22" y2="52" stroke="#22c55e" strokeWidth="0.8"/><rect x="19" y="55" width="6" height="7" fill="#22c55e" rx="0.5"/>
+                        {/* c3 bull */ }<line x1="35" y1="56" x2="35" y2="44" stroke="#22c55e" strokeWidth="0.8"/><rect x="32" y="47" width="6" height="9" fill="#22c55e" rx="0.5"/>
+                        {/* c4 bear */ }<line x1="48" y1="49" x2="48" y2="40" stroke="#ef4444" strokeWidth="0.8"/><rect x="45" y="43" width="6" height="6" fill="#ef4444" rx="0.5"/>
+                        {/* c5 bull */ }<line x1="61" y1="45" x2="61" y2="34" stroke="#22c55e" strokeWidth="0.8"/><rect x="58" y="36" width="6" height="9" fill="#22c55e" rx="0.5"/>
+                        {/* c6 bull */ }<line x1="74" y1="37" x2="74" y2="27" stroke="#22c55e" strokeWidth="0.8"/><rect x="71" y="29" width="6" height="8" fill="#22c55e" rx="0.5"/>
+                        {/* c7 bear */ }<line x1="87" y1="34" x2="87" y2="24" stroke="#ef4444" strokeWidth="0.8"/><rect x="84" y="27" width="6" height="7" fill="#ef4444" rx="0.5"/>
+                        {/* c8 bull */ }<line x1="100" y1="30" x2="100" y2="20" stroke="#22c55e" strokeWidth="0.8"/><rect x="97" y="22" width="6" height="8" fill="#22c55e" rx="0.5"/>
+                        {/* c9 bull */ }<line x1="113" y1="26" x2="113" y2="16" stroke="#22c55e" strokeWidth="0.8"/><rect x="110" y="18" width="6" height="8" fill="#22c55e" rx="0.5"/>
+                        {/* c10 bear */}<line x1="126" y1="24" x2="126" y2="14" stroke="#ef4444" strokeWidth="0.8"/><rect x="123" y="17" width="6" height="7" fill="#ef4444" rx="0.5"/>
+                        {/* c11 bull */}<line x1="139" y1="21" x2="139" y2="11" stroke="#22c55e" strokeWidth="0.8"/><rect x="136" y="13" width="6" height="8" fill="#22c55e" rx="0.5"/>
+                        {/* c12 bull */}<line x1="152" y1="18" x2="152" y2="8"  stroke="#22c55e" strokeWidth="0.8"/><rect x="149" y="10" width="6" height="8" fill="#22c55e" rx="0.5"/>
+                        {/* c13 bear */}<line x1="165" y1="16" x2="165" y2="7"  stroke="#ef4444" strokeWidth="0.8"/><rect x="162" y="10" width="6" height="6" fill="#ef4444" rx="0.5"/>
+                        {/* c14 bull */}<line x1="178" y1="14" x2="178" y2="5"  stroke="#22c55e" strokeWidth="0.8"/><rect x="175" y="7"  width="6" height="7" fill="#22c55e" rx="0.5"/>
+                        {/* c15 bull */}<line x1="191" y1="11" x2="191" y2="3"  stroke="#22c55e" strokeWidth="0.8"/><rect x="188" y="5"  width="6" height="6" fill="#22c55e" rx="0.5"/>
+                        {/* c16 bear */}<line x1="204" y1="10" x2="204" y2="2"  stroke="#ef4444" strokeWidth="0.8"/><rect x="201" y="5"  width="6" height="5" fill="#ef4444" rx="0.5"/>
+                        {/* c17 bull — latest */}<line x1="217" y1="9" x2="217" y2="1"  stroke="#22c55e" strokeWidth="0.8"/><rect x="214" y="3"  width="6" height="6" fill="#22c55e" rx="0.5"/>
+                        {/* live price dashed line */}
+                        <line x1="0" y1="6" x2="240" y2="6" stroke="#22d3ee" strokeWidth="0.7" strokeDasharray="3,2"/>
                       </svg>
                     </div>
 
