@@ -190,6 +190,7 @@
     background: var(--gradient-bg);
     background-attachment: fixed;
     font-feature-settings: "cv11", "ss01";
+    overflow-x: hidden;
   }
 
   /* Numerics use mono */

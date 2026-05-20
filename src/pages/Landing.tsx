@@ -293,26 +293,26 @@ export default function Landing() {
       {/* Mobile App Download Section */}
       <section className="relative overflow-hidden py-20 px-6 lg:px-10 bg-[#030821]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_40%,rgba(9,184,255,0.16),transparent_36%),radial-gradient(circle_at_88%_38%,rgba(0,115,255,0.12),transparent_32%)]" />
-        <div className="relative max-w-7xl mx-auto grid lg:grid-cols-[1fr_auto_1fr] gap-10 items-center">
+        <div className="relative max-w-7xl mx-auto flex flex-col lg:grid lg:grid-cols-[1fr_auto_1fr] gap-10 items-center">
           {/* Left Side - Content */}
           <div className="space-y-7">
             <div className="flex items-start gap-4 md:gap-6">
-              <div className="text-cyan-400/95 text-[64px] md:text-[84px] font-black tracking-tight leading-[0.8] [writing-mode:vertical-rl] rotate-180">
+              <div className="hidden sm:block text-cyan-400/95 text-[64px] md:text-[84px] font-black tracking-tight leading-[0.8] [writing-mode:vertical-rl] rotate-180">
                 Trade
               </div>
-              <h2 className="text-5xl md:text-6xl lg:text-7xl font-black leading-[0.88] tracking-tight">
+              <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[0.88] tracking-tight">
                 <span className="block text-white">Anytime</span>
                 <span className="block text-cyan-400">Anywhere</span>
                 <span className="block text-white">Any Device</span>
               </h2>
             </div>
 
-            <p className="text-lg text-slate-400 max-w-xl">
+            <p className="text-base md:text-lg text-slate-400 max-w-xl">
               Native apps for mobile and desktop with the same lightning-fast experience.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3.5 pt-1">
-              <button className="sm:w-[300px] border border-slate-700/80 bg-slate-900/55 hover:border-cyan-500/60 hover:bg-slate-900/80 transition-all rounded-2xl pl-5 pr-4 py-2.5 flex items-center gap-4 group">
+              <button className="w-full sm:w-[300px] border border-slate-700/80 bg-slate-900/55 hover:border-cyan-500/60 hover:bg-slate-900/80 transition-all rounded-2xl pl-5 pr-4 py-2.5 flex items-center gap-4 group">
                 <div className="h-12 w-12 rounded-lg bg-black/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
                   <img src={appStoreImg} alt="App Store" className="w-8 h-8 object-contain" />
                 </div>
@@ -322,7 +322,7 @@ export default function Landing() {
                 </div>
               </button>
 
-              <button className="sm:w-[300px] border border-slate-700/80 bg-slate-900/55 hover:border-cyan-500/60 hover:bg-slate-900/80 transition-all rounded-2xl pl-5 pr-4 py-2.5 flex items-center gap-4 group">
+              <button className="w-full sm:w-[300px] border border-slate-700/80 bg-slate-900/55 hover:border-cyan-500/60 hover:bg-slate-900/80 transition-all rounded-2xl pl-5 pr-4 py-2.5 flex items-center gap-4 group">
                 <div className="h-12 w-12 rounded-lg bg-black/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
                   <img src={playStoreImg} alt="Google Play" className="w-8 h-8 object-contain" />
                 </div>
@@ -356,8 +356,8 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Center - QR Code */}
-          <div className="flex flex-col items-center justify-center gap-5">
+          {/* Center - QR Code (hidden on mobile) */}
+          <div className="hidden lg:flex flex-col items-center justify-center gap-5">
             <div className="w-56 h-56 md:w-60 md:h-60 rounded-[2rem] bg-white p-5 flex items-center justify-center shadow-[0_0_40px_rgba(18,197,255,0.35)]">
               <img
                 src="https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg"
@@ -373,8 +373,8 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Right Side - Mobile Mockup */}
-          <div className="flex justify-center lg:justify-end">
+          {/* Right Side - Mobile Mockup (hidden on mobile) */}
+          <div className="hidden lg:flex justify-center lg:justify-end">
             <div className="relative">
               {/* Phone frame */}
               <div className="w-72 rounded-[2.8rem] bg-gradient-to-b from-slate-700 to-slate-900 p-2 shadow-[0_0_50px_rgba(7,153,255,0.3)] border border-cyan-500/40">
@@ -540,8 +540,8 @@ export default function Landing() {
       </section> */}
 
       <footer className="border-t border-slate-800/70 bg-[#070b20] px-6 py-10 lg:px-10">
-        <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
-          <div className="space-y-4">
+        <div className="mx-auto grid max-w-6xl gap-8 grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+          <div className="space-y-4 col-span-2 md:col-span-1">
             <Link to="/" className="inline-flex items-center gap-2">
               <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
                 <Zap className="h-5 w-5 text-white" strokeWidth={2.5} />

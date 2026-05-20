@@ -140,7 +140,7 @@ export default function Token() {
                 </div>
               </div>
 
-              <div className="text-4xl font-bold gradient-text font-mono mb-0.5">
+              <div className="text-2xl sm:text-4xl font-bold gradient-text font-mono mb-0.5">
                 ${dexPrice.toFixed(2)}
               </div>
               <div className="text-[11px] text-muted-foreground mb-4">Real-time price · USD</div>
@@ -199,9 +199,9 @@ export default function Token() {
               </div>
 
               <div className="flex items-center justify-center relative">
-                <ResponsiveContainer width={280} height={280}>
+                <ResponsiveContainer width="100%" height={240}>
                   <PieChart>
-                    <Pie data={SUPPLY_ALLOC} cx="50%" cy="50%" innerRadius={85} outerRadius={125}
+                    <Pie data={SUPPLY_ALLOC} cx="50%" cy="50%" innerRadius={70} outerRadius={110}
                       dataKey="value" stroke="none">
                       {SUPPLY_ALLOC.map((s, i) => <Cell key={i} fill={s.color} />)}
                     </Pie>

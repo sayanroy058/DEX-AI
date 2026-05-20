@@ -49,7 +49,7 @@ export default function PropFirm() {
 
   return (
     <AppShell>
-      <div className="min-h-screen space-y-20">
+      <div className="min-h-screen space-y-12 sm:space-y-20">
         {/* Hero Section - Redesigned */}
         <section className="relative overflow-hidden px-6 lg:px-10 pt-16 pb-20">
           {/* Background elements */}
@@ -69,10 +69,10 @@ export default function PropFirm() {
                 </div>
 
                 <div className="space-y-4">
-                  <h1 className="text-5xl lg:text-6xl font-extrabold leading-[1.15] tracking-tight">
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold leading-[1.15] tracking-tight">
                     Trade With <span className="gradient-text">Unlimited Capital</span>
                   </h1>
-                  <p className="text-xl text-muted-foreground max-w-md">
+                  <p className="text-base sm:text-xl text-muted-foreground max-w-md">
                     Prove your skills. Get instant funding up to $500K. Keep up to 90% of your profits.
                   </p>
                 </div>
@@ -98,8 +98,8 @@ export default function PropFirm() {
                 </Button>
               </div>
 
-              {/* Right visual - Enhanced */}
-              <div className="relative h-96 lg:h-full min-h-96">
+              {/* Right visual - hidden on mobile to avoid excess whitespace */}
+              <div className="relative h-96 lg:h-full min-h-96 hidden lg:block">
                 {/* Animated cards background */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="relative w-full h-full max-w-sm max-h-sm">

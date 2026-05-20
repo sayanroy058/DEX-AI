@@ -67,7 +67,7 @@ const Portfolio = () => {
 
   return (
     <AppShell>
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Portfolio</h1>
@@ -84,7 +84,7 @@ const Portfolio = () => {
         </div>
 
         {/* Key stat cards */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <StatCard label="Total Funds" value={`$${totalFunds.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} sub="Equity + Position Value" icon={DollarSign} highlight />
           <StatCard label="Available Balance" value={`$${balance.toLocaleString()}`} sub="Ready to trade" icon={Wallet} />
           <StatCard label="Unrealized PnL" value={`${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(2)}`} sub={`${totalPnl >= 0 ? "+" : ""}${((totalPnl / balance) * 100).toFixed(2)}% return`} icon={totalPnl >= 0 ? ArrowUpRight : ArrowDownRight} tone={totalPnl >= 0 ? "buy" : "sell"} />

@@ -43,12 +43,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen w-full flex flex-col">
-      <header className="h-14 px-4 flex items-center gap-2 glass-strong border-b border-glass-border z-30 sticky top-0">
-        <Link to="/" className="flex items-center gap-2 shrink-0">
-          <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow-primary">
+      <header className="h-14 px-3 sm:px-4 flex items-center gap-1 sm:gap-2 glass-strong border-b border-glass-border z-30 sticky top-0 overflow-hidden">
+        <Link to="/" className="flex items-center gap-1.5 shrink-0">
+          <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow-primary shrink-0">
             <Zap className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
           </div>
-          <span className="font-bold text-lg tracking-tight">
+          <span className="font-bold text-base sm:text-lg tracking-tight">
             DEX<span className="gradient-text">.ai</span>
           </span>
         </Link>
@@ -85,7 +85,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <kbd className="text-[10px] text-muted-foreground border border-border rounded px-1">⌘K</kbd>
         </div>
 
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className="relative hidden sm:flex shrink-0">
           <Bell className="h-4 w-4" />
           <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
         </Button>

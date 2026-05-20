@@ -98,13 +98,13 @@ export default function Refer() {
           <h3 className="font-bold mb-4 flex items-center gap-2"><Award className="h-4 w-4 text-primary" /> Affiliate Tiers</h3>
           <div className="space-y-2">
             {TIERS.map((tier, i) => (
-              <div key={tier.name} className={cn("flex items-center justify-between rounded-lg px-4 py-3 border", i === 0 ? "bg-amber-600/10 border-amber-600/20" : "border-border/30")}>
-                <div className="flex items-center gap-3">
-                  <span className={cn("font-bold text-sm", tier.color)}>{tier.name}</span>
-                  <span className="text-[10px] text-muted-foreground">{tier.refs} referrals</span>
+              <div key={tier.name} className={cn("flex items-center justify-between rounded-lg px-4 py-3 border gap-2", i === 0 ? "bg-amber-600/10 border-amber-600/20" : "border-border/30")}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={cn("font-bold text-sm shrink-0", tier.color)}>{tier.name}</span>
+                  <span className="text-[10px] text-muted-foreground truncate">{tier.refs} refs</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={cn("font-bold text-sm", tier.color)}>{tier.commission} commission</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className={cn("font-bold text-sm", tier.color)}>{tier.commission}</span>
                   {i === 0 && <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded">Current</span>}
                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>

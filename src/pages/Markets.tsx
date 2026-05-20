@@ -113,7 +113,7 @@ const Markets = () => {
 
         {/* All markets table */}
         <div className="glass rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-none">
             <table className="w-full text-sm min-w-[700px]">
               <thead className="text-[11px] text-muted-foreground uppercase">
                 <tr className="border-b border-border/50">
