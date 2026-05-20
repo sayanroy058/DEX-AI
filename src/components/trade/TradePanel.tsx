@@ -324,17 +324,17 @@ export function TradePanel({ symbol, price }: { symbol: string; price: number })
             </div>
             <Slider value={[leverage]} min={1} max={100} step={1} onValueChange={v => setLeverageValue(v[0])}
               className="my-1 h-3" />
-            <div className="grid grid-cols-7 gap-1 mt-2">
+            <div className="mt-2 flex flex-wrap gap-1">
               {[1, 10, 25, 50, 75, 100].map(l => (
                 <button key={l} onClick={() => setLeverageValue(l)}
-                  className={cn("h-8 min-w-0 text-[11px] rounded-md border transition-colors",
+                  className={cn("h-8 min-w-[4rem] flex-1 text-[11px] rounded-md border transition-colors",
                     leverage === l ? "border-primary bg-primary/20 text-primary shadow-[0_0_14px_hsl(var(--primary)/0.35)]" : "border-border bg-muted/20 text-muted-foreground hover:text-foreground"
                   )}>{l}x</button>
               ))}
               <button
                 type="button"
                 onClick={() => leverageInputRef.current?.focus()}
-                className="h-8 min-w-0 rounded-md border border-border bg-muted/20 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                className="h-8 min-w-[5.5rem] rounded-md border border-border bg-muted/20 px-3 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
               >
                 Custom
               </button>
