@@ -57,6 +57,40 @@ export default function Landing() {
       {/* Hero Section */}
       <div className="relative min-h-[calc(100svh-4rem)] flex items-center justify-center px-6 py-12 md:py-16 overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(56,189,248,0.2),transparent_38%),radial-gradient(circle_at_82%_22%,rgba(124,58,237,0.16),transparent_34%),linear-gradient(180deg,rgba(6,11,42,0.35)_0%,rgba(6,11,42,0)_60%)]" />
+        {/* Animated floating orbs */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute top-[12%] left-[8%] w-72 h-72 rounded-full bg-cyan-500/10 blur-3xl animate-[pulse_6s_ease-in-out_infinite]" />
+          <div className="absolute top-[20%] right-[6%] w-64 h-64 rounded-full bg-purple-600/10 blur-3xl animate-[pulse_8s_ease-in-out_2s_infinite]" />
+          <div className="absolute bottom-[18%] left-[18%] w-48 h-48 rounded-full bg-blue-500/10 blur-2xl animate-[pulse_7s_ease-in-out_1s_infinite]" />
+          <div className="absolute bottom-[10%] right-[15%] w-56 h-56 rounded-full bg-cyan-400/8 blur-3xl animate-[pulse_9s_ease-in-out_3s_infinite]" />
+          {/* Floating particles */}
+          {[...Array(18)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full bg-cyan-400/30"
+              style={{
+                width: `${2 + (i % 3)}px`,
+                height: `${2 + (i % 3)}px`,
+                left: `${5 + (i * 5.3) % 90}%`,
+                top: `${10 + (i * 7.1) % 80}%`,
+                animation: `float-particle ${4 + (i % 5)}s ease-in-out ${(i * 0.4) % 3}s infinite`,
+                opacity: 0.4 + (i % 4) * 0.1,
+              }}
+            />
+          ))}
+          {/* Grid lines shimmer */}
+          <div className="absolute inset-0 opacity-[0.04]" style={{
+            backgroundImage: 'linear-gradient(rgba(56,189,248,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,0.8) 1px, transparent 1px)',
+            backgroundSize: '80px 80px',
+          }} />
+        </div>
+        <style>{`
+          @keyframes float-particle {
+            0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.3; }
+            33% { transform: translateY(-18px) translateX(8px); opacity: 0.7; }
+            66% { transform: translateY(-8px) translateX(-10px); opacity: 0.5; }
+          }
+        `}</style>
         <div className="relative max-w-3xl w-full text-center space-y-8">
           {/* Badge */}
           <div className="mx-auto max-w-full">
