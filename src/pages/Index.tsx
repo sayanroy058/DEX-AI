@@ -6,9 +6,10 @@ import { TradePanel } from "@/components/trade/TradePanel";
 import { PositionsPanel } from "@/components/trade/PositionsPanel";
 import { MarketHeader } from "@/components/trade/MarketHeader";
 import { useMarket, useMarkets } from "@/lib/useMarkets";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
-import { Calculator, GripVertical, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X } from "lucide-react";
+import { Calculator, GripVertical, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, BarChart2, BookOpen, ArrowLeftRight, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { generateOrderBook, generateTrade, formatPrice, Trade } from "@/lib/mockData";
 
@@ -294,6 +295,7 @@ const Index = () => {
   const market = useMarket(symbol);
   const markets = useMarkets();
   const price = market?.price ?? 0;
+  const isMobile = useIsMobile();
 
   const [slots, setSlots] = useState<[PanelId, PanelId, PanelId]>(["marketList", "chart", "positions"]);
   const leftPanelSizeRef = useRef(DEFAULT_COL_SIZES[0]);
@@ -320,6 +322,7 @@ const Index = () => {
   }, [draggingId]);
 
   const [calcOpen, setCalcOpen] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"chart" | "trade" | "markets" | "positions">("chart");
   const [calcEntry, setCalcEntry] = useState("");
   const [calcLev, setCalcLev] = useState(10);
   const [calcSize, setCalcSize] = useState(1000);
@@ -482,7 +485,8 @@ const Index = () => {
           </div>
         )}
 
-        {/* Main panel grid */}
+        {/* Main panel grid — Desktop */}
+        {!isMobile && (
         <PanelGroup direction="horizontal" className="flex-1 min-h-0">
 
           {/* Left — Market List */}
@@ -538,6 +542,60 @@ const Index = () => {
           </Panel>
 
         </PanelGroup>
+        )}
+
+        {/* Mobile layout — tabs */}
+        {isMobile && (
+          <div className="flex-1 flex flex-col min-h-0">
+            {/* Tab content */}
+            <div className="flex-1 min-h-0 overflow-hidden">
+              {mobileTab === "markets" && (
+                <div className="h-full glass rounded-xl overflow-hidden">
+                  <MarketList activeSymbol={symbol} onSelect={(s) => { setSymbol(s); setMobileTab("chart"); }} collapsed={false} onToggleCollapse={() => {}} />
+                </div>
+              )}
+              {mobileTab === "chart" && (
+                <div className="h-full glass rounded-xl overflow-hidden">
+                  <TradingChart symbol={symbol} price={price} />
+                </div>
+              )}
+              {mobileTab === "trade" && (
+                <div className="h-full glass rounded-xl overflow-y-auto">
+                  <RightColumn symbol={symbol} price={price} />
+                </div>
+              )}
+              {mobileTab === "positions" && (
+                <div className="h-full glass rounded-xl overflow-hidden">
+                  <PositionsPanel markets={markets} />
+                </div>
+              )}
+            </div>
+
+            {/* Bottom tab bar */}
+            <div className="shrink-0 grid grid-cols-4 gap-1 pt-1.5">
+              {([
+                { id: "markets", label: "Markets", icon: List },
+                { id: "chart", label: "Chart", icon: BarChart2 },
+                { id: "trade", label: "Trade", icon: ArrowLeftRight },
+                { id: "positions", label: "Positions", icon: BookOpen },
+              ] as const).map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setMobileTab(id)}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg text-[10px] font-semibold transition-colors",
+                    mobileTab === id
+                      ? "bg-primary/20 text-primary border border-primary/40"
+                      : "text-muted-foreground hover:text-foreground glass"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </AppShell>
   );
