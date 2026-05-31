@@ -13,10 +13,16 @@ import Settings from "./pages/Settings.tsx";
 import Profile from "./pages/Profile.tsx";
 import PropFirm from "./pages/PropFirm.tsx";
 import Prediction from "./pages/Prediction.tsx";
+import PredictionOrders from "./pages/PredictionOrders.tsx";
+import TradingBots from "./pages/TradingBots.tsx";
+import AIAgent from "./pages/AIAgent.tsx";
 import P2P from "./pages/P2P.tsx";
+import P2POrders from "./pages/P2POrders.tsx";
+import P2PAdvertiser from "./pages/P2PAdvertiser.tsx";
 import Token from "./pages/Token.tsx";
 import Refer from "./pages/Refer.tsx";
 import SIP from "./pages/SIP.tsx";
+import Affiliate from "./pages/Affiliate.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -30,6 +36,8 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/trade" element={<Index />} />
+          <Route path="/trading-bots" element={<TradingBots />} />
+          <Route path="/ai-agent" element={<AIAgent />} />
           <Route path="/markets" element={<Markets />} />
           <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
@@ -38,9 +46,13 @@ const App = () => (
           <Route path="/profile" element={<Profile />} />
           <Route path="/prop" element={<PropFirm />} />
           <Route path="/prediction" element={<Prediction />} />
+          <Route path="/prediction/orders" element={<PredictionOrders />} />
           <Route path="/p2p" element={<P2P />} />
+          <Route path="/p2p/orders" element={<P2POrders />} />
+          <Route path="/p2p/advertiser" element={<P2PAdvertiser />} />
           <Route path="/token" element={<Token />} />
           <Route path="/refer" element={<Refer />} />
+          <Route path="/affiliate" element={<Affiliate />} />
           <Route path="/sip" element={<SIP />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -210,8 +210,8 @@ export default function Landing() {
               { title: "Algo Trading", sub: "Automated Strategies", icon: Bot, color: "text-emerald-300 bg-emerald-500/15 border-emerald-500/35" },
               { title: "Bot Trading", sub: "AI-Powered Bots", icon: Bot, color: "text-amber-300 bg-amber-500/15 border-amber-500/35" },
             ].map((item) => (
-              <div key={item.title} className="rounded-2xl border border-cyan-800/35 bg-[#071127]/90 p-5 md:p-6">
-                <div className={`h-10 w-10 rounded-xl border flex items-center justify-center mb-4 ${item.color}`}>
+              <div key={item.title} className="group rounded-2xl border border-cyan-800/35 bg-[#071127]/90 p-5 md:p-6 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10 transition-all">
+                <div className={`h-10 w-10 rounded-xl border flex items-center justify-center mb-4 ${item.color} group-hover:shadow-lg group-hover:shadow-cyan-500/50 transition-all`}>
                   <item.icon className="h-5 w-5" />
                 </div>
                 <h3 className="text-white text-2xl font-semibold mb-1">{item.title}</h3>
@@ -315,23 +315,22 @@ export default function Landing() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3.5 pt-1">
-              <button className="w-full sm:w-[300px] border border-slate-700/80 bg-slate-900/55 hover:border-cyan-500/60 hover:bg-slate-900/80 transition-all rounded-2xl pl-5 pr-4 py-2.5 flex items-center gap-4 group">
+              <button className="w-full sm:w-[300px] border border-slate-700/80 bg-slate-900/55 transition-all rounded-2xl pl-5 pr-4 py-2.5 flex items-center gap-4 opacity-60 pointer-events-none">
                 <div className="h-12 w-12 rounded-lg bg-black/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                  <img src={appStoreImg} alt="App Store" className="w-8 h-8 object-contain" />
+                  <img src={appStoreImg} alt="App Store" className="w-8 h-8 object-contain grayscale opacity-40" />
                 </div>
                 <div className="text-left">
-                  <div className="text-[9px] text-slate-400 group-hover:text-slate-300 transition-colors">Download on the</div>
-                  <div className="text-[22px] leading-none font-extrabold text-white">App Store</div>
+                  <div className="text-[9px] text-slate-500">Download on the</div>
+                  <div className="text-[22px] leading-none font-extrabold text-slate-400">App Store</div>
                 </div>
               </button>
-
-              <button className="w-full sm:w-[300px] border border-slate-700/80 bg-slate-900/55 hover:border-cyan-500/60 hover:bg-slate-900/80 transition-all rounded-2xl pl-5 pr-4 py-2.5 flex items-center gap-4 group">
+              <button className="w-full sm:w-[300px] border border-slate-700/80 bg-slate-900/55 transition-all rounded-2xl pl-5 pr-4 py-2.5 flex items-center gap-4 opacity-60 pointer-events-none">
                 <div className="h-12 w-12 rounded-lg bg-black/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                  <img src={playStoreImg} alt="Google Play" className="w-8 h-8 object-contain" />
+                  <img src={playStoreImg} alt="Google Play" className="w-8 h-8 object-contain grayscale opacity-40" />
                 </div>
                 <div className="text-left">
-                  <div className="text-[9px] text-slate-400 group-hover:text-slate-300 transition-colors">GET IT ON</div>
-                  <div className="text-[22px] leading-none font-extrabold text-white">Google Play</div>
+                  <div className="text-[9px] text-slate-500">GET IT ON</div>
+                  <div className="text-[22px] leading-none font-extrabold text-slate-400">Google Play</div>
                 </div>
               </button>
             </div>
@@ -477,18 +476,7 @@ export default function Landing() {
                     </div>
                   </div>
 
-                  {/* Bottom Nav Bar — pinned outside scroll area */}
-                  <div className="grid grid-cols-3 gap-2 px-4 py-3 border-t border-slate-700 bg-slate-950/90 flex-shrink-0">
-                    <button className="h-10 rounded-xl bg-slate-900/70 border border-cyan-700/40 flex items-center justify-center">
-                      <Home className="h-4 w-4 text-cyan-300" />
-                    </button>
-                    <button className="h-10 rounded-xl bg-slate-900/70 border border-slate-700 flex items-center justify-center">
-                      <BarChart2 className="h-4 w-4 text-slate-300" />
-                    </button>
-                    <button className="h-10 rounded-xl bg-slate-900/70 border border-slate-700 flex items-center justify-center">
-                      <Wallet className="h-4 w-4 text-slate-300" />
-                    </button>
-                  </div>
+                  {/* Bottom Nav Bar removed as requested */}
                 </div>
               </div>
             </div>

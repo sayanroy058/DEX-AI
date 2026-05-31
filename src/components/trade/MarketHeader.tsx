@@ -1,10 +1,11 @@
 import { useMarket } from "@/lib/useMarkets";
 import { formatCompact, formatPrice } from "@/lib/mockData";
-import { TrendingUp, TrendingDown, Bot, Sparkles, Calculator, RotateCcw } from "lucide-react";
+import { TrendingUp, TrendingDown, Bot, Sparkles, Calculator, RotateCcw, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { toast } from "sonner";
+import { SwapDialog } from "./SwapDialog";
 
 export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onResetLayout }: {
   symbol: string;
@@ -15,6 +16,7 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
   const market = useMarket(symbol);
   const [aiActive, setAiActive] = useState(false);
   const [botActive, setBotActive] = useState(false);
+  const [swapOpen, setSwapOpen] = useState(false);
   if (!market) return null;
   const positive = market.change24h >= 0;
 
@@ -57,6 +59,16 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
       <Stat label="Index" value={`$${formatPrice(market.price * 0.9999)}`} />
 
       <div className="ml-auto flex items-center gap-2 min-w-fit">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setSwapOpen(true)}
+          className={"h-8 text-xs glass border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"}
+          title="Swap tokens"
+        >
+          <Repeat className="h-3.5 w-3.5 mr-1.5" />
+          Swap
+        </Button>
         <Button
           variant="outline"
           size="sm"
@@ -116,6 +128,7 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
           </Button>
         )}
       </div>
+      <SwapDialog open={swapOpen} onOpenChange={setSwapOpen} />
     </div>
   );
 }

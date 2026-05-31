@@ -11,19 +11,65 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
+import {
   Search,
   Filter,
   ChevronDown,
+  ChevronRight,
   Shield,
   Clock,
   Users,
   Lock,
   TrendingUp,
   ArrowRight,
+  Star,
+  CheckCircle2,
+  ClipboardList,
+  MoreHorizontal,
+  MonitorUp,
+  CirclePlus,
+  X,
 } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { P2POrderPage } from "@/components/trade/P2POrderPage";
+import { PostAdsDialog } from "@/components/trade/PostAdsDialog";
+import { p2pOrders, p2pSidePillClass, p2pStatusClass, type P2POrderSummary } from "@/lib/p2pOrders";
 
-const merchants = [
+type Merchant = {
+  id: number;
+  name: string;
+  avatar: string;
+  trades: number;
+  completion: number;
+  price: number;
+  limit: string;
+  payment: string;
+  available: string;
+  rating: number;
+  avgTradeTime: string;
+  assets: string[];
+  joined: string;
+};
+
+const merchants: Merchant[] = [
   {
     id: 1,
     name: "CryptoKing_India",
@@ -34,6 +80,10 @@ const merchants = [
     limit: "₹1,00,000 - ₹5,00,000",
     payment: "Bank Transfer",
     available: "4,500 DEXUSD",
+    rating: 4.9,
+    avgTradeTime: "3.2 min",
+    assets: ["DEXUSD", "USDT", "BTC"],
+    joined: "Jan 2022",
   },
   {
     id: 2,
@@ -45,6 +95,10 @@ const merchants = [
     limit: "₹5,00,000 - ₹25,00,000",
     payment: "UPI, GPay",
     available: "4,430 DEXUSD",
+    rating: 4.7,
+    avgTradeTime: "4.8 min",
+    assets: ["DEXUSD", "USDT"],
+    joined: "Mar 2022",
   },
   {
     id: 3,
@@ -56,6 +110,10 @@ const merchants = [
     limit: "₹10,000 - ₹75,00,000",
     payment: "IMPS",
     available: "5,300.25 DEXUSD",
+    rating: 4.6,
+    avgTradeTime: "5.1 min",
+    assets: ["DEXUSD", "ETH", "USDT"],
+    joined: "Jun 2021",
   },
   {
     id: 4,
@@ -67,6 +125,10 @@ const merchants = [
     limit: "₹15,000 - ₹1,00,00,000",
     payment: "Bank Transfer",
     available: "15,000 DEXUSD",
+    rating: 4.8,
+    avgTradeTime: "2.9 min",
+    assets: ["DEXUSD", "BTC", "ETH", "USDT"],
+    joined: "Sep 2020",
   },
   {
     id: 5,
@@ -78,6 +140,10 @@ const merchants = [
     limit: "₹3,400 - ₹50,000",
     payment: "Paytm, UPI",
     available: "3,400 DEXUSD",
+    rating: 4.5,
+    avgTradeTime: "6.0 min",
+    assets: ["DEXUSD", "USDT"],
+    joined: "Nov 2022",
   },
   {
     id: 6,
@@ -87,8 +153,12 @@ const merchants = [
     completion: 98.3,
     price: 91.35,
     limit: "₹50,000 - ₹25,00,000",
-    payment: "NEFTX",
+    payment: "NEFT",
     available: "45,000 DEXUSD",
+    rating: 4.7,
+    avgTradeTime: "3.7 min",
+    assets: ["DEXUSD", "BTC", "USDT"],
+    joined: "Apr 2021",
   },
   {
     id: 7,
@@ -100,6 +170,10 @@ const merchants = [
     limit: "₹2,900 - ₹3,00,000",
     payment: "GPay",
     available: "2,900 DEXUSD",
+    rating: 4.8,
+    avgTradeTime: "4.2 min",
+    assets: ["DEXUSD", "ETH"],
+    joined: "Aug 2022",
   },
   {
     id: 8,
@@ -111,6 +185,10 @@ const merchants = [
     limit: "₹8,000 - ₹10,00,000",
     payment: "IMPS",
     available: "8,000 DEXUSD",
+    rating: 4.4,
+    avgTradeTime: "7.3 min",
+    assets: ["DEXUSD", "USDT", "BTC", "ETH"],
+    joined: "Feb 2021",
   },
 ];
 
@@ -148,13 +226,150 @@ const steps = [
   },
 ];
 
+function P2POrdersPopover({
+  orders,
+  onViewAll,
+}: {
+  orders: P2POrderSummary[];
+  onViewAll: () => void;
+}) {
+  const inProgress = orders.filter(order => order.status === "In Progress");
+  const recent = orders.slice(0, 3);
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" className="h-10 gap-2 text-primary hover:text-primary hover:bg-primary/10">
+          <ClipboardList className="h-4 w-4" />
+          Orders
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-[min(92vw,440px)] border-border/50 bg-card/95 p-0 shadow-2xl backdrop-blur-xl">
+        <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+          <div className="text-sm font-semibold">Order in Progress ({inProgress.length})</div>
+          <button
+            type="button"
+            onClick={onViewAll}
+            className="flex items-center gap-1 text-sm font-semibold text-foreground hover:text-primary"
+          >
+            View All
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="max-h-72 overflow-y-auto">
+          {recent.length === 0 ? (
+            <div className="flex h-28 items-center justify-center text-sm text-muted-foreground">No Records Found</div>
+          ) : (
+            <div className="divide-y divide-border/30">
+              {recent.map(order => (
+                <button
+                  key={order.id}
+                  type="button"
+                  onClick={onViewAll}
+                  className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/25"
+                >
+                  <div className="mb-1 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                    <span className={p2pSidePillClass(order.side)}>{order.side}</span>
+                      <span className="font-mono text-xs text-muted-foreground">{order.id}</span>
+                    </div>
+                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${p2pStatusClass(order.status)}`}>
+                      {order.status}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <span className="text-muted-foreground">{order.counterparty}</span>
+                    <span className="text-right font-mono">{order.cryptoAmount.toFixed(4)} DEXUSD</span>
+                    <span className="text-muted-foreground">{order.payment}</span>
+                    <span className="text-right font-mono">INR {order.fiatAmount.toLocaleString()}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function P2PMoreMenu({
+  onMyAds,
+  onPostAds,
+}: {
+  onMyAds: () => void;
+  onPostAds: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-10 gap-2 text-muted-foreground hover:bg-primary/10 hover:text-primary">
+          <MoreHorizontal className="h-4 w-4" />
+          More
+          <ChevronDown className="h-3.5 w-3.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44 border-border/50 bg-card/95 p-1.5 shadow-2xl backdrop-blur-xl">
+        <DropdownMenuItem onSelect={onMyAds} className="gap-2 rounded-md py-2.5">
+          <MonitorUp className="h-4 w-4" />
+          My Ads
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={onPostAds} className="gap-2 rounded-md py-2.5">
+          <CirclePlus className="h-4 w-4" />
+          Post Ads
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export default function P2P() {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<"buy" | "sell">("buy");
   const [selectedPayment, setSelectedPayment] = useState("All");
   const [amount, setAmount] = useState("");
-  const [bankOption, setBankOption] = useState("HDFC Bank");
+  const [bankOption, setBankOption] = useState("UPI");
   const [searchTerm, setSearchTerm] = useState("");
-  const todayPrice = 100; // Today's price in INR
+  const [postAdsDialogOpen, setPostAdsDialogOpen] = useState(false);
+  const todayPrice = 100;
+
+  // Trade Dialog state
+  const [tradeDialogOpen, setTradeDialogOpen] = useState(false);
+  const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null);
+  const [showOrderPage, setShowOrderPage] = useState(false);
+  const [tradeInputType, setTradeInputType] = useState<"quantity" | "dollars">("dollars");
+  const [tradeAmount, setTradeAmount] = useState("");
+
+  const openTradeDialog = (merchant: Merchant) => {
+    setSelectedMerchant(merchant);
+    setTradeAmount("");
+    setTradeInputType("dollars");
+    setTradeDialogOpen(true);
+  };
+
+  // Gross DEXUSD before fee
+  const grossQty = selectedMerchant && tradeAmount
+    ? tradeInputType === "dollars"
+      ? parseFloat(tradeAmount) / selectedMerchant.price
+      : parseFloat(tradeAmount)
+    : 0;
+
+  // INR equivalent of the entered qty
+  const tradeDollars = selectedMerchant && tradeAmount
+    ? tradeInputType === "quantity"
+      ? (parseFloat(tradeAmount) * selectedMerchant.price).toFixed(2)
+      : tradeAmount
+    : "";
+
+  // Fee is 1% of gross DEXUSD, deducted from what user receives
+  const feeQty   = +(grossQty * 0.01).toFixed(6);
+  const netQty   = +(grossQty - feeQty).toFixed(6);
+
+  // For display in the auto-calc field: net DEXUSD received
+  const tradeQty = grossQty > 0 ? netQty.toFixed(4) : "";
+
+  // INR user actually pays (what they entered or derived)
+  const subtotal = selectedMerchant && tradeDollars ? parseFloat(tradeDollars) : 0; // Today's price in INR
 
   const filteredMerchants = merchants.filter((m) =>
     selectedPayment === "All"
@@ -167,13 +382,25 @@ export default function P2P() {
       <div className="min-h-screen bg-gradient-to-b from-background via-background/95 to-background p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold tracking-tight mb-2">{mode === "buy" ? "Buy" : "Sell"} Crypto</h1>
-            <p className="text-muted-foreground">
-              {mode === "buy" 
-                ? "Buy & sell crypto with 0% maker fees in your local currency."
-                : "Sell your crypto and receive payment in your local currency with 0% fees."}
-            </p>
+          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight mb-2">{mode === "buy" ? "Buy" : "Sell"} Crypto</h1>
+              <p className="text-muted-foreground">
+                {mode === "buy" 
+                  ? "Buy & sell crypto with 0% maker fees in your local currency."
+                  : "Sell your crypto and receive payment in your local currency with 0% fees."}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <P2POrdersPopover
+                orders={p2pOrders}
+                onViewAll={() => navigate("/p2p/orders")}
+              />
+              <P2PMoreMenu
+                onMyAds={() => navigate("/p2p/advertiser")}
+                onPostAds={() => setPostAdsDialogOpen(true)}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -333,6 +560,7 @@ export default function P2P() {
                           <td className="text-center px-4 py-4">
                             <Button
                               size="sm"
+                              onClick={() => openTradeDialog(merchant)}
                               className={`text-xs ${mode === "buy" ? "bg-buy text-buy-foreground hover:bg-buy/90" : "bg-red-500 text-white hover:bg-red-600"}`}
                             >
                               {mode === "buy" ? "BUY" : "SELL"} DEXUSD
@@ -386,10 +614,10 @@ export default function P2P() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="HDFC Bank">HDFC Bank</SelectItem>
-                        <SelectItem value="ICICI Bank">ICICI Bank</SelectItem>
-                        <SelectItem value="State Bank of India">State Bank of India</SelectItem>
-                        <SelectItem value="UPI - GPay">UPI - GPay</SelectItem>
+                        <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                        <SelectItem value="IMPS">IMPS</SelectItem>
+                        <SelectItem value="NEFT">NEFT</SelectItem>
+                        <SelectItem value="UPI">UPI</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -521,6 +749,226 @@ export default function P2P() {
           </div>
         </div>
       </div>
+
+      {/* ── P2P Order Page overlay ── */}
+      <PostAdsDialog
+        open={postAdsDialogOpen}
+        onOpenChange={setPostAdsDialogOpen}
+      />
+
+      {showOrderPage && selectedMerchant && (
+        <P2POrderPage
+          mode={mode}
+          merchant={selectedMerchant}
+          amountINR={subtotal}
+          grossQty={grossQty}
+          feeQty={feeQty}
+          netQty={netQty}
+          onClose={() => setShowOrderPage(false)}
+        />
+      )}
+
+      {/* ── Trade Dialog ── */}
+      <Dialog open={tradeDialogOpen} onOpenChange={setTradeDialogOpen}>
+        <DialogContent className="max-w-4xl w-full bg-[#0b1120] border border-slate-700/60 text-white p-0 overflow-hidden rounded-2xl">
+          {selectedMerchant && (
+            <>
+              {/* Top header bar */}
+              <div className={`px-6 py-4 flex items-center justify-between ${mode === "buy" ? "bg-emerald-500/10 border-b border-emerald-500/20" : "bg-red-500/10 border-b border-red-500/20"}`}>
+                <DialogHeader className="flex-1">
+                  <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
+                    <span className={`px-2.5 py-0.5 rounded text-xs font-bold ${mode === "buy" ? "bg-emerald-500" : "bg-red-500"} text-white`}>
+                      {mode === "buy" ? "BUY" : "SELL"}
+                    </span>
+                    DEXUSD · {selectedMerchant.name}
+                  </DialogTitle>
+                </DialogHeader>
+              </div>
+
+              {/* Two-column body */}
+              <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-slate-700/50 max-h-[82vh]">
+
+                {/* ── LEFT: Seller details ── */}
+                <div className="md:w-[52%] overflow-y-auto px-6 py-5 space-y-5">
+
+                  {/* Profile */}
+                  <div className="flex items-center gap-4">
+                    <div className="h-16 w-16 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-base font-black text-white flex-shrink-0 shadow-lg shadow-cyan-500/20">
+                      {selectedMerchant.avatar}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-base leading-tight">{selectedMerchant.name}</span>
+                        <Shield className="h-4 w-4 text-cyan-400" />
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                      </div>
+                      <div className="text-xs text-slate-400 mt-0.5">Member since {selectedMerchant.joined}</div>
+                      <div className="flex items-center gap-1 mt-1.5">
+                        {[1,2,3,4,5].map((s) => (
+                          <Star key={s} className={`h-3.5 w-3.5 ${s <= Math.round(selectedMerchant.rating) ? "text-amber-400 fill-amber-400" : "text-slate-600"}`} />
+                        ))}
+                        <span className="text-xs text-slate-300 ml-1 font-semibold">{selectedMerchant.rating.toFixed(1)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator className="bg-slate-700/50" />
+
+                  {/* Stats */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {[
+                      { label: "Total Trades",     value: selectedMerchant.trades.toLocaleString() },
+                      { label: "Completion Rate",  value: `${selectedMerchant.completion}%` },
+                      { label: "Avg. Trade Time",  value: selectedMerchant.avgTradeTime },
+                      { label: "Price / DEXUSD",   value: `₹${selectedMerchant.price}` },
+                      { label: "Trade Limit",      value: selectedMerchant.limit },
+                      { label: "Available",        value: selectedMerchant.available },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="bg-slate-800/60 rounded-xl px-3.5 py-3 border border-slate-700/30">
+                        <p className="text-[9px] text-slate-500 uppercase tracking-widest">{label}</p>
+                        <p className="text-sm font-semibold text-white mt-0.5">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Payment methods */}
+                  <div>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-2">Payment Methods</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedMerchant.payment.split(",").map((p) => (
+                        <Badge key={p.trim()} className="bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-xs px-3 py-1">
+                          {p.trim()}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Available assets */}
+                  <div>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-2">Available Assets</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedMerchant.assets.map((asset) => (
+                        <Badge key={asset} className="bg-violet-500/15 text-violet-300 border border-violet-500/30 text-xs px-3 py-1">
+                          {asset}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── RIGHT: Trade form ── */}
+                <div className="md:w-[48%] flex flex-col px-6 py-5 space-y-5 bg-[#080f1e]/60">
+
+                  <p className="text-base font-bold text-white">Enter Amount</p>
+
+                  {/* Toggle */}
+                  <div className="flex rounded-xl overflow-hidden border border-slate-700">
+                    <button
+                      onClick={() => { setTradeInputType("dollars"); setTradeAmount(""); }}
+                      className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${tradeInputType === "dollars" ? "bg-cyan-500/20 text-cyan-300" : "text-slate-400 hover:text-white"}`}
+                    >
+                      ₹ Rupees
+                    </button>
+                    <button
+                      onClick={() => { setTradeInputType("quantity"); setTradeAmount(""); }}
+                      className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${tradeInputType === "quantity" ? "bg-cyan-500/20 text-cyan-300" : "text-slate-400 hover:text-white"}`}
+                    >
+                      Qty (DEXUSD)
+                    </button>
+                  </div>
+
+                  {/* Primary input */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-500 uppercase tracking-widest">
+                      {tradeInputType === "dollars" ? "Amount (INR)" : "Quantity (DEXUSD)"}
+                    </label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        placeholder={tradeInputType === "dollars" ? "0.00" : "0.0000"}
+                        value={tradeAmount}
+                        onChange={(e) => setTradeAmount(e.target.value)}
+                        className="bg-slate-800/60 border-slate-700 text-white placeholder:text-slate-600 pr-20 h-11"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium pointer-events-none">
+                        {tradeInputType === "dollars" ? "INR" : "DEXUSD"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Auto-calculated */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-500 uppercase tracking-widest">
+                      {tradeInputType === "dollars" ? "You Get (DEXUSD)" : "You Pay (INR)"}
+                    </label>
+                    <div className="relative">
+                      <Input
+                        readOnly
+                        value={tradeInputType === "dollars" ? (tradeQty || "") : (tradeDollars || "")}
+                        placeholder="Auto-calculated"
+                        className="bg-slate-900/50 border-slate-700/50 text-slate-300 placeholder:text-slate-600 pr-20 h-11 cursor-default"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium pointer-events-none">
+                        {tradeInputType === "dollars" ? "DEXUSD" : "INR"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Fee + Summary */}
+                  <div className="rounded-xl bg-slate-800/40 border border-slate-700/40 divide-y divide-slate-700/40">
+                    <div className="flex justify-between px-4 py-2.5 text-sm">
+                      <span className="text-slate-400">You Pay</span>
+                      <span className="text-white font-medium">{subtotal > 0 ? `₹${subtotal.toFixed(2)}` : "—"}</span>
+                    </div>
+                    <div className="flex justify-between px-4 py-2.5 text-sm">
+                      <span className="text-slate-400">Gross DEXUSD</span>
+                      <span className="text-white font-medium">{grossQty > 0 ? grossQty.toFixed(4) : "—"}</span>
+                    </div>
+                    <div className="flex justify-between px-4 py-2.5 text-sm">
+                      <span className="text-slate-400">Platform Fee (1%)</span>
+                      <span className="text-red-400">{grossQty > 0 ? `-${feeQty.toFixed(4)} DEXUSD` : "—"}</span>
+                    </div>
+                    <div className="flex justify-between px-4 py-3 text-sm font-bold">
+                      <span className="text-white">You Receive (Net)</span>
+                      <span className={grossQty > 0 ? "text-emerald-400" : "text-slate-500"}>
+                        {grossQty > 0 ? `${netQty.toFixed(4)} DEXUSD` : "—"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* CTA */}
+                  <Button
+                    disabled={!tradeAmount || parseFloat(tradeAmount) <= 0}
+                    className={`w-full h-12 text-base font-bold rounded-xl transition-all mt-auto ${
+                      mode === "buy"
+                        ? "bg-emerald-500 hover:bg-emerald-400 text-white disabled:opacity-40"
+                        : "bg-red-500 hover:bg-red-400 text-white disabled:opacity-40"
+                    }`}
+                    onClick={() => { setTradeDialogOpen(false); setShowOrderPage(true); }}
+                  >
+                    {mode === "buy" ? "Confirm Buy" : "Confirm Sell"}
+                    <ArrowRight className="h-5 w-5 ml-2" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── P2P Order Page overlay ── */}
+      {showOrderPage && selectedMerchant && (
+        <P2POrderPage
+          mode={mode}
+          merchant={selectedMerchant}
+          amountINR={subtotal}
+          grossQty={grossQty}
+          feeQty={feeQty}
+          netQty={netQty}
+          onClose={() => setShowOrderPage(false)}
+        />
+      )}
+
     </AppShell>
   );
 }

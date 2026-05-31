@@ -107,6 +107,68 @@ export function generateTrade(midPrice: number): Trade {
   };
 }
 
+export type OptionContract = {
+  id: string;
+  underlying: string;
+  type: "call" | "put";
+  expiry: string;
+  strike: number;
+  mark: number;
+  bid: number;
+  ask: number;
+  change24h: number;
+  iv: number;
+  volume: number;
+  openInterest: number;
+  delta: number;
+  updatedAt: number;
+};
+
+export function generateOptionChain(symbol: string, underlyingPrice: number): OptionContract[] {
+  const underlying = symbol.split("-")[0] || symbol;
+  const expiries = ["7D", "30D", "90D"];
+  const step = underlyingPrice >= 1000 ? 1000 : underlyingPrice >= 100 ? 10 : underlyingPrice >= 10 ? 2.5 : 0.25;
+  const atm = Math.round(underlyingPrice / step) * step;
+  const strikeOffsets = [-3, -2, -1, 0, 1, 2, 3];
+  const now = Date.now();
+
+  return expiries.flatMap((expiry, expiryIndex) => {
+    const days = parseInt(expiry, 10) || 7;
+    return strikeOffsets.flatMap(offset => {
+      const strike = Math.max(step, atm + offset * step);
+      return (["call", "put"] as const).map(type => {
+        const intrinsic = type === "call"
+          ? Math.max(0, underlyingPrice - strike)
+          : Math.max(0, strike - underlyingPrice);
+        const distance = Math.abs(strike - underlyingPrice) / Math.max(underlyingPrice, 1);
+        const timeValue = underlyingPrice * (0.018 + expiryIndex * 0.012) * Math.sqrt(days / 30) * (1 + distance * 3);
+        const mark = Math.max(intrinsic + timeValue, underlyingPrice * 0.001, 0.01);
+        const spread = Math.max(mark * (0.018 + distance * 0.08), 0.01);
+        const moneyness = (underlyingPrice - strike) / Math.max(underlyingPrice, 1);
+        const callDelta = Math.min(0.92, Math.max(0.08, 0.5 + moneyness * 4));
+        const delta = type === "call" ? callDelta : callDelta - 1;
+
+        return {
+          id: `${underlying}-${expiry}-${strike}-${type}`,
+          underlying,
+          type,
+          expiry,
+          strike,
+          mark,
+          bid: Math.max(mark - spread / 2, 0.01),
+          ask: mark + spread / 2,
+          change24h: (Math.sin(strike + days + (type === "call" ? 1 : -1)) * 6) + (underlyingPrice % 3),
+          iv: 48 + expiryIndex * 7 + distance * 180,
+          volume: Math.round((1 / (1 + Math.abs(offset))) * (1200 + expiryIndex * 340) + Math.random() * 160),
+          openInterest: Math.round((1 / (1 + Math.abs(offset) * 0.65)) * (6400 + expiryIndex * 1200)),
+          delta,
+          updatedAt: now,
+        };
+      });
+    });
+  });
+}
+
 // Candle data for chart
 export function generateCandles(basePrice: number, count = 80): { t: number; o: number; h: number; l: number; c: number; v: number }[] {
   const candles = [];

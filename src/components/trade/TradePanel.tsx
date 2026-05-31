@@ -1,18 +1,19 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { formatPrice } from "@/lib/mockData";
+import { formatPrice, OptionContract } from "@/lib/mockData";
 import { TrendingUp, TrendingDown, Info, Zap, Shield, Calculator, ChevronDown, Plus, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 
 type Side = "buy" | "sell";
 type OrderType = "market" | "limit" | "tpsl";
-type MarketMode = "spot" | "futures" | "options";
+export type MarketMode = "spot" | "futures" | "options";
+type MarginMode = "isolated" | "cross";
 type OptionType = "call" | "put";
 type SizeUnit = "USD" | "USDT" | string;
 type TpslOrderMode = "market" | "limit";
@@ -27,7 +28,17 @@ type TpslTarget = {
 
 const BALANCE = 25000;
 
-export function TradePanel({ symbol, price }: { symbol: string; price: number }) {
+export function TradePanel({
+  symbol,
+  price,
+  selectedOption,
+  onModeChange,
+}: {
+  symbol: string;
+  price: number;
+  selectedOption?: OptionContract | null;
+  onModeChange?: (mode: MarketMode) => void;
+}) {
   const baseAsset = symbol.split("-")[0] || "BTC";
   const sizeUnits: SizeUnit[] = Array.from(new Set(["USD", "USDT", baseAsset]));
   const leverageInputRef = useRef<HTMLInputElement>(null);
@@ -35,6 +46,7 @@ export function TradePanel({ symbol, price }: { symbol: string; price: number })
   const [mode, setMode] = useState<MarketMode>("futures");
   const [side, setSide] = useState<Side>("buy");
   const [orderType, setOrderType] = useState<OrderType>("limit");
+  const [marginMode, setMarginMode] = useState<MarginMode>("isolated");
   const [leverage, setLeverage] = useState(10);
   const [leverageInput, setLeverageInput] = useState("10");
   const [sizePct, setSizePct] = useState(25);
@@ -55,9 +67,19 @@ export function TradePanel({ symbol, price }: { symbol: string; price: number })
   const [expiry, setExpiry] = useState("7D");
   const [strike, setStrike] = useState((Math.round(price / 100) * 100).toString());
 
+  useEffect(() => {
+    if (!selectedOption) return;
+    setMode("options");
+    onModeChange?.("options");
+    setOptType(selectedOption.type);
+    setExpiry(selectedOption.expiry);
+    setStrike(selectedOption.strike.toString());
+  }, [onModeChange, selectedOption]);
+
   const isSpot = mode === "spot";
   const isFutures = mode === "futures";
   const isOptions = mode === "options";
+  const isIsolatedMargin = marginMode === "isolated";
   const effLeverage = isSpot ? 1 : leverage;
 
   const sizeUsd = BALANCE * (sizePct / 100);
@@ -77,7 +99,14 @@ export function TradePanel({ symbol, price }: { symbol: string; price: number })
   const days = parseInt(expiry) || 7;
   const intrinsic = optType === "call" ? Math.max(0, price - strikeNum) : Math.max(0, strikeNum - price);
   const timeValue = price * 0.02 * Math.sqrt(days / 30);
-  const premium = intrinsic + timeValue;
+  const modeledPremium = intrinsic + timeValue;
+  const selectedOptionMatches =
+    selectedOption &&
+    selectedOption.type === optType &&
+    selectedOption.expiry === expiry &&
+    Math.abs(selectedOption.strike - strikeNum) < 0.000001;
+  const activeOption = selectedOptionMatches ? selectedOption : null;
+  const premium = activeOption ? activeOption.mark : modeledPremium;
   const contracts = sizePct / 10;
   const optionCost = premium * contracts;
 
@@ -106,9 +135,15 @@ export function TradePanel({ symbol, price }: { symbol: string; price: number })
     return value * price;
   };
   const setLeverageValue = (value: number) => {
+    if (!isIsolatedMargin) return;
     const next = Math.round(clamp(value, 1, 100));
     setLeverage(next);
     setLeverageInput(String(next));
+  };
+  const handleModeChange = (value: string) => {
+    const nextMode = value as MarketMode;
+    setMode(nextMode);
+    onModeChange?.(nextMode);
   };
   const setSizePercentValue = (value: number) => {
     const next = clamp(value, 0.004, 100);
@@ -116,6 +151,7 @@ export function TradePanel({ symbol, price }: { symbol: string; price: number })
     setSizeInput(formatSizeForUnit(BALANCE * (next / 100), sizeUnit));
   };
   const handleLeverageInputChange = (value: string) => {
+    if (!isIsolatedMargin) return;
     const cleaned = value.replace(/x/gi, "");
     setLeverageInput(cleaned);
     const numericValue = parseFloat(cleaned);
@@ -182,7 +218,7 @@ export function TradePanel({ symbol, price }: { symbol: string; price: number })
   return (
     <div className="glass rounded-xl flex flex-col h-full overflow-y-auto overflow-x-hidden">
       <div className="px-3 pt-2.5">
-        <Tabs value={mode} onValueChange={v => setMode(v as MarketMode)}>
+        <Tabs value={mode} onValueChange={handleModeChange}>
           <TabsList className="grid grid-cols-3 h-8 bg-muted/30 w-full rounded-lg p-0.5">
             <TabsTrigger value="spot" className="h-7 text-xs font-semibold rounded-md">Spot</TabsTrigger>
             <TabsTrigger value="futures" className="h-7 text-xs font-semibold rounded-md">Futures</TabsTrigger>
@@ -307,34 +343,61 @@ export function TradePanel({ symbol, price }: { symbol: string; price: number })
                     value={leverageInput}
                     onChange={e => handleLeverageInputChange(e.target.value)}
                     onBlur={handleLeverageBlur}
+                    disabled={!isIsolatedMargin}
                     inputMode="decimal"
-                    className="h-8 w-24 rounded-md bg-muted/30 border-border pr-8 font-mono text-sm"
+                    className="h-8 w-24 rounded-md bg-muted/30 border-border pr-8 font-mono text-sm disabled:cursor-not-allowed disabled:opacity-50"
                     aria-label="Custom leverage"
                   />
                   <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">x</span>
                 </div>
                 <button
                   type="button"
-                  onClick={() => leverageInputRef.current?.focus()}
-                  className="h-8 rounded-md border border-border bg-muted/30 px-3 text-xs font-semibold text-primary transition-colors hover:bg-muted/50"
+                  onClick={() => isIsolatedMargin && leverageInputRef.current?.focus()}
+                  disabled={!isIsolatedMargin}
+                  className="h-8 rounded-md border border-border bg-muted/30 px-3 text-xs font-semibold text-primary transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Custom
                 </button>
               </div>
             </div>
-            <Slider value={[leverage]} min={1} max={100} step={1} onValueChange={v => setLeverageValue(v[0])}
-              className="my-1 h-3" />
+            <Slider
+              value={[leverage]}
+              min={1}
+              max={100}
+              step={1}
+              onValueChange={v => setLeverageValue(v[0])}
+              disabled={!isIsolatedMargin}
+              className={cn("my-1 h-3", !isIsolatedMargin && "opacity-50")}
+            />
             <div className="mt-2 flex flex-wrap gap-1">
-              {[1, 10, 50, 75, 100].map(l => (
-                <button key={l} onClick={() => setLeverageValue(l)}
+              <button
+                type="button"
+                onClick={() => setMarginMode(current => current === "isolated" ? "cross" : "isolated")}
+                className={cn(
+                  "h-8 min-w-[4rem] flex-1 text-[11px] rounded-md border font-semibold transition-colors",
+                  isIsolatedMargin
+                    ? "border-primary bg-primary/20 text-primary shadow-[0_0_14px_hsl(var(--primary)/0.35)]"
+                    : "border-warning/50 bg-warning/10 text-warning hover:bg-warning/15"
+                )}
+                aria-pressed={isIsolatedMargin}
+              >
+                {isIsolatedMargin ? "Isolate" : "Cross"}
+              </button>
+              {[1, 10, 50, 100].map(l => (
+                <button key={l} onClick={() => setLeverageValue(l)} disabled={!isIsolatedMargin}
                   className={cn("h-8 min-w-[4rem] flex-1 text-[11px] rounded-md border transition-colors",
-                    leverage === l ? "border-primary bg-primary/20 text-primary shadow-[0_0_14px_hsl(var(--primary)/0.35)]" : "border-border bg-muted/20 text-muted-foreground hover:text-foreground"
+                    !isIsolatedMargin
+                      ? "cursor-not-allowed border-border bg-muted/20 text-muted-foreground opacity-50"
+                      : leverage === l
+                        ? "border-primary bg-primary/20 text-primary shadow-[0_0_14px_hsl(var(--primary)/0.35)]"
+                        : "border-border bg-muted/20 text-muted-foreground hover:text-foreground"
                   )}>{l}x</button>
               ))}
               <button
                 type="button"
-                onClick={() => leverageInputRef.current?.focus()}
-                className="h-8 min-w-[5.5rem] rounded-md border border-border bg-muted/20 px-3 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                onClick={() => isIsolatedMargin && leverageInputRef.current?.focus()}
+                disabled={!isIsolatedMargin}
+                className="h-8 min-w-[5.5rem] rounded-md border border-border bg-muted/20 px-3 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Custom
               </button>
@@ -474,6 +537,12 @@ export function TradePanel({ symbol, price }: { symbol: string; price: number })
             <Row label="Type" value={`${optType.toUpperCase()} · ${expiry}`} />
             <Row label="Strike" value={`$${formatPrice(strikeNum)}`} />
             <Row label="Premium" value={`$${premium.toFixed(2)}`} valueClass="text-primary" />
+            {activeOption && (
+              <>
+                <Row label="Bid / Ask" value={`$${activeOption.bid.toFixed(2)} / $${activeOption.ask.toFixed(2)}`} />
+                <Row label="IV" value={`${activeOption.iv.toFixed(1)}%`} />
+              </>
+            )}
             <Row label="Contracts" value={contracts.toFixed(2)} />
             <div className="border-t border-border/50 pt-0.5">
               <Row label="Total cost" value={`$${optionCost.toFixed(2)}`} valueClass="font-bold" />
