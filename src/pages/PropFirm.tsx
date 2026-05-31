@@ -1,7 +1,7 @@
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Target, Zap, Shield, TrendingUp, ArrowRight, Flame, Sparkles, Crown, Bolt, Users, CheckCircle2, Clock, Wallet, BarChart3 } from "lucide-react";
+import { Trophy, Target, Zap, Shield, TrendingUp, ArrowRight, Flame, Sparkles, Crown, Bolt, Users, CheckCircle2, Clock, Wallet, BarChart3, Rocket, Gem, Medal, Star } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useState, useEffect } from "react";
 
@@ -31,9 +31,54 @@ const payoutFeed = [
   { trader: "ForexWizard", amount: "$6,470.00", change: "+18.7%" },
 ];
 
+const planModes = ["Step2", "Step1", "Instant Funding"] as const;
+const planSizes = [
+  { name: "Base", amount: "$5,000" },
+  { name: "Starter", amount: "$10,000" },
+  { name: "Skilled", amount: "$15,000" },
+  { name: "Intermediate", amount: "$25,000" },
+  { name: "Advanced", amount: "$50,000" },
+  { name: "Expert", amount: "$100,000" },
+] as const;
+
+const objectiveData = {
+  Step2: [
+    { metric: "Profit Target", stage1: "8%", stage2: "5%", trader: "Unlimited" },
+    { metric: "Max Daily Loss", stage1: "5%", stage2: "5%", trader: "5%" },
+    { metric: "Max Loss", stage1: "10%", stage2: "8%", trader: "8%" },
+    { metric: "Min Trading Days", stage1: "0", stage2: "0", trader: "Unlimited" },
+    { metric: "Trading Period", stage1: "Unlimited", stage2: "Unlimited", trader: "Unlimited" },
+    { metric: "Max Leverage", stage1: "1:5", stage2: "1:5", trader: "1:5" },
+  ],
+  Step1: [
+    { metric: "Profit Target", stage1: "10%", stage2: "-", trader: "Unlimited" },
+    { metric: "Max Daily Loss", stage1: "4%", stage2: "-", trader: "4%" },
+    { metric: "Max Loss", stage1: "6%", stage2: "-", trader: "6%" },
+    { metric: "Min Trading Days", stage1: "0", stage2: "-", trader: "Unlimited" },
+    { metric: "Trading Period", stage1: "Unlimited", stage2: "-", trader: "Unlimited" },
+    { metric: "Max Leverage", stage1: "1:5", stage2: "-", trader: "1:5" },
+  ],
+  "Instant Funding": [
+    { metric: "Profit Target", stage1: "-", stage2: "-", trader: "Unlimited" },
+    { metric: "Max Daily Loss", stage1: "-", stage2: "-", trader: "3%" },
+    { metric: "Max Loss", stage1: "-", stage2: "-", trader: "6%" },
+    { metric: "Profit Share", stage1: "-", stage2: "-", trader: "60%" },
+    { metric: "Trading Period", stage1: "-", stage2: "-", trader: "Unlimited" },
+    { metric: "Max Leverage", stage1: "-", stage2: "-", trader: "1:5" },
+  ],
+} as const;
+
+const leaderboard = [
+  { name: "Eric S.", payout: "$20,432", badge: "Gold", icon: Trophy, tone: "from-amber-300/40 to-yellow-500/10", iconColor: "text-amber-300" },
+  { name: "Alex H.", payout: "$7,998", badge: "Silver", icon: Medal, tone: "from-slate-300/40 to-slate-500/10", iconColor: "text-slate-200" },
+  { name: "Brian K.", payout: "$6,819", badge: "Bronze", icon: Gem, tone: "from-orange-300/40 to-amber-700/10", iconColor: "text-orange-300" },
+];
+
 export default function PropFirm() {
   const [displayedTraders, setDisplayedTraders] = useState(payoutFeed.slice(0, 5));
   const [selectedTier, setSelectedTier] = useState("Popular");
+  const [selectedPlanMode, setSelectedPlanMode] = useState<(typeof planModes)[number]>("Step2");
+  const [selectedPlanSize, setSelectedPlanSize] = useState<(typeof planSizes)[number]["name"]>("Base");
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -106,6 +151,10 @@ export default function PropFirm() {
                     {/* Main trophy card */}
                     <div className="absolute inset-0 glass-strong rounded-2xl border border-primary/30 shadow-glow-primary overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-purple-500/10" />
+                      <div className="absolute top-6 left-6 rounded-xl bg-primary/10 border border-primary/30 px-3 py-2 flex items-center gap-2">
+                        <Rocket className="h-4 w-4 text-primary" />
+                        <span className="text-xs font-semibold text-primary">Funding Velocity</span>
+                      </div>
                       <div className="relative h-full flex flex-col items-center justify-center gap-6 p-8">
                         <div className="relative">
                           <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl" />
@@ -134,6 +183,22 @@ export default function PropFirm() {
                         <span className="text-xs font-bold">90%</span>
                       </div>
                       <p className="text-xs text-muted-foreground">Profit split</p>
+                    </div>
+
+                    <div className="absolute top-1/2 -left-8 glass rounded-xl p-3 w-32 border border-border/50 animate-bounce" style={{ animationDelay: "0.35s" }}>
+                      <div className="flex items-center gap-1 mb-1">
+                        <Star className="h-3.5 w-3.5 text-primary" />
+                        <span className="text-xs font-bold">4.9/5</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">Trader score</p>
+                    </div>
+
+                    <div className="absolute bottom-12 -right-9 glass rounded-xl p-3 w-36 border border-border/50 animate-bounce" style={{ animationDelay: "0.5s" }}>
+                      <div className="flex items-center gap-1 mb-1">
+                        <Users className="h-3.5 w-3.5 text-primary" />
+                        <span className="text-xs font-bold">12.4K+</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">Funded traders</p>
                     </div>
                   </div>
                 </div>
@@ -237,6 +302,112 @@ export default function PropFirm() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Challenge Plans Matrix */}
+        <section className="px-6 lg:px-10">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-4xl font-bold mb-3">Challenge Plans</h2>
+              <p className="text-muted-foreground">Pick your mode, select capital size, and review objective rules.</p>
+            </div>
+
+            <div className="flex justify-center gap-3 flex-wrap mb-6">
+              {planModes.map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setSelectedPlanMode(mode)}
+                  className={`px-6 py-2.5 rounded-full text-sm font-semibold border transition-all ${
+                    selectedPlanMode === mode
+                      ? "bg-gradient-primary text-primary-foreground border-primary/50 shadow-glow-primary"
+                      : "glass border-border/50 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+
+            <div className="rounded-2xl border border-border/40 glass p-4 sm:p-5 mb-7">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                {planSizes.map((size) => (
+                  <button
+                    key={size.name}
+                    onClick={() => setSelectedPlanSize(size.name)}
+                    className={`rounded-xl p-3 text-center border transition-all ${
+                      selectedPlanSize === size.name
+                        ? "bg-primary/20 border-primary/50 text-primary"
+                        : "bg-muted/10 border-border/40 hover:border-primary/30"
+                    }`}
+                  >
+                    <div className="text-[11px] text-muted-foreground">{size.name}</div>
+                    <div className="font-bold">{size.amount}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-primary/35 overflow-hidden shadow-glow-primary/20">
+              <div className="bg-gradient-to-r from-[#1a2f66] to-[#1b3f82] px-4 sm:px-6 py-3 grid grid-cols-4 text-sm font-semibold">
+                <div>Objective</div>
+                <div className="text-center">Stage 1</div>
+                <div className="text-center">Stage 2</div>
+                <div className="text-center">Trader Stage</div>
+              </div>
+              <div className="bg-[#0d1e46]/95">
+                {objectiveData[selectedPlanMode].map((row) => (
+                  <div key={row.metric} className="grid grid-cols-4 px-4 sm:px-6 py-3 text-sm border-t border-white/10">
+                    <div className="text-cyan-100/90">{row.metric}</div>
+                    <div className="text-center">{row.stage1}</div>
+                    <div className="text-center">{row.stage2}</div>
+                    <div className="text-center text-primary font-medium">{row.trader}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Button size="lg" className="bg-gradient-primary text-primary-foreground hover:shadow-glow-primary">
+                Start Challenge
+              </Button>
+              <div className="text-4xl font-bold">
+                {challenges.find((c) => c.capital === planSizes.find((p) => p.name === selectedPlanSize)?.amount)?.fee ?? "$99"}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Top Trader Leaderboard */}
+        <section className="px-6 lg:px-10 py-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-4xl font-bold mb-3">Top Trader Leaderboard</h2>
+              <p className="text-muted-foreground">See our top prop traders earning real payouts every week.</p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6">
+              {leaderboard.map((item) => (
+                <div key={item.name} className="rounded-2xl border border-primary/30 bg-[#0d1e46]/90 p-6 relative overflow-hidden">
+                  <div className={`absolute inset-0 bg-gradient-to-b ${item.tone} opacity-40`} />
+                  <div className="relative">
+                    <div className="h-24 w-24 rounded-2xl bg-black/25 border border-white/20 flex items-center justify-center mb-5">
+                      <item.icon className={`h-12 w-12 ${item.iconColor}`} />
+                    </div>
+                    <div className="text-sm text-cyan-100/80">{item.badge}</div>
+                    <div className="text-2xl font-bold mt-1">{item.name}</div>
+                    <div className="text-4xl font-bold mt-4 gradient-text">{item.payout}</div>
+                    <div className="text-sm text-muted-foreground mt-1">Payout Earned</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-center mt-8">
+              <Button size="lg" className="bg-gradient-primary text-primary-foreground hover:shadow-glow-primary px-10">
+                View
+              </Button>
             </div>
           </div>
         </section>
