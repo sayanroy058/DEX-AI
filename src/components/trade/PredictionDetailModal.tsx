@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   ArrowLeft,
   Bookmark,
   BookOpen,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
+  ClipboardList,
   Code2,
   Info,
   Link2,
@@ -24,6 +27,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useNavigate } from "react-router-dom";
+import {
+  predictionOrders,
+  predictionSidePillClass,
+  predictionStatusClass,
+} from "@/lib/predictionOrders";
 
 const PRICE_TO_BEAT = 73565.88;
 const CHART_WINDOW = 44;
@@ -170,6 +179,7 @@ function ReferenceLineLabel({
 }
 
 export function PredictionDetailModal({ market, initialSide, onClose }: Props) {
+  const navigate = useNavigate();
   const upPct = market.yes;
   const downPct = 100 - upPct;
 
@@ -242,8 +252,8 @@ export function PredictionDetailModal({ market, initialSide, onClose }: Props) {
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-background text-foreground">
-      <div className="flex shrink-0 items-center gap-3 border-b border-border/60 bg-card/70 px-4 py-3 backdrop-blur-xl">
+    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-background text-foreground [background:var(--gradient-bg)]">
+      <div className="glass-strong flex shrink-0 items-center gap-3 rounded-none border-x-0 border-t-0 px-4 py-3">
         <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground">
           <ArrowLeft className="h-4 w-4" />
         </button>
@@ -255,14 +265,77 @@ export function PredictionDetailModal({ market, initialSide, onClose }: Props) {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1 text-muted-foreground">
-          <button className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-muted/60 hover:text-foreground"><Code2 className="h-4 w-4" /></button>
-          <button className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-muted/60 hover:text-foreground"><Link2 className="h-4 w-4" /></button>
-          <button className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-muted/60 hover:text-foreground"><Bookmark className="h-4 w-4" /></button>
+          <button aria-label="View embed code" className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-muted/60 hover:text-foreground"><Code2 className="h-4 w-4" /></button>
+          <button aria-label="Copy market link" className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-muted/60 hover:text-foreground"><Link2 className="h-4 w-4" /></button>
+          <button aria-label="Bookmark market" className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-muted/60 hover:text-foreground"><Bookmark className="h-4 w-4" /></button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="ml-1 flex h-8 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Preview prediction orders"
+              >
+                <ClipboardList className="h-4 w-4" />
+                Orders
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              side="bottom"
+              sideOffset={8}
+              collisionPadding={12}
+              className="w-[min(92vw,460px)] overflow-hidden rounded-xl border-border/60 bg-card/95 p-0 text-foreground shadow-2xl backdrop-blur-xl"
+            >
+              <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+                <div className="text-sm font-semibold">
+                  Open Predictions ({predictionOrders.filter(order => order.status === "Open").length})
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate("/prediction/orders")}
+                  className="flex items-center gap-1 text-sm font-semibold transition-colors hover:text-primary"
+                >
+                  View All
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="divide-y divide-border/30">
+                {predictionOrders.slice(0, 3).map(order => (
+                  <button
+                    key={order.id}
+                    type="button"
+                    onClick={() => navigate("/prediction/orders")}
+                    className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/30"
+                  >
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className={predictionSidePillClass(order.side)}>{order.side}</span>
+                        <span className="truncate text-xs font-semibold">{order.market}</span>
+                      </div>
+                      <span className={cn(
+                        "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold",
+                        predictionStatusClass(order.status),
+                      )}>
+                        {order.status}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <span className="font-mono text-muted-foreground">{order.id}</span>
+                      <span className="text-right font-mono">{order.price}c | {order.shares.toFixed(2)} shares</span>
+                      <span className="text-muted-foreground">{order.date}</span>
+                      <span className="text-right font-mono">${order.cost.toFixed(2)}</span>
+                    </div>
+                  </button>
+                  ))}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto border-r border-border/60">
+        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto border-r border-border/60 bg-background/35 backdrop-blur-sm">
           <div className="flex shrink-0 items-start gap-8 px-6 pb-3 pt-5">
             <div>
               <div className="mb-1 text-xs font-medium text-muted-foreground">Price To Beat</div>
@@ -509,8 +582,8 @@ export function PredictionDetailModal({ market, initialSide, onClose }: Props) {
           </div>
         </div>
 
-        <aside className="w-[360px] shrink-0 overflow-y-auto bg-muted/20 p-5">
-          <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
+        <aside className="w-[360px] shrink-0 overflow-y-auto bg-card/45 p-5 backdrop-blur-xl">
+          <div className="glass-strong rounded-2xl border border-border/70 p-4 shadow-sm">
             <div className="mb-5 flex items-center gap-3">
               <CoinBadge className="h-11 w-11 text-xl" />
               <div className="min-w-0">

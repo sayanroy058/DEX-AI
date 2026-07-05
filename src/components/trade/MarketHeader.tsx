@@ -4,6 +4,7 @@ import { TrendingUp, TrendingDown, Bot, Sparkles, Calculator, RotateCcw, Repeat 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { SwapDialog } from "./SwapDialog";
 
@@ -13,9 +14,9 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
   onToggleCalculator?: () => void;
   onResetLayout?: () => void;
 }) {
+  const navigate = useNavigate();
   const market = useMarket(symbol);
   const [aiActive, setAiActive] = useState(false);
-  const [botActive, setBotActive] = useState(false);
   const [swapOpen, setSwapOpen] = useState(false);
   if (!market) return null;
   const positive = market.change24h >= 0;
@@ -85,15 +86,12 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
         <Button
           variant="outline"
           size="sm"
-          onClick={() => { setBotActive(!botActive); toast.success(`Trading Bot ${!botActive ? "running" : "paused"}`); }}
-          className={cn(
-            "h-8 text-xs glass",
-            botActive ? "border-secondary/60 text-secondary shadow-[0_0_16px_hsl(var(--secondary)/0.4)]" : "border-secondary/30 text-secondary hover:bg-secondary/10 hover:text-secondary"
-          )}
+          onClick={() => navigate("/trading-bots")}
+          className="h-8 text-xs glass border-secondary/30 text-secondary hover:bg-secondary/10 hover:text-secondary"
+          title="Open trading bots"
         >
           <Bot className="h-3.5 w-3.5 mr-1.5" />
           Bot
-          {botActive && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-secondary animate-pulse" />}
         </Button>
         {onToggleCalculator && (
           <Button

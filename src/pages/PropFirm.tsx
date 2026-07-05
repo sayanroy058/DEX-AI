@@ -31,7 +31,7 @@ const payoutFeed = [
   { trader: "ForexWizard", amount: "$6,470.00", change: "+18.7%" },
 ];
 
-const planModes = ["Step2", "Step1", "Instant Funding"] as const;
+const planModes = ["Step 1", "Step 2", "Instant Funding"] as const;
 const planSizes = [
   { name: "Base", amount: "$5,000" },
   { name: "Starter", amount: "$10,000" },
@@ -42,21 +42,21 @@ const planSizes = [
 ] as const;
 
 const objectiveData = {
-  Step2: [
-    { metric: "Profit Target", stage1: "8%", stage2: "5%", trader: "Unlimited" },
-    { metric: "Max Daily Loss", stage1: "5%", stage2: "5%", trader: "5%" },
-    { metric: "Max Loss", stage1: "10%", stage2: "8%", trader: "8%" },
-    { metric: "Min Trading Days", stage1: "0", stage2: "0", trader: "Unlimited" },
-    { metric: "Trading Period", stage1: "Unlimited", stage2: "Unlimited", trader: "Unlimited" },
-    { metric: "Max Leverage", stage1: "1:5", stage2: "1:5", trader: "1:5" },
-  ],
-  Step1: [
+  "Step 1": [
     { metric: "Profit Target", stage1: "10%", stage2: "-", trader: "Unlimited" },
     { metric: "Max Daily Loss", stage1: "4%", stage2: "-", trader: "4%" },
     { metric: "Max Loss", stage1: "6%", stage2: "-", trader: "6%" },
     { metric: "Min Trading Days", stage1: "0", stage2: "-", trader: "Unlimited" },
     { metric: "Trading Period", stage1: "Unlimited", stage2: "-", trader: "Unlimited" },
     { metric: "Max Leverage", stage1: "1:5", stage2: "-", trader: "1:5" },
+  ],
+  "Step 2": [
+    { metric: "Profit Target", stage1: "8%", stage2: "5%", trader: "Unlimited" },
+    { metric: "Max Daily Loss", stage1: "5%", stage2: "5%", trader: "5%" },
+    { metric: "Max Loss", stage1: "10%", stage2: "8%", trader: "8%" },
+    { metric: "Min Trading Days", stage1: "0", stage2: "0", trader: "Unlimited" },
+    { metric: "Trading Period", stage1: "Unlimited", stage2: "Unlimited", trader: "Unlimited" },
+    { metric: "Max Leverage", stage1: "1:5", stage2: "1:5", trader: "1:5" },
   ],
   "Instant Funding": [
     { metric: "Profit Target", stage1: "-", stage2: "-", trader: "Unlimited" },
@@ -77,7 +77,7 @@ const leaderboard = [
 export default function PropFirm() {
   const [displayedTraders, setDisplayedTraders] = useState(payoutFeed.slice(0, 5));
   const [selectedTier, setSelectedTier] = useState("Popular");
-  const [selectedPlanMode, setSelectedPlanMode] = useState<(typeof planModes)[number]>("Step2");
+  const [selectedPlanMode, setSelectedPlanMode] = useState<(typeof planModes)[number]>("Step 1");
   const [selectedPlanSize, setSelectedPlanSize] = useState<(typeof planSizes)[number]["name"]>("Base");
 
   useEffect(() => {

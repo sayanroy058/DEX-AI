@@ -57,12 +57,12 @@ const BOT_TYPES: BotType[] = [
 ];
 
 const STRATEGIES: Strategy[] = [
-  { pair: "ASTER/USDT", type: "Spot Grid", users: 9, pnl: 2040.51, roi: 4.31, runtime: "5d 9h 54m", investment: "376.820 USDT", trades: "46/61", mdd: 3.89, spark: [18, 20, 17, 16, 21, 23, 30, 42, 39, 45] },
-  { pair: "TON/USDT", type: "Spot Grid", users: 16, pnl: 1255.73, roi: 8.8, runtime: "2d 34m", investment: "280.423 USDT", trades: "30/47", mdd: 2.71, spark: [10, 11, 9, 12, 16, 24, 28, 35, 41, 47] },
-  { pair: "ADA/USDT", type: "Spot Grid", users: 99, pnl: 904.85, roi: 2.54, runtime: "3d 9h 39m", investment: "293.8302 USDT", trades: "3/19", mdd: 1.8, spark: [24, 28, 26, 34, 31, 33, 37, 35, 39, 36] },
+  { pair: "ASTER/USDN", type: "Spot Grid", users: 9, pnl: 2040.51, roi: 4.31, runtime: "5d 9h 54m", investment: "376.820 USDN", trades: "46/61", mdd: 3.89, spark: [18, 20, 17, 16, 21, 23, 30, 42, 39, 45] },
+  { pair: "TON/USDN", type: "Spot Grid", users: 16, pnl: 1255.73, roi: 8.8, runtime: "2d 34m", investment: "280.423 USDN", trades: "30/47", mdd: 2.71, spark: [10, 11, 9, 12, 16, 24, 28, 35, 41, 47] },
+  { pair: "ADA/USDN", type: "Spot Grid", users: 99, pnl: 904.85, roi: 2.54, runtime: "3d 9h 39m", investment: "293.8302 USDN", trades: "3/19", mdd: 1.8, spark: [24, 28, 26, 34, 31, 33, 37, 35, 39, 36] },
   { pair: "TON/USDC", type: "Futures Grid", users: 73, pnl: 783.88, roi: 13.56, runtime: "6d 22h 2m", investment: "64.368 USDC", trades: "9/65", mdd: 6.96, spark: [11, 24, 29, 25, 24, 27, 26, 30, 34, 35] },
   { pair: "FET/BTC", type: "Futures DCA", users: 20, pnl: 771.07, roi: 10.47, runtime: "5d 28m", investment: "0.00373685 BTC", trades: "11/60", mdd: 6.81, spark: [8, 13, 15, 12, 18, 17, 21, 25, 32, 36] },
-  { pair: "GENIUS/USDT", type: "Arbitrage", users: 2, pnl: 488.33, roi: 1.05, runtime: "1d 16h 13m", investment: "1,140.0608 USDT", trades: "500/769", mdd: 4.77, spark: [29, 25, 27, 23, 28, 26, 35, 48, 31, 38] },
+  { pair: "GENIUS/USDN", type: "Arbitrage", users: 2, pnl: 488.33, roi: 1.05, runtime: "1d 16h 13m", investment: "1,140.0608 USDN", trades: "500/769", mdd: 4.77, spark: [29, 25, 27, 23, 28, 26, 35, 48, 31, 38] },
 ];
 
 const MARKETPLACE_TABS: MarketplaceTab[] = ["Spot Grid", "Futures Grid", "Futures DCA", "Arbitrage"];
@@ -351,11 +351,11 @@ function StrategyDialog({ strategy, onClose }: { strategy: Strategy | null; onCl
                   placeholder={strategy.investment.replace(/[^\d.,]/g, "")}
                   className="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-muted-foreground"
                 />
-                <span className="font-bold">USDT</span>
+                <span className="font-bold">USDN</span>
               </div>
               <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                 <span>Available</span>
-                <span className="font-mono">0.00 USDT</span>
+                <span className="font-mono">0.00 USDN</span>
               </div>
               <button
                 type="button"
@@ -374,8 +374,8 @@ function StrategyDialog({ strategy, onClose }: { strategy: Strategy | null; onCl
                     <AdvancedToggle label="Sell all TON on stop" defaultChecked />
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <AdvancedField label="Lower Price" value="1.719 USDT" />
-                    <AdvancedField label="Upper Price" value="2.390 USDT" />
+                    <AdvancedField label="Lower Price" value="1.719 USDN" />
+                    <AdvancedField label="Upper Price" value="2.390 USDN" />
                     <AdvancedField label="Grids" value="48" />
                     <AdvancedField label="Mode" value="Geometric" />
                   </div>

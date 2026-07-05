@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink as RouterNavLink, useLocation, Link } from "react-router-dom";
-import { LayoutDashboard, LineChart, Wallet, Users, Settings, Zap, Bell, Search, ArrowDownToLine, ArrowUpFromLine, User, Building2, Sparkles, Repeat, Coins, Gift, CalendarClock, Bot } from "lucide-react";
+import { LayoutDashboard, LineChart, Wallet, Users, Settings, Zap, Bell, Search, ArrowDownToLine, ArrowUpFromLine, User, Building2, Sparkles, Repeat, Coins, Gift, CalendarClock, Bot, CircleHelp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -162,6 +162,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <DropdownMenuItem asChild><Link to="/portfolio" className="cursor-pointer"><Wallet className="h-3.5 w-3.5 mr-2 text-primary" /> Portfolio</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link to="/refer" className="cursor-pointer"><Gift className="h-3.5 w-3.5 mr-2 text-primary" /> Refer & Earn</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link to="/affiliate" className="cursor-pointer"><Sparkles className="h-3.5 w-3.5 mr-2 text-primary" /> Affiliate</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link to="/support" className="cursor-pointer"><CircleHelp className="h-3.5 w-3.5 mr-2 text-primary" /> Support</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link to="/settings" className="cursor-pointer"><Settings className="h-3.5 w-3.5 mr-2 text-primary" /> Settings</Link></DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

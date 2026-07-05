@@ -15,7 +15,6 @@ type OrderType = "market" | "limit" | "tpsl";
 export type MarketMode = "spot" | "futures" | "options";
 type MarginMode = "isolated" | "cross";
 type OptionType = "call" | "put";
-type SizeUnit = "USD" | "USDT" | string;
 type TpslOrderMode = "market" | "limit";
 type TpslTarget = {
   id: number;
@@ -40,7 +39,6 @@ export function TradePanel({
   onModeChange?: (mode: MarketMode) => void;
 }) {
   const baseAsset = symbol.split("-")[0] || "BTC";
-  const sizeUnits: SizeUnit[] = Array.from(new Set(["USD", "USDT", baseAsset]));
   const leverageInputRef = useRef<HTMLInputElement>(null);
   const sizeInputRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<MarketMode>("futures");
@@ -49,8 +47,8 @@ export function TradePanel({
   const [marginMode, setMarginMode] = useState<MarginMode>("isolated");
   const [leverage, setLeverage] = useState(10);
   const [leverageInput, setLeverageInput] = useState("10");
+  const [isCustomLeverageOpen, setIsCustomLeverageOpen] = useState(false);
   const [sizePct, setSizePct] = useState(25);
-  const [sizeUnit, setSizeUnit] = useState<SizeUnit>("USD");
   const [sizeInput, setSizeInput] = useState((BALANCE * 0.25).toFixed(2));
   const [limitPrice, setLimitPrice] = useState(price.toFixed(2));
   const [tpslTargets, setTpslTargets] = useState<TpslTarget[]>([
@@ -75,6 +73,12 @@ export function TradePanel({
     setExpiry(selectedOption.expiry);
     setStrike(selectedOption.strike.toString());
   }, [onModeChange, selectedOption]);
+
+  useEffect(() => {
+    if (!isCustomLeverageOpen) return;
+    leverageInputRef.current?.focus();
+    leverageInputRef.current?.select();
+  }, [isCustomLeverageOpen]);
 
   const isSpot = mode === "spot";
   const isFutures = mode === "futures";
@@ -106,14 +110,17 @@ export function TradePanel({
     selectedOption.expiry === expiry &&
     Math.abs(selectedOption.strike - strikeNum) < 0.000001;
   const activeOption = selectedOptionMatches ? selectedOption : null;
-  const premium = activeOption ? activeOption.mark : modeledPremium;
+  const optionPrice = activeOption
+    ? side === "buy" ? activeOption.ask : activeOption.bid
+    : modeledPremium;
+  const optionPriceType = activeOption ? (side === "buy" ? "Ask" : "Bid") : "Est.";
   const contracts = sizePct / 10;
-  const optionCost = premium * contracts;
+  const optionTotal = optionPrice * contracts;
 
   const handleSubmit = () => {
     if (isOptions) {
       toast.success(`${side.toUpperCase()} ${optType.toUpperCase()} ${strike} ${expiry}`, {
-        description: `${contracts.toFixed(2)} contracts · $${optionCost.toFixed(2)}`,
+        description: `${contracts.toFixed(2)} contracts at $${optionPrice.toFixed(2)} · $${optionTotal.toFixed(2)} total`,
       });
       return;
     }
@@ -126,14 +133,6 @@ export function TradePanel({
   const shortLabel = isSpot || isOptions ? "Sell" : "Short";
   const moreOrders = ["OCO", "Trailing Stop", "TWAP", "Iceberg"];
   const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-  const formatSizeForUnit = (usdValue: number, unit: SizeUnit) => {
-    if (unit === "USD" || unit === "USDT") return usdValue.toFixed(2);
-    return (usdValue / price).toFixed(6);
-  };
-  const sizeInputToUsd = (value: number, unit: SizeUnit) => {
-    if (unit === "USD" || unit === "USDT") return value;
-    return value * price;
-  };
   const setLeverageValue = (value: number) => {
     if (!isIsolatedMargin) return;
     const next = Math.round(clamp(value, 1, 100));
@@ -148,7 +147,7 @@ export function TradePanel({
   const setSizePercentValue = (value: number) => {
     const next = clamp(value, 0.004, 100);
     setSizePct(next);
-    setSizeInput(formatSizeForUnit(BALANCE * (next / 100), sizeUnit));
+    setSizeInput((BALANCE * (next / 100)).toFixed(2));
   };
   const handleLeverageInputChange = (value: string) => {
     if (!isIsolatedMargin) return;
@@ -162,26 +161,23 @@ export function TradePanel({
   const handleLeverageBlur = () => {
     const numericValue = parseFloat(leverageInput);
     setLeverageValue(Number.isFinite(numericValue) ? numericValue : leverage);
+    setIsCustomLeverageOpen(false);
   };
   const handleSizeInputChange = (value: string) => {
     setSizeInput(value);
     const numericValue = parseFloat(value);
     if (Number.isFinite(numericValue)) {
-      const usdValue = clamp(sizeInputToUsd(numericValue, sizeUnit), 1, BALANCE);
-      setSizePct((usdValue / BALANCE) * 100);
+      const usdnValue = clamp(numericValue, 1, BALANCE);
+      setSizePct((usdnValue / BALANCE) * 100);
     }
   };
   const handleSizeBlur = () => {
     const numericValue = parseFloat(sizeInput);
-    const usdValue = Number.isFinite(numericValue)
-      ? clamp(sizeInputToUsd(numericValue, sizeUnit), 1, BALANCE)
+    const usdnValue = Number.isFinite(numericValue)
+      ? clamp(numericValue, 1, BALANCE)
       : sizeUsd;
-    setSizePct((usdValue / BALANCE) * 100);
-    setSizeInput(formatSizeForUnit(usdValue, sizeUnit));
-  };
-  const handleSizeUnitChange = (unit: SizeUnit) => {
-    setSizeUnit(unit);
-    setSizeInput(formatSizeForUnit(sizeUsd, unit));
+    setSizePct((usdnValue / BALANCE) * 100);
+    setSizeInput(usdnValue.toFixed(2));
   };
   const addTpslTarget = () => {
     setTpslTargets(current => {
@@ -297,7 +293,7 @@ export function TradePanel({
         {orderType === "limit" && !isOptions && (
           <div>
             <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>Price (USD)</span>
+              <span>Price (USDN)</span>
               <button onClick={() => setLimitPrice(price.toFixed(2))} className="text-primary hover:underline font-medium">Mid</button>
             </div>
             <Input value={limitPrice} onChange={e => setLimitPrice(e.target.value)}
@@ -313,14 +309,17 @@ export function TradePanel({
                 className="h-10 rounded-xl font-mono text-sm bg-muted/30 border-border px-3" />
             </div>
             <div>
-              <div className="text-xs text-muted-foreground mb-1.5">Expiry</div>
-              <div className="flex gap-1">
-                {["7D", "30D", "90D"].map(e => (
-                  <button key={e} onClick={() => setExpiry(e)}
-                    className={cn("flex-1 h-10 text-xs rounded-xl transition-colors font-semibold",
-                      expiry === e ? "bg-primary/20 text-primary" : "bg-muted/30 text-muted-foreground hover:text-foreground"
-                    )}>{e}</button>
-                ))}
+              <div className="text-xs text-muted-foreground mb-1.5">Option Price</div>
+              <div
+                className="flex h-10 items-center justify-between rounded-xl border border-border bg-muted/30 px-3"
+                aria-label={`${optionPriceType} option price $${optionPrice.toFixed(2)}`}
+              >
+                <span className="font-mono text-sm font-semibold text-primary">
+                  ${optionPrice.toFixed(2)}
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {optionPriceType}
+                </span>
               </div>
             </div>
           </div>
@@ -336,27 +335,35 @@ export function TradePanel({
                   <TooltipContent>Higher leverage = higher liquidation risk</TooltipContent>
                 </Tooltip>
               </span>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Input
-                    ref={leverageInputRef}
-                    value={leverageInput}
-                    onChange={e => handleLeverageInputChange(e.target.value)}
-                    onBlur={handleLeverageBlur}
-                    disabled={!isIsolatedMargin}
-                    inputMode="decimal"
-                    className="h-8 w-24 rounded-md bg-muted/30 border-border pr-8 font-mono text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                    aria-label="Custom leverage"
-                  />
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">x</span>
-                </div>
+              <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  onClick={() => isIsolatedMargin && leverageInputRef.current?.focus()}
-                  disabled={!isIsolatedMargin}
-                  className="h-8 rounded-md border border-border bg-muted/30 px-3 text-xs font-semibold text-primary transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => setMarginMode("isolated")}
+                  className={cn(
+                    "h-8 rounded-md border px-3 text-xs font-semibold transition-colors",
+                    isIsolatedMargin
+                      ? "border-primary bg-primary/20 text-primary shadow-[0_0_14px_hsl(var(--primary)/0.35)]"
+                      : "border-border bg-muted/30 text-muted-foreground hover:text-foreground"
+                  )}
+                  aria-pressed={isIsolatedMargin}
                 >
-                  Custom
+                  Isolate
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMarginMode("cross");
+                    setIsCustomLeverageOpen(false);
+                  }}
+                  className={cn(
+                    "h-8 rounded-md border px-3 text-xs font-semibold transition-colors",
+                    !isIsolatedMargin
+                      ? "border-warning/50 bg-warning/10 text-warning"
+                      : "border-border bg-muted/30 text-muted-foreground hover:text-foreground"
+                  )}
+                  aria-pressed={!isIsolatedMargin}
+                >
+                  Cross
                 </button>
               </div>
             </div>
@@ -370,20 +377,7 @@ export function TradePanel({
               className={cn("my-1 h-3", !isIsolatedMargin && "opacity-50")}
             />
             <div className="mt-2 flex flex-wrap gap-1">
-              <button
-                type="button"
-                onClick={() => setMarginMode(current => current === "isolated" ? "cross" : "isolated")}
-                className={cn(
-                  "h-8 min-w-[4rem] flex-1 text-[11px] rounded-md border font-semibold transition-colors",
-                  isIsolatedMargin
-                    ? "border-primary bg-primary/20 text-primary shadow-[0_0_14px_hsl(var(--primary)/0.35)]"
-                    : "border-warning/50 bg-warning/10 text-warning hover:bg-warning/15"
-                )}
-                aria-pressed={isIsolatedMargin}
-              >
-                {isIsolatedMargin ? "Isolate" : "Cross"}
-              </button>
-              {[1, 10, 50, 100].map(l => (
+              {[1, 5, 10, 50, 100].map(l => (
                 <button key={l} onClick={() => setLeverageValue(l)} disabled={!isIsolatedMargin}
                   className={cn("h-8 min-w-[4rem] flex-1 text-[11px] rounded-md border transition-colors",
                     !isIsolatedMargin
@@ -393,14 +387,32 @@ export function TradePanel({
                         : "border-border bg-muted/20 text-muted-foreground hover:text-foreground"
                   )}>{l}x</button>
               ))}
-              <button
-                type="button"
-                onClick={() => isIsolatedMargin && leverageInputRef.current?.focus()}
-                disabled={!isIsolatedMargin}
-                className="h-8 min-w-[5.5rem] rounded-md border border-border bg-muted/20 px-3 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Custom
-              </button>
+              {isCustomLeverageOpen ? (
+                <div className="relative min-w-[5.5rem] flex-1">
+                  <Input
+                    ref={leverageInputRef}
+                    value={leverageInput}
+                    onChange={e => handleLeverageInputChange(e.target.value)}
+                    onBlur={handleLeverageBlur}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" || e.key === "Escape") e.currentTarget.blur();
+                    }}
+                    inputMode="decimal"
+                    className="h-8 w-full rounded-md bg-muted/20 border-border pr-7 font-mono text-[11px]"
+                    aria-label="Custom leverage"
+                  />
+                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">x</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsCustomLeverageOpen(true)}
+                  disabled={!isIsolatedMargin}
+                  className="h-8 min-w-[5.5rem] flex-1 rounded-md border border-border bg-muted/20 px-3 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Custom
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -420,16 +432,12 @@ export function TradePanel({
               className="h-8 flex-1 rounded-md bg-muted/30 border-border font-mono text-xs"
               aria-label="Custom order size"
             />
-            <select
-              value={sizeUnit}
-              onChange={e => handleSizeUnitChange(e.target.value)}
-              className="h-8 rounded-md border border-border bg-muted/30 px-2 text-xs font-semibold text-foreground outline-none focus:ring-2 focus:ring-ring"
-              aria-label="Size unit"
+            <div
+              className="flex h-8 items-center rounded-md border border-border bg-muted/30 px-3 text-xs font-semibold text-foreground"
+              aria-label="Size unit USDN"
             >
-              {sizeUnits.map(unit => (
-                <option key={unit} value={unit}>{unit}</option>
-              ))}
-            </select>
+              USDN
+            </div>
           </div>
           <Slider value={[sizePct]} min={1} max={100} step={1} onValueChange={v => setSizePercentValue(v[0])}
             className="my-1 h-3" />
@@ -448,7 +456,7 @@ export function TradePanel({
               Custom
             </button>
           </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">Min. trade size $1</div>
+          <div className="mt-1 text-[11px] text-muted-foreground">Min. trade size 1 USDN</div>
         </div>
 
         {!isOptions && orderType === "tpsl" && (
@@ -536,7 +544,7 @@ export function TradePanel({
           <div className="glass-strong rounded-lg border border-border/50 px-3 py-1.5 space-y-0.5">
             <Row label="Type" value={`${optType.toUpperCase()} · ${expiry}`} />
             <Row label="Strike" value={`$${formatPrice(strikeNum)}`} />
-            <Row label="Premium" value={`$${premium.toFixed(2)}`} valueClass="text-primary" />
+            <Row label={`${optionPriceType} price`} value={`$${optionPrice.toFixed(2)}`} valueClass="text-primary" />
             {activeOption && (
               <>
                 <Row label="Bid / Ask" value={`$${activeOption.bid.toFixed(2)} / $${activeOption.ask.toFixed(2)}`} />
@@ -545,7 +553,11 @@ export function TradePanel({
             )}
             <Row label="Contracts" value={contracts.toFixed(2)} />
             <div className="border-t border-border/50 pt-0.5">
-              <Row label="Total cost" value={`$${optionCost.toFixed(2)}`} valueClass="font-bold" />
+              <Row
+                label={side === "buy" ? "Total cost" : "Total credit"}
+                value={`$${optionTotal.toFixed(2)}`}
+                valueClass="font-bold"
+              />
             </div>
           </div>
         ) : (

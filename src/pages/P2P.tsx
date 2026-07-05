@@ -69,6 +69,8 @@ type Merchant = {
   joined: string;
 };
 
+type P2PFlowView = "trade" | "order" | null;
+
 const merchants: Merchant[] = [
   {
     id: 1,
@@ -333,18 +335,18 @@ export default function P2P() {
   const [postAdsDialogOpen, setPostAdsDialogOpen] = useState(false);
   const todayPrice = 100;
 
-  // Trade Dialog state
-  const [tradeDialogOpen, setTradeDialogOpen] = useState(false);
+  // Only one trade-flow overlay may be active at a time.
+  const [p2pFlowView, setP2PFlowView] = useState<P2PFlowView>(null);
   const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null);
-  const [showOrderPage, setShowOrderPage] = useState(false);
   const [tradeInputType, setTradeInputType] = useState<"quantity" | "dollars">("dollars");
   const [tradeAmount, setTradeAmount] = useState("");
 
   const openTradeDialog = (merchant: Merchant) => {
+    setPostAdsDialogOpen(false);
     setSelectedMerchant(merchant);
     setTradeAmount("");
     setTradeInputType("dollars");
-    setTradeDialogOpen(true);
+    setP2PFlowView("trade");
   };
 
   // Gross DEXUSD before fee
@@ -398,7 +400,10 @@ export default function P2P() {
               />
               <P2PMoreMenu
                 onMyAds={() => navigate("/p2p/advertiser")}
-                onPostAds={() => setPostAdsDialogOpen(true)}
+                onPostAds={() => {
+                  setP2PFlowView(null);
+                  setPostAdsDialogOpen(true);
+                }}
               />
             </div>
           </div>
@@ -756,28 +761,16 @@ export default function P2P() {
         onOpenChange={setPostAdsDialogOpen}
       />
 
-      {showOrderPage && selectedMerchant && (
-        <P2POrderPage
-          mode={mode}
-          merchant={selectedMerchant}
-          amountINR={subtotal}
-          grossQty={grossQty}
-          feeQty={feeQty}
-          netQty={netQty}
-          onClose={() => setShowOrderPage(false)}
-        />
-      )}
-
       {/* ── Trade Dialog ── */}
-      <Dialog open={tradeDialogOpen} onOpenChange={setTradeDialogOpen}>
-        <DialogContent className="max-w-4xl w-full bg-[#0b1120] border border-slate-700/60 text-white p-0 overflow-hidden rounded-2xl">
+      {p2pFlowView === "trade" && <Dialog open onOpenChange={(open) => !open && setP2PFlowView(null)}>
+        <DialogContent className="max-w-4xl w-full bg-card border border-border text-card-foreground p-0 overflow-hidden rounded-2xl">
           {selectedMerchant && (
             <>
               {/* Top header bar */}
-              <div className={`px-6 py-4 flex items-center justify-between ${mode === "buy" ? "bg-emerald-500/10 border-b border-emerald-500/20" : "bg-red-500/10 border-b border-red-500/20"}`}>
+              <div className={`px-6 py-4 flex items-center justify-between ${mode === "buy" ? "bg-buy/10 border-b border-buy/20" : "bg-sell/10 border-b border-sell/20"}`}>
                 <DialogHeader className="flex-1">
-                  <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
-                    <span className={`px-2.5 py-0.5 rounded text-xs font-bold ${mode === "buy" ? "bg-emerald-500" : "bg-red-500"} text-white`}>
+                  <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <span className={`px-2.5 py-0.5 rounded text-xs font-bold ${mode === "buy" ? "bg-buy text-buy-foreground" : "bg-sell text-sell-foreground"}`}>
                       {mode === "buy" ? "BUY" : "SELL"}
                     </span>
                     DEXUSD · {selectedMerchant.name}
@@ -786,33 +779,33 @@ export default function P2P() {
               </div>
 
               {/* Two-column body */}
-              <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-slate-700/50 max-h-[82vh]">
+              <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-border max-h-[82vh]">
 
                 {/* ── LEFT: Seller details ── */}
                 <div className="md:w-[52%] overflow-y-auto px-6 py-5 space-y-5">
 
                   {/* Profile */}
                   <div className="flex items-center gap-4">
-                    <div className="h-16 w-16 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-base font-black text-white flex-shrink-0 shadow-lg shadow-cyan-500/20">
+                    <div className="h-16 w-16 rounded-full bg-gradient-primary flex items-center justify-center text-base font-black text-primary-foreground flex-shrink-0 shadow-lg shadow-primary/20">
                       {selectedMerchant.avatar}
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-base leading-tight">{selectedMerchant.name}</span>
-                        <Shield className="h-4 w-4 text-cyan-400" />
-                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                        <Shield className="h-4 w-4 text-primary" />
+                        <CheckCircle2 className="h-4 w-4 text-buy" />
                       </div>
-                      <div className="text-xs text-slate-400 mt-0.5">Member since {selectedMerchant.joined}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">Member since {selectedMerchant.joined}</div>
                       <div className="flex items-center gap-1 mt-1.5">
                         {[1,2,3,4,5].map((s) => (
-                          <Star key={s} className={`h-3.5 w-3.5 ${s <= Math.round(selectedMerchant.rating) ? "text-amber-400 fill-amber-400" : "text-slate-600"}`} />
+                          <Star key={s} className={`h-3.5 w-3.5 ${s <= Math.round(selectedMerchant.rating) ? "text-warning fill-warning" : "text-muted-foreground/40"}`} />
                         ))}
-                        <span className="text-xs text-slate-300 ml-1 font-semibold">{selectedMerchant.rating.toFixed(1)}</span>
+                        <span className="text-xs text-muted-foreground ml-1 font-semibold">{selectedMerchant.rating.toFixed(1)}</span>
                       </div>
                     </div>
                   </div>
 
-                  <Separator className="bg-slate-700/50" />
+                  <Separator className="bg-border" />
 
                   {/* Stats */}
                   <div className="grid grid-cols-2 gap-2.5">
@@ -824,19 +817,19 @@ export default function P2P() {
                       { label: "Trade Limit",      value: selectedMerchant.limit },
                       { label: "Available",        value: selectedMerchant.available },
                     ].map(({ label, value }) => (
-                      <div key={label} className="bg-slate-800/60 rounded-xl px-3.5 py-3 border border-slate-700/30">
-                        <p className="text-[9px] text-slate-500 uppercase tracking-widest">{label}</p>
-                        <p className="text-sm font-semibold text-white mt-0.5">{value}</p>
+                      <div key={label} className="bg-muted/50 rounded-xl px-3.5 py-3 border border-border">
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-widest">{label}</p>
+                        <p className="text-sm font-semibold text-foreground mt-0.5">{value}</p>
                       </div>
                     ))}
                   </div>
 
                   {/* Payment methods */}
                   <div>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-2">Payment Methods</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2">Payment Methods</p>
                     <div className="flex flex-wrap gap-2">
                       {selectedMerchant.payment.split(",").map((p) => (
-                        <Badge key={p.trim()} className="bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-xs px-3 py-1">
+                        <Badge key={p.trim()} className="bg-primary/15 text-primary border border-primary/30 text-xs px-3 py-1">
                           {p.trim()}
                         </Badge>
                       ))}
@@ -845,10 +838,10 @@ export default function P2P() {
 
                   {/* Available assets */}
                   <div>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-2">Available Assets</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2">Available Assets</p>
                     <div className="flex flex-wrap gap-2">
                       {selectedMerchant.assets.map((asset) => (
-                        <Badge key={asset} className="bg-violet-500/15 text-violet-300 border border-violet-500/30 text-xs px-3 py-1">
+                        <Badge key={asset} className="bg-secondary/15 text-secondary-foreground border border-secondary/30 text-xs px-3 py-1">
                           {asset}
                         </Badge>
                       ))}
@@ -857,21 +850,21 @@ export default function P2P() {
                 </div>
 
                 {/* ── RIGHT: Trade form ── */}
-                <div className="md:w-[48%] flex flex-col px-6 py-5 space-y-5 bg-[#080f1e]/60">
+                <div className="md:w-[48%] flex flex-col px-6 py-5 space-y-5 bg-muted/20">
 
-                  <p className="text-base font-bold text-white">Enter Amount</p>
+                  <p className="text-base font-bold text-foreground">Enter Amount</p>
 
                   {/* Toggle */}
-                  <div className="flex rounded-xl overflow-hidden border border-slate-700">
+                  <div className="flex rounded-xl overflow-hidden border border-border">
                     <button
                       onClick={() => { setTradeInputType("dollars"); setTradeAmount(""); }}
-                      className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${tradeInputType === "dollars" ? "bg-cyan-500/20 text-cyan-300" : "text-slate-400 hover:text-white"}`}
+                      className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${tradeInputType === "dollars" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
                     >
                       ₹ Rupees
                     </button>
                     <button
                       onClick={() => { setTradeInputType("quantity"); setTradeAmount(""); }}
-                      className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${tradeInputType === "quantity" ? "bg-cyan-500/20 text-cyan-300" : "text-slate-400 hover:text-white"}`}
+                      className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${tradeInputType === "quantity" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
                     >
                       Qty (DEXUSD)
                     </button>
@@ -879,7 +872,7 @@ export default function P2P() {
 
                   {/* Primary input */}
                   <div className="space-y-1">
-                    <label className="text-[10px] text-slate-500 uppercase tracking-widest">
+                    <label className="text-[10px] text-muted-foreground uppercase tracking-widest">
                       {tradeInputType === "dollars" ? "Amount (INR)" : "Quantity (DEXUSD)"}
                     </label>
                     <div className="relative">
@@ -888,9 +881,9 @@ export default function P2P() {
                         placeholder={tradeInputType === "dollars" ? "0.00" : "0.0000"}
                         value={tradeAmount}
                         onChange={(e) => setTradeAmount(e.target.value)}
-                        className="bg-slate-800/60 border-slate-700 text-white placeholder:text-slate-600 pr-20 h-11"
+                        className="bg-input border-border text-foreground placeholder:text-muted-foreground pr-20 h-11"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium pointer-events-none">
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium pointer-events-none">
                         {tradeInputType === "dollars" ? "INR" : "DEXUSD"}
                       </span>
                     </div>
@@ -898,7 +891,7 @@ export default function P2P() {
 
                   {/* Auto-calculated */}
                   <div className="space-y-1">
-                    <label className="text-[10px] text-slate-500 uppercase tracking-widest">
+                    <label className="text-[10px] text-muted-foreground uppercase tracking-widest">
                       {tradeInputType === "dollars" ? "You Get (DEXUSD)" : "You Pay (INR)"}
                     </label>
                     <div className="relative">
@@ -906,31 +899,31 @@ export default function P2P() {
                         readOnly
                         value={tradeInputType === "dollars" ? (tradeQty || "") : (tradeDollars || "")}
                         placeholder="Auto-calculated"
-                        className="bg-slate-900/50 border-slate-700/50 text-slate-300 placeholder:text-slate-600 pr-20 h-11 cursor-default"
+                        className="bg-muted/40 border-border text-foreground placeholder:text-muted-foreground pr-20 h-11 cursor-default"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium pointer-events-none">
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium pointer-events-none">
                         {tradeInputType === "dollars" ? "DEXUSD" : "INR"}
                       </span>
                     </div>
                   </div>
 
                   {/* Fee + Summary */}
-                  <div className="rounded-xl bg-slate-800/40 border border-slate-700/40 divide-y divide-slate-700/40">
+                  <div className="rounded-xl bg-muted/40 border border-border divide-y divide-border">
                     <div className="flex justify-between px-4 py-2.5 text-sm">
-                      <span className="text-slate-400">You Pay</span>
-                      <span className="text-white font-medium">{subtotal > 0 ? `₹${subtotal.toFixed(2)}` : "—"}</span>
+                      <span className="text-muted-foreground">You Pay</span>
+                      <span className="text-foreground font-medium">{subtotal > 0 ? `₹${subtotal.toFixed(2)}` : "—"}</span>
                     </div>
                     <div className="flex justify-between px-4 py-2.5 text-sm">
-                      <span className="text-slate-400">Gross DEXUSD</span>
-                      <span className="text-white font-medium">{grossQty > 0 ? grossQty.toFixed(4) : "—"}</span>
+                      <span className="text-muted-foreground">Gross DEXUSD</span>
+                      <span className="text-foreground font-medium">{grossQty > 0 ? grossQty.toFixed(4) : "—"}</span>
                     </div>
                     <div className="flex justify-between px-4 py-2.5 text-sm">
-                      <span className="text-slate-400">Platform Fee (1%)</span>
-                      <span className="text-red-400">{grossQty > 0 ? `-${feeQty.toFixed(4)} DEXUSD` : "—"}</span>
+                      <span className="text-muted-foreground">Platform Fee (1%)</span>
+                      <span className="text-destructive">{grossQty > 0 ? `-${feeQty.toFixed(4)} DEXUSD` : "—"}</span>
                     </div>
                     <div className="flex justify-between px-4 py-3 text-sm font-bold">
-                      <span className="text-white">You Receive (Net)</span>
-                      <span className={grossQty > 0 ? "text-emerald-400" : "text-slate-500"}>
+                      <span className="text-foreground">You Receive (Net)</span>
+                      <span className={grossQty > 0 ? "text-buy" : "text-muted-foreground"}>
                         {grossQty > 0 ? `${netQty.toFixed(4)} DEXUSD` : "—"}
                       </span>
                     </div>
@@ -941,10 +934,10 @@ export default function P2P() {
                     disabled={!tradeAmount || parseFloat(tradeAmount) <= 0}
                     className={`w-full h-12 text-base font-bold rounded-xl transition-all mt-auto ${
                       mode === "buy"
-                        ? "bg-emerald-500 hover:bg-emerald-400 text-white disabled:opacity-40"
-                        : "bg-red-500 hover:bg-red-400 text-white disabled:opacity-40"
+                        ? "bg-buy hover:bg-buy/90 text-buy-foreground disabled:opacity-40"
+                        : "bg-sell hover:bg-sell/90 text-sell-foreground disabled:opacity-40"
                     }`}
-                    onClick={() => { setTradeDialogOpen(false); setShowOrderPage(true); }}
+                    onClick={() => setP2PFlowView("order")}
                   >
                     {mode === "buy" ? "Confirm Buy" : "Confirm Sell"}
                     <ArrowRight className="h-5 w-5 ml-2" />
@@ -954,10 +947,10 @@ export default function P2P() {
             </>
           )}
         </DialogContent>
-      </Dialog>
+      </Dialog>}
 
       {/* ── P2P Order Page overlay ── */}
-      {showOrderPage && selectedMerchant && (
+      {p2pFlowView === "order" && selectedMerchant && (
         <P2POrderPage
           mode={mode}
           merchant={selectedMerchant}
@@ -965,7 +958,7 @@ export default function P2P() {
           grossQty={grossQty}
           feeQty={feeQty}
           netQty={netQty}
-          onClose={() => setShowOrderPage(false)}
+          onClose={() => setP2PFlowView(null)}
         />
       )}
 

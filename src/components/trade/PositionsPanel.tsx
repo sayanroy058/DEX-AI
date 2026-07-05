@@ -4,7 +4,7 @@ import { useMarkets } from "@/lib/useMarkets";
 import { formatPrice } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { X } from "lucide-react";
+import { Bot, Sparkles, X } from "lucide-react";
 
 const MOCK_POSITIONS = [
   { symbol: "BTC-PERP", side: "long" as const, size: 0.142, entry: 66120, leverage: 10, margin: 940 },
@@ -22,6 +22,13 @@ const MOCK_HISTORY = [
   { time: "10:18", symbol: "SOL-PERP", side: "sell", size: 25, price: 170.4, status: "Filled", pnl: "-$32.50" },
   { time: "09:55", symbol: "BTC-PERP", side: "buy", size: 0.08, price: 66900, status: "Cancelled", pnl: "—" },
 ];
+
+const MOCK_AUTOMATED_ORDERS = [
+  { id: "auto_001", source: "Bot", name: "BTC Grid", strategy: "Futures Grid", symbol: "BTC-PERP", side: "buy", type: "Limit", size: 0.025, price: 66540, status: "Working" },
+  { id: "auto_002", source: "AI Agent", name: "Momentum Flow", strategy: "Trend Follow", symbol: "ETH-PERP", side: "sell", type: "Stop", size: 0.8, price: 3495, status: "Watching" },
+  { id: "auto_003", source: "Bot", name: "SOL DCA", strategy: "Futures DCA", symbol: "SOL-PERP", side: "buy", type: "Limit", size: 12, price: 158.6, status: "Working" },
+  { id: "auto_004", source: "AI Agent", name: "Risk Rebalance", strategy: "Rebalancing", symbol: "HYPE-PERP", side: "sell", type: "Market", size: 20, price: 29.84, status: "Queued" },
+] as const;
 
 export function PositionsPanel({ markets }: { markets: ReturnType<typeof useMarkets> }) {
   const positions = useMemo(() => {
@@ -41,19 +48,24 @@ export function PositionsPanel({ markets }: { markets: ReturnType<typeof useMark
   return (
     <div className="glass rounded-b-xl rounded-t-none h-full flex flex-col overflow-hidden">
       <Tabs defaultValue="positions" className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between border-b border-border/50 px-3">
-          <TabsList className="bg-transparent h-9 p-0 gap-1">
-            <TabsTrigger value="positions" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">
-              Position <span className="ml-1.5 px-1.5 py-0.5 rounded bg-primary/20 text-[10px]">{positions.length}</span>
-            </TabsTrigger>
-            <TabsTrigger value="orders" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">
-              Open Orders <span className="ml-1.5 px-1.5 py-0.5 rounded bg-muted text-[10px]">{MOCK_ORDERS.length}</span>
-            </TabsTrigger>
-            <TabsTrigger value="trades" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">Trade History</TabsTrigger>
-            <TabsTrigger value="funding" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">Funding History</TabsTrigger>
-            <TabsTrigger value="history" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">Order History</TabsTrigger>
-          </TabsList>
-          <div className="text-[11px] text-muted-foreground">
+        <div className="flex items-center justify-between gap-3 border-b border-border/50 px-3">
+          <div className="min-w-0 flex-1 overflow-x-auto scrollbar-none">
+            <TabsList className="h-9 w-max bg-transparent p-0 gap-1">
+              <TabsTrigger value="positions" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">
+                Position <span className="ml-1.5 px-1.5 py-0.5 rounded bg-primary/20 text-[10px]">{positions.length}</span>
+              </TabsTrigger>
+              <TabsTrigger value="orders" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">
+                Open Orders <span className="ml-1.5 px-1.5 py-0.5 rounded bg-muted text-[10px]">{MOCK_ORDERS.length}</span>
+              </TabsTrigger>
+              <TabsTrigger value="automated" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">
+                Bot / AI Agent <span className="ml-1.5 px-1.5 py-0.5 rounded bg-secondary/15 text-secondary text-[10px]">{MOCK_AUTOMATED_ORDERS.length}</span>
+              </TabsTrigger>
+              <TabsTrigger value="trades" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">Trade History</TabsTrigger>
+              <TabsTrigger value="funding" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">Funding History</TabsTrigger>
+              <TabsTrigger value="history" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">Order History</TabsTrigger>
+            </TabsList>
+          </div>
+          <div className="shrink-0 text-[11px] text-muted-foreground">
             Total PnL: <span className={cn("font-mono font-bold", totalPnl >= 0 ? "text-buy" : "text-sell")}>
               {totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)}
             </span>
@@ -122,6 +134,62 @@ export function PositionsPanel({ markets }: { markets: ReturnType<typeof useMark
                   <td className="text-right">{formatPrice(o.price)}</td>
                   <td className="text-right pr-3">
                     <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-sell"><X className="h-3 w-3" /></Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TabsContent>
+
+        <TabsContent value="automated" className="flex-1 overflow-auto m-0">
+          <table className="w-full min-w-[880px] text-[11px] font-mono">
+            <thead className="text-[10px] text-muted-foreground uppercase">
+              <tr className="border-b border-border/50">
+                <th className="text-left px-3 py-1.5">Source</th>
+                <th className="text-left">Name</th>
+                <th className="text-left">Strategy</th>
+                <th className="text-left">Symbol</th>
+                <th className="text-left">Side</th>
+                <th className="text-left">Type</th>
+                <th className="text-right">Size</th>
+                <th className="text-right">Price</th>
+                <th className="text-right pr-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {MOCK_AUTOMATED_ORDERS.map(order => (
+                <tr key={order.id} className="border-b border-border/30 hover:bg-muted/20">
+                  <td className="px-3 py-2">
+                    <span className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-2 py-1 font-sans text-[10px] font-semibold",
+                      order.source === "AI Agent"
+                        ? "bg-primary/10 text-primary"
+                        : "bg-secondary/15 text-secondary"
+                    )}>
+                      {order.source === "AI Agent"
+                        ? <Sparkles className="h-3 w-3" />
+                        : <Bot className="h-3 w-3" />}
+                      {order.source}
+                    </span>
+                  </td>
+                  <td className="font-sans font-semibold">{order.name}</td>
+                  <td className="text-muted-foreground">{order.strategy}</td>
+                  <td className="font-sans font-semibold">{order.symbol}</td>
+                  <td className={order.side === "buy" ? "text-buy" : "text-sell"}>{order.side.toUpperCase()}</td>
+                  <td>{order.type}</td>
+                  <td className="text-right">{order.size}</td>
+                  <td className="text-right">{formatPrice(order.price)}</td>
+                  <td className="text-right pr-3">
+                    <span className={cn(
+                      "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                      order.status === "Working"
+                        ? "bg-buy/10 text-buy"
+                        : order.status === "Watching"
+                          ? "bg-primary/10 text-primary"
+                          : "bg-warning/10 text-warning"
+                    )}>
+                      {order.status}
+                    </span>
                   </td>
                 </tr>
               ))}

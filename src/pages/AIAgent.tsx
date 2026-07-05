@@ -28,7 +28,7 @@ export default function AIAgent() {
   const [strategyType, setStrategyType] = useState("Spot Grid");
   const [risk, setRisk] = useState("Balanced");
   const [timeframe, setTimeframe] = useState("1-7 Days");
-  const [market, setMarket] = useState("TON/USDT");
+  const [market, setMarket] = useState("TON/USDN");
   const [investment, setInvestment] = useState("280");
   const [goal, setGoal] = useState("Steady compounding with controlled drawdown");
 
@@ -52,7 +52,7 @@ export default function AIAgent() {
       },
       {
         title: "Deployment Review",
-        body: `Allocate ${investment || "0"} USDT, preview expected trade frequency, then wait for your acceptance before activation.`,
+        body: `Allocate ${investment || "0"} USDN, preview expected trade frequency, then wait for your acceptance before activation.`,
       },
     ];
   }, [investment, market, risk, strategyType, timeframe]);
@@ -99,7 +99,7 @@ export default function AIAgent() {
                     value={market}
                     onChange={(event) => setMarket(event.target.value)}
                     className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                    placeholder="BTC/USDT"
+                    placeholder="BTC/USDN"
                   />
                 </Field>
 
@@ -124,7 +124,7 @@ export default function AIAgent() {
                       className="w-full bg-transparent text-sm font-semibold outline-none"
                       placeholder="0"
                     />
-                    <span className="text-sm font-black">USDT</span>
+                    <span className="text-sm font-black">USDN</span>
                   </div>
                 </Field>
 
@@ -168,7 +168,7 @@ export default function AIAgent() {
                   <div className="rounded-2xl border border-primary/25 bg-primary/10 p-4">
                     <div className="text-xs font-bold uppercase tracking-wide text-primary">Agent Summary</div>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      Build a {risk.toLowerCase()} {strategyType} bot for {market || "your selected market"} with {investment || "0"} USDT.
+                      Build a {risk.toLowerCase()} {strategyType} bot for {market || "your selected market"} with {investment || "0"} USDN.
                       Primary goal: {goal || "not specified"}.
                     </p>
                   </div>
