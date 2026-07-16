@@ -130,7 +130,7 @@ export function P2POrderPage({ orderId: providedOrderId, mode, merchant, amountI
   const accentBtn=isBuy?"bg-buy text-buy-foreground hover:bg-buy/90":"bg-sell text-sell-foreground hover:bg-sell/90";
   const paymentDetails=[
     {label:"Payment Method",value:merchant.payment.split(",")[0].trim()},
-    {label:"Account Name",  value:"DEX.ai Escrow Account"},
+    {label:"Account Name",  value:"BitDx Escrow Account"},
     {label:"Account / UPI", value:"dexai@upi"},
     {label:"Reference",     value:orderId},
   ];

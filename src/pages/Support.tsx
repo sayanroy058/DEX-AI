@@ -86,7 +86,7 @@ export default function Support() {
           <div className="relative max-w-2xl">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary">
               <CircleHelp className="h-4 w-4" />
-              DEX.ai Support
+              BitDx Support
             </div>
             <h1 className="text-3xl font-black tracking-tight sm:text-4xl">How can we help?</h1>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">

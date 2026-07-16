@@ -45,13 +45,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen w-full flex flex-col">
       <header className="h-14 px-3 sm:px-4 flex items-center gap-1 sm:gap-2 glass-strong border-b border-glass-border z-30 sticky top-0 overflow-hidden">
-        <Link to="/" className="flex items-center gap-1.5 shrink-0">
-          <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow-primary shrink-0">
-            <Zap className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
-          </div>
-          <span className="font-bold text-base sm:text-lg tracking-tight">
-            DEX<span className="gradient-text">.ai</span>
-          </span>
+        <Link to="/" className="flex items-center shrink-0">
+          <img src="/Logo.png" alt="BitDx" className="h-8 w-auto" />
         </Link>
 
         <nav className="hidden lg:flex items-center gap-0.5 ml-3 overflow-x-auto">

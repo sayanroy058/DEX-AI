@@ -30,11 +30,8 @@ export default function Landing() {
     <div className="min-h-screen flex flex-col bg-[#0a0e27]">
       {/* Navigation */}
       <header className="px-6 lg:px-10 h-16 flex items-center justify-between border-b border-glass-border glass-strong sticky top-0 z-30">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center shadow-lg">
-            <Zap className="h-5 w-5 text-white" strokeWidth={2.5} />
-          </div>
-          <span className="font-bold text-lg tracking-tight text-white">DEX<span className="text-cyan-400">.ai</span></span>
+        <Link to="/" className="flex items-center">
+          <img src="/Logo.png" alt="BitDx" className="h-9 w-auto" />
         </Link>
 
         <nav className="hidden md:flex items-center gap-8 text-sm text-slate-400">
@@ -533,11 +530,8 @@ export default function Landing() {
       <footer className="border-t border-slate-800/70 bg-[#070b20] px-6 py-10 lg:px-10">
         <div className="mx-auto grid max-w-6xl gap-8 grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div className="space-y-4 col-span-2 md:col-span-1">
-            <Link to="/" className="inline-flex items-center gap-2">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                <Zap className="h-5 w-5 text-white" strokeWidth={2.5} />
-              </div>
-              <span className="font-bold text-xl tracking-tight text-white">DEX<span className="text-cyan-400">.ai</span></span>
+            <Link to="/" className="inline-flex items-center">
+              <img src="/Logo.png" alt="BitDx" className="h-10 w-auto" />
             </Link>
             <p className="max-w-sm text-sm leading-6 text-slate-400">
               Multi-asset trading, wallet connectivity, copy strategies, prediction markets, and AI tools in one exchange experience.
@@ -576,7 +570,7 @@ export default function Landing() {
         </div>
 
         <div className="mx-auto mt-10 flex max-w-6xl flex-col gap-4 border-t border-slate-800/70 pt-6 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 DEX.ai. All rights reserved.</p>
+          <p>© 2026 BitDx. All rights reserved.</p>
           <div className="flex flex-wrap gap-x-5 gap-y-2">
             <a href="#" className="hover:text-cyan-300 transition-colors">Terms</a>
             <a href="#" className="hover:text-cyan-300 transition-colors">Privacy</a>
