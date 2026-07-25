@@ -148,11 +148,10 @@ export default function Landing() {
 
           {/* Description */}
           <p className="text-base md:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed tracking-wide">
-            Trade Crypto, Forex, Stocks & Commodities with institutional-grade Al intelligence.
+            Trade Crypto, Forex, Stocks & Commodities with institutional-grade Al intelligence. One platform. Every market. Zero limits.
             <br />
-One platform. Every market. Zero limits.
              
-BitDx is your gateway to advanced trading, providing seamless access to global markets with AI-powered tools. Experience security, performance, and innovation—only at BitDx.
+BitDx is your gateway to advanced trading, providing seamless access to global markets with AI-powered tools. Experience security, performance, and innovation — only at BitDx.
 
           </p>
 
