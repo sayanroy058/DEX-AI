@@ -150,8 +150,10 @@ export default function Landing() {
           <p className="text-base md:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed tracking-wide">
             Trade Crypto, Forex, Stocks & Commodities with institutional-grade Al intelligence.
             <br />
-            One platform. Every market. Zero limits.
-            
+One platform. Every market. Zero limits.
+             
+BitDx is your gateway to advanced trading, providing seamless access to global markets with AI-powered tools. Experience security, performance, and innovation—only at BitDx.
+
           </p>
 
           {/* CTA Buttons */}
@@ -570,7 +572,8 @@ export default function Landing() {
         </div>
 
         <div className="mx-auto mt-10 flex max-w-6xl flex-col gap-4 border-t border-slate-800/70 pt-6 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 BitDx. All rights reserved.</p>
+          <p>© 2026 BitDx. All rights reserved.
+BitDx brings institutional-grade trading technology to everyone, redefining market access.</p>
           <div className="flex flex-wrap gap-x-5 gap-y-2">
             <a href="#" className="hover:text-cyan-300 transition-colors">Terms</a>
             <a href="#" className="hover:text-cyan-300 transition-colors">Privacy</a>
