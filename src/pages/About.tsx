@@ -38,6 +38,7 @@ export default function About() {
           <Link to="/p2p" className="hover:text-white transition-colors">P2P</Link>
           <Link to="/token" className="hover:text-white transition-colors">Token</Link>
           <Link to="/sip" className="hover:text-white transition-colors">SIP/SWP</Link>
+          <Link to="/about" className="text-white transition-colors">About</Link>
         </nav>
 
         <div className="flex items-center gap-2">
@@ -65,7 +66,8 @@ export default function About() {
           <Link to="/prediction" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Prediction</Link>
           <Link to="/p2p" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>P2P</Link>
           <Link to="/token" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Token</Link>
-          <Link to="/sip" className="text-slate-300 hover:text-white font-medium py-2" onClick={() => setMobileMenuOpen(false)}>SIP/SWP</Link>
+          <Link to="/sip" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>SIP/SWP</Link>
+          <Link to="/about" className="text-slate-300 hover:text-white font-medium py-2" onClick={() => setMobileMenuOpen(false)}>About</Link>
         </div>
       )}
 
@@ -90,8 +92,10 @@ export default function About() {
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-slate-400 sm:text-lg">
             BITDX is a highly curated digital trading initiative of{" "}
-            <span className="font-semibold" style={{ color: "#4A9ED1" }}>IBACK</span>{" "}
-            <span className="font-semibold" style={{ color: "#F4791A" }}>DIGITAL MEDIA</span>{" "}
+            <a href="https://www.ibackdigital.media/" target="_blank" rel="noopener noreferrer" className="font-semibold hover:opacity-80 transition-opacity">
+              <span style={{ color: "#4A9ED1" }}>IBACK</span>{" "}
+              <span style={{ color: "#F4791A" }}>DIGITAL MEDIA</span>
+            </a>{" "}
             LLC, a registered digital technology company based in Sharjah, United Arab Emirates.
           </p>
         </div>
@@ -136,10 +140,15 @@ export default function About() {
       <section className="px-6 py-16 lg:px-10">
         <div className="mx-auto grid max-w-5xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-orange-400/30 bg-orange-400/5 px-4 py-1.5 text-xs font-medium text-orange-300">
+            <a
+              href="https://www.ibackdigital.media/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-orange-400/30 bg-orange-400/5 px-4 py-1.5 text-xs font-medium text-orange-300 hover:bg-orange-400/10 transition-colors"
+            >
               <Building2 className="h-3.5 w-3.5" />
               Built by IBACK DIGITAL MEDIA LLC
-            </div>
+            </a>
             <h2 className="mt-5 text-3xl font-bold text-white sm:text-4xl">
               Part of a larger{" "}
               <span style={{ color: "#4A9ED1" }}>digital</span>{" "}
@@ -149,22 +158,33 @@ export default function About() {
 
           <div className="space-y-5 text-slate-400">
             <p className="leading-7">
-              BITDX is developed and operated as a significant initiative within the IBACK
-              DIGITAL MEDIA LLC ecosystem.
+              BITDX is developed and operated as a significant initiative within the{" "}
+              <a href="https://www.ibackdigital.media/" target="_blank" rel="noopener noreferrer" className="font-semibold hover:opacity-80 transition-opacity">
+                <span style={{ color: "#4A9ED1" }}>IBACK</span>{" "}
+                <span style={{ color: "#F4791A" }}>DIGITAL MEDIA</span>
+              </a>{" "}
+              LLC ecosystem.
             </p>
             <p className="leading-7">
-              IBACK Digital Media focuses on digital technology and product development,
-              including software and web development, AI and SaaS solutions, blockchain
-              technology, digital infrastructure, hosting, domains, branding and digital
-              marketing.
+              <a href="https://www.ibackdigital.media/" target="_blank" rel="noopener noreferrer" className="font-semibold hover:opacity-80 transition-opacity">
+                <span style={{ color: "#4A9ED1" }}>IBACK</span>{" "}
+                <span style={{ color: "#F4791A" }}>Digital Media</span>
+              </a>{" "}
+              focuses on digital technology and product development, including software and web
+              development, AI and SaaS solutions, blockchain technology, digital infrastructure,
+              hosting, domains, branding and digital marketing.
             </p>
             <p className="leading-7">
               BITDX represents the company's vision of bringing these technologies together to
               create a modern, connected digital trading experience.
             </p>
             <p className="rounded-xl border border-slate-800/70 bg-slate-900/30 px-5 py-4 text-sm leading-6 text-slate-500">
-              BITDX is a digital initiative of IBACK DIGITAL MEDIA LLC and is not a separate
-              corporate entity.
+              BITDX is a digital initiative of{" "}
+              <a href="https://www.ibackdigital.media/" target="_blank" rel="noopener noreferrer" className="font-semibold hover:opacity-80 transition-opacity">
+                <span style={{ color: "#4A9ED1" }}>IBACK</span>{" "}
+                <span style={{ color: "#F4791A" }}>DIGITAL MEDIA</span>
+              </a>{" "}
+              LLC and is not a separate corporate entity.
             </p>
           </div>
         </div>
@@ -213,8 +233,10 @@ export default function About() {
           </p>
           <p className="mx-auto mt-4 max-w-3xl leading-7 text-slate-500">
             BITDX is continuously evolving as part of{" "}
-            <span className="font-semibold" style={{ color: "#4A9ED1" }}>IBACK</span>{" "}
-            <span className="font-semibold" style={{ color: "#F4791A" }}>DIGITAL MEDIA</span>{" "}
+            <a href="https://www.ibackdigital.media/" target="_blank" rel="noopener noreferrer" className="font-semibold hover:opacity-80 transition-opacity">
+              <span style={{ color: "#4A9ED1" }}>IBACK</span>{" "}
+              <span style={{ color: "#F4791A" }}>DIGITAL MEDIA</span>
+            </a>{" "}
             LLC's broader commitment to developing innovative technology-driven digital products
             and experiences.
           </p>
