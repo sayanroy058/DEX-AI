@@ -43,7 +43,7 @@ export default function Landing() {
           <Link to="/p2p" className="hover:text-white transition-colors">P2P</Link>
           <Link to="/token" className="hover:text-white transition-colors">Token</Link>
           <Link to="/sip" className="hover:text-white transition-colors">SIP/SWP</Link>
-          <Link to="/about" className="hover:text-white transition-colors">About</Link>
+          <Link to="/about" className="hover:text-white transition-colors">About Us</Link>
         </nav>
 
         <div className="flex items-center gap-2">
@@ -72,7 +72,7 @@ export default function Landing() {
           <Link to="/p2p" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>P2P</Link>
           <Link to="/token" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Token</Link>
           <Link to="/sip" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>SIP/SWP</Link>
-          <Link to="/about" className="text-slate-300 hover:text-white font-medium py-2" onClick={() => setMobileMenuOpen(false)}>About</Link>
+          <Link to="/about" className="text-slate-300 hover:text-white font-medium py-2" onClick={() => setMobileMenuOpen(false)}>About Us</Link>
         </div>
       )}
 
@@ -564,7 +564,7 @@ BitDx is your gateway to advanced trading, providing seamless access to global m
           <div>
             <h3 className="mb-4 text-sm font-bold text-white">Company</h3>
             <div className="space-y-3 text-sm text-slate-400">
-              <Link to="/about" className="block hover:text-cyan-300 transition-colors">About</Link>
+              <Link to="/about" className="block hover:text-cyan-300 transition-colors">About Us</Link>
               <Link to="/profile" className="block hover:text-cyan-300 transition-colors">Profile</Link>
               <Link to="/refer" className="block hover:text-cyan-300 transition-colors">Refer</Link>
               <Link to="/settings" className="block hover:text-cyan-300 transition-colors">Settings</Link>
