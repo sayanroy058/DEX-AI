@@ -257,8 +257,10 @@ export default function About() {
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 text-sm text-slate-500">
           <p>© 2026 BitDx. All rights reserved.</p>
           <p>
-            <span style={{ color: "#4A9ED1" }} className="font-semibold">IBACK</span>{" "}
-            <span style={{ color: "#F4791A" }} className="font-semibold">Digital Media</span>{" "}
+            <a href="https://www.ibackdigital.media/" target="_blank" rel="noopener noreferrer" className="font-semibold hover:opacity-80 transition-opacity">
+              <span style={{ color: "#4A9ED1" }}>IBACK</span>{" "}
+              <span style={{ color: "#F4791A" }}>Digital Media</span>
+            </a>{" "}
             LLC · Sharjah, United Arab Emirates
           </p>
         </div>
