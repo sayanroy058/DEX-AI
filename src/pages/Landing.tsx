@@ -581,12 +581,11 @@ BitDx brings institutional-grade trading technology to everyone, redefining mark
               href="https://www.ibackdigital.media/"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-semibold transition-colors"
-              style={{ color: "#4A9ED1" }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#6DB4DE")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#4A9ED1")}
+              className="font-semibold group"
             >
-              An initiative by IBACK Digital Media
+              <span className="text-slate-500 group-hover:text-slate-400 transition-colors">An initiative by </span>
+              <span style={{ color: "#4A9ED1" }}>IBACK</span>{" "}
+              <span style={{ color: "#F4791A" }}>Digital Media</span>
             </a>
           </div>
         </div>
