@@ -105,7 +105,7 @@ export default function About() {
       <section className="px-6 py-16 lg:px-10">
         <div className="mx-auto max-w-5xl">
           <div className="rounded-2xl border border-slate-800/70 bg-slate-900/30 p-8 backdrop-blur-sm lg:p-10">
-            <p className="text-base leading-8 text-slate-300">
+            <p className="text-base leading-8 text-slate-300 text-center">
               BITDX brings together modern trading technology, digital assets, automation, and
               Web3 experiences within a unified ecosystem. The platform is designed to provide
               access to a broad range of digital-market products and tools, including
@@ -157,7 +157,7 @@ export default function About() {
           </div>
 
           <div className="space-y-5 text-slate-400">
-            <p className="leading-7">
+            <p className="leading-7 text-justify">
               BITDX is developed and operated as a significant initiative within the{" "}
               <a href="https://www.ibackdigital.media/" target="_blank" rel="noopener noreferrer" className="font-semibold hover:opacity-80 transition-opacity">
                 <span style={{ color: "#4A9ED1" }}>IBACK</span>{" "}
@@ -165,7 +165,7 @@ export default function About() {
               </a>{" "}
               LLC ecosystem.
             </p>
-            <p className="leading-7">
+            <p className="leading-7 text-justify">
               <a href="https://www.ibackdigital.media/" target="_blank" rel="noopener noreferrer" className="font-semibold hover:opacity-80 transition-opacity">
                 <span style={{ color: "#4A9ED1" }}>IBACK</span>{" "}
                 <span style={{ color: "#F4791A" }}>Digital Media</span>
@@ -174,7 +174,7 @@ export default function About() {
               development, AI and SaaS solutions, blockchain technology, digital infrastructure,
               hosting, domains, branding and digital marketing.
             </p>
-            <p className="leading-7">
+            <p className="leading-7 text-justify">
               BITDX represents the company's vision of bringing these technologies together to
               create a modern, connected digital trading experience.
             </p>
@@ -201,11 +201,11 @@ export default function About() {
               Technology Meets Modern Trading
             </h2>
           </div>
-          <p className="mt-5 leading-7 text-slate-400">
+          <p className="mt-5 leading-7 text-slate-400 text-justify">
             BITDX is designed to combine AI, automation, blockchain technology, and multi-asset
             market access in one platform.
           </p>
-          <p className="mt-4 leading-7 text-slate-400">
+          <p className="mt-4 leading-7 text-slate-400 text-justify">
             Users can explore advanced trading interfaces, technical analysis tools, automated
             strategies, trading bots, copy trading and other digital-market features. The
             platform is designed to serve both experienced traders seeking advanced tools and
