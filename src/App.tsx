@@ -25,6 +25,7 @@ import Refer from "./pages/Refer.tsx";
 import SIP from "./pages/SIP.tsx";
 import Affiliate from "./pages/Affiliate.tsx";
 import Support from "./pages/Support.tsx";
+import About from "./pages/About.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -70,6 +71,7 @@ const App = () => (
           <Route path="/refer" element={<Refer />} />
           <Route path="/affiliate" element={<Affiliate />} />
           <Route path="/support" element={<Support />} />
+          <Route path="/about" element={<About />} />
           <Route path="/sip" element={<SIP />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

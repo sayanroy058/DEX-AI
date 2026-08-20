@@ -562,6 +562,7 @@ BitDx is your gateway to advanced trading, providing seamless access to global m
           <div>
             <h3 className="mb-4 text-sm font-bold text-white">Company</h3>
             <div className="space-y-3 text-sm text-slate-400">
+              <Link to="/about" className="block hover:text-cyan-300 transition-colors">About</Link>
               <Link to="/profile" className="block hover:text-cyan-300 transition-colors">Profile</Link>
               <Link to="/refer" className="block hover:text-cyan-300 transition-colors">Refer</Link>
               <Link to="/settings" className="block hover:text-cyan-300 transition-colors">Settings</Link>
