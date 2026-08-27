@@ -6,12 +6,17 @@ import { TradePanel, type MarketMode } from "@/components/trade/TradePanel";
 import { PositionsPanel } from "@/components/trade/PositionsPanel";
 import { MarketHeader } from "@/components/trade/MarketHeader";
 import { useMarket, useMarkets } from "@/lib/useMarkets";
+import { useLivePrice } from "@/lib/useLivePrice";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { PanelGroup, Panel, PanelResizeHandle, type ImperativePanelHandle } from "react-resizable-panels";
 import { Calculator, GripVertical, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, BarChart2, BookOpen, ArrowLeftRight, List, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { generateOptionChain, generateOrderBook, generateTrade, formatCompact, formatPrice, OptionContract, Trade } from "@/lib/mockData";
+import { generateOptionChain, formatCompact, formatPrice, OptionContract } from "@/lib/mockData";
+import { backendMarketFor } from "@/lib/backendMarkets";
+import { useOrderBook, useRecentTrades } from "@/lib/useOrderBook";
+import { useOrders } from "@/lib/useOrders";
+import { useAccount } from "@/lib/account";
 
 // ─── Default sizes ────────────────────────────────────────────────────────────
 const DEFAULT_COL_SIZES = [14, 66, 20];
@@ -584,25 +589,26 @@ interface RightColumnProps {
   price: number;
   selectedOption?: OptionContract | null;
   onTradeModeChange?: (mode: MarketMode) => void;
+  orders: ReturnType<typeof useOrders>;
 }
 
-function RightColumn({ symbol, price, selectedOption, onTradeModeChange }: RightColumnProps) {
+function RightColumn({ symbol, price, selectedOption, onTradeModeChange, orders }: RightColumnProps) {
   const [obOpen, setObOpen] = useState(true);
   const [tab, setTab] = useState<"book" | "trades">("book");
+  const backendMarket = backendMarketFor(symbol);
 
-  // Order book data
-  const [book, setBook] = useState(() => generateOrderBook(price));
-  const [trades, setTrades] = useState<Trade[]>([]);
+  // Order book / trades: real depth for backend-registered pairs only. This
+  // used to fall back to a fabricated order book (generateOrderBook) and
+  // trade tape (generateTrade) for every other symbol, labeled "Simulated"
+  // — technically honest about the label, but still showed fake price
+  // levels and fake fills a user could act on. Now there's simply nothing
+  // to show for those symbols; see the "not available" panel below instead
+  // of rendering fake rows.
+  const liveBook = useOrderBook(backendMarket?.symbol ?? "", backendMarket?.market ?? "", 14);
+  const liveTrades = useRecentTrades(backendMarket?.symbol ?? "", backendMarket?.market ?? "", 30);
 
-  useEffect(() => {
-    const id = setInterval(() => setBook(generateOrderBook(price)), 1200);
-    return () => clearInterval(id);
-  }, [price]);
-
-  useEffect(() => {
-    const id = setInterval(() => setTrades(prev => [generateTrade(price), ...prev].slice(0, 30)), 800);
-    return () => clearInterval(id);
-  }, [price]);
+  const book = backendMarket ? liveBook : { bids: [], asks: [] };
+  const trades = backendMarket ? liveTrades : [];
 
   const maxBidTotal = Math.max(...book.bids.map(b => b.total), 1);
   const maxAskTotal = Math.max(...book.asks.map(a => a.total), 1);
@@ -623,6 +629,7 @@ function RightColumn({ symbol, price, selectedOption, onTradeModeChange }: Right
             price={price}
             selectedOption={selectedOption}
             onModeChange={onTradeModeChange}
+            orders={orders}
           />
         </div>
       </div>
@@ -656,6 +663,17 @@ function RightColumn({ symbol, price, selectedOption, onTradeModeChange }: Right
           >
             Trades
           </button>
+          {/* Live badge only — there's no longer a "Simulated" state to
+              label; a market with no backend order book shows the "not
+              available" panel below instead of fake data with a badge. */}
+          {backendMarket && (
+            <span
+              className="mx-1 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wide shrink-0 bg-emerald-500/15 text-emerald-400"
+              title="Live order book and trades from the exchange"
+            >
+              Live
+            </span>
+          )}
           {/* Collapse / expand toggle */}
           <button
             onClick={() => setObOpen(o => !o)}
@@ -677,7 +695,12 @@ function RightColumn({ symbol, price, selectedOption, onTradeModeChange }: Right
             opacity: obOpen ? 1 : 0,
           }}
         >
-          {tab === "book" ? (
+          {!backendMarket ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-1 py-10 text-center text-xs text-muted-foreground">
+              <span className="text-sm font-semibold text-foreground">Trading not available</span>
+              <span>This market isn't live on the exchange yet.</span>
+            </div>
+          ) : tab === "book" ? (
             <div className="flex-1 flex flex-col text-[10px] font-mono overflow-hidden min-h-0">
               {/* Column headers */}
               <div className="grid grid-cols-3 gap-1 px-2 py-1 text-[9px] text-muted-foreground uppercase border-b border-border/50 shrink-0">
@@ -753,15 +776,33 @@ function RightColumn({ symbol, price, selectedOption, onTradeModeChange }: Right
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 const Index = () => {
-  const [symbol, setSymbol] = useState("BTC-PERP");
+  const [symbol, setSymbol] = useState("BTC-USDT");
   const [collapsed, setCollapsed] = useState(false);
+  const account = useAccount();
+  const orders = useOrders(account);
   const market = useMarket(symbol);
   const markets = useMarkets();
-  const price = market?.price ?? 0;
+  // Real index price (crypto, live) when available, mock simulator
+  // otherwise — same priority MarketHeader uses, via the shared hook, so
+  // the order panel's default price/liquidation preview/chart can't show a
+  // different number than the header does. Previously this read
+  // market.price directly, so the header showed a real price like $79,602
+  // while the order entry panel below it defaulted to a stale mock value.
+  const price = useLivePrice(symbol);
   const isMobile = useIsMobile();
+  // Options execution is hidden from this delivery (plan.md 5.1): the
+  // option workspace previously rendered here called generateOptionChain()
+  // (fabricated contracts) while the real order-entry panel called the
+  // backend's actual option chain — two disagreeing sources for "the"
+  // option chain. optionLayoutActive is now hardcoded false so neither the
+  // mock chain nor the OptionWorkspace UI can activate; the underlying
+  // market-category/tradeMode plumbing is left in place, unused, so this is
+  // a one-line, easily-revertible gate rather than a structural rewrite,
+  // per plan.md 5.1 item 3 ("preserve the existing code without extending
+  // it; revisit with a dedicated options specification").
   const isOptionsMarket = market?.category === "options";
-  const [tradeMode, setTradeMode] = useState<MarketMode>("futures");
-  const optionLayoutActive = isOptionsMarket || tradeMode === "options";
+  const [tradeMode, setTradeMode] = useState<MarketMode>("spot");
+  const optionLayoutActive = false;
   const optionContracts = useMemo(
     () => optionLayoutActive ? generateOptionChain(symbol, price) : [],
     [optionLayoutActive, symbol, price]
@@ -889,7 +930,7 @@ const Index = () => {
           <TradingChart symbol={symbol} price={price} />
         );
       case "positions":
-        return <PositionsPanel markets={markets} />;
+        return <PositionsPanel markets={markets} account={account} orders={orders} />;
     }
   }
 
@@ -974,6 +1015,7 @@ const Index = () => {
               price={price}
               selectedOption={selectedOption}
               onTradeModeChange={setTradeMode}
+              orders={orders}
             />
           </Panel>
 
@@ -1012,12 +1054,13 @@ const Index = () => {
                     price={price}
                     selectedOption={selectedOption}
                     onTradeModeChange={setTradeMode}
+                    orders={orders}
                   />
                 </div>
               )}
               {mobileTab === "positions" && (
                 <div className="h-full glass rounded-xl overflow-hidden">
-                  <PositionsPanel markets={markets} />
+                  <PositionsPanel markets={markets} account={account} orders={orders} />
                 </div>
               )}
             </div>

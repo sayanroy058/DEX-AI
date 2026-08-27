@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from "@/lib/utils";
 import { WalletDialog } from "@/components/wallet/WalletDialog";
 import { TransferDialog } from "@/components/wallet/TransferDialog";
-import { useWallet, shortAddress } from "@/lib/useWallet";
+import { useWallet, shortAddress, getWalletSourceLabel } from "@/lib/useWallet";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 
 const navItems = [
@@ -17,7 +17,6 @@ const navItems = [
   { to: "/markets", icon: LayoutDashboard, label: "Markets" },
   { to: "/copy", icon: Users, label: "Copy" },
   { to: "/prop", icon: Building2, label: "Prop Firm" },
-  { to: "/prediction", icon: Sparkles, label: "Predict" },
   { to: "/p2p", icon: Repeat, label: "P2P" },
   { to: "/token", icon: Coins, label: "Token" },
   { to: "/sip", icon: CalendarClock, label: "SIP/SWP" },
@@ -37,16 +36,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setTransferOpen(true);
   };
 
-  const totalUsd = w.balances.reduce((s, b) => {
-    const px = b.asset === "BTC" ? 67000 : b.asset === "ETH" ? 3500 : b.asset === "SOL" ? 168 : 1;
-    return s + b.amount * px;
-  }, 0);
+  const totalUsd = w.balances.reduce((sum, balance) => sum + balance.amount, 0);
 
   return (
     <div className="min-h-screen w-full flex flex-col">
       <header className="h-14 px-3 sm:px-4 flex items-center gap-1 sm:gap-2 glass-strong border-b border-glass-border z-30 sticky top-0 overflow-hidden">
-        <Link to="/" className="flex items-center shrink-0">
-          <img src="/Logo.png" alt="BitDx" className="h-8 w-auto" />
+        <Link to="/" className="flex items-center gap-1.5 shrink-0">
+          <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow-primary shrink-0">
+            <Zap className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
+          </div>
+          <span className="font-bold text-base sm:text-lg tracking-tight">
+            DEX<span className="gradient-text">.ai</span>
+          </span>
         </Link>
 
         <nav className="hidden lg:flex items-center gap-0.5 ml-3 overflow-x-auto">
@@ -74,11 +75,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className="hidden xl:flex items-center gap-2 glass px-3 py-1.5 rounded-lg w-60">
           <Search className="h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            placeholder="Search markets, traders..."
-            className="h-6 border-0 bg-transparent p-0 text-sm focus-visible:ring-0"
-          />
-          <kbd className="text-[10px] text-muted-foreground border border-border rounded px-1">⌘K</kbd>
+          <Input placeholder="Search markets, traders..." className="h-6 border-0 bg-transparent p-0.5 text-sm focus-visible:ring-0" />
+          {/* <kbd className="text-[10px] text-muted-foreground border border-border rounded px-1">?K</kbd> */}
         </div>
 
         <Button variant="ghost" size="icon" className="relative hidden sm:flex shrink-0">
@@ -86,7 +84,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
         </Button>
 
-        {/* Wallet balance icon */}
         {w.connected && (
           <Popover>
             <PopoverTrigger asChild>
@@ -97,14 +94,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <PopoverContent align="end" className="w-72 glass-strong border-glass-border p-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-muted-foreground uppercase tracking-wide">Total Balance</span>
-                <span className="text-[10px] text-primary">Connected</span>
+                <span className="text-[10px] text-primary">{getWalletSourceLabel(w.walletId)}</span>
               </div>
               <div className="text-2xl font-bold font-mono mb-3">${totalUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
                 {w.balances.map(b => (
                   <div key={b.asset} className="flex justify-between text-xs glass rounded px-2 py-1.5">
                     <span className="font-medium">{b.asset}</span>
-                    <span className="font-mono">{b.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+                    <span className="font-mono">{b.amount.toLocaleString(undefined, { maximumFractionDigits: 6 })}</span>
                   </div>
                 ))}
               </div>
@@ -120,22 +117,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Popover>
         )}
 
-        <Button
-          variant="outline"
-          className={cn(
-            "glass px-2.5 sm:px-4",
-            w.connected
-              ? "border-buy/40 text-buy hover:bg-buy/10 hover:text-buy"
-              : "border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
-          )}
-          onClick={() => setWalletOpen(true)}
-        >
+        <Button variant="outline" className={cn("glass px-2.5 sm:px-4", w.connected ? "border-buy/40 text-buy hover:bg-buy/10 hover:text-buy" : "border-primary/40 text-primary hover:bg-primary/10 hover:text-primary")} onClick={() => setWalletOpen(true)}>
           <span className={cn("mr-1 sm:mr-1.5 h-1.5 w-1.5 rounded-full animate-pulse", w.connected ? "bg-buy" : "bg-primary")} />
-          <span className="hidden sm:inline">{w.connected ? shortAddress(w.address) : "Connect Wallet"}</span>
+          <span className="hidden sm:inline">{w.connected ? `${getWalletSourceLabel(w.walletId)} · ${shortAddress(w.address)}` : "Connect Wallet"}</span>
           <span className="sm:hidden">{w.connected ? shortAddress(w.address) : "Connect"}</span>
         </Button>
 
-        {/* Profile menu (after Connect Wallet) */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full border border-border/60" title="Profile">
@@ -145,7 +132,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <DropdownMenuContent align="end" className="glass-strong border-glass-border w-64">
             <div className="px-2 py-2">
               <div className="text-sm font-semibold">{w.connected ? shortAddress(w.address) : "Anonymous Trader"}</div>
-              <div className="text-[11px] text-muted-foreground">trader@dex.ai</div>
+              <div className="text-[11px] text-muted-foreground">{w.connected ? getWalletSourceLabel(w.walletId) : "trader@dex.ai"}</div>
             </div>
             <DropdownMenuSeparator />
             <div className="px-2 py-2">
@@ -171,12 +158,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <RouterNavLink
             key={item.to}
             to={item.to}
-            className={({ isActive }) =>
-              cn(
-                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap",
-                isActive ? "bg-primary/15 text-primary" : "text-muted-foreground"
-              )
-            }
+            className={({ isActive }) => cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap", isActive ? "bg-primary/15 text-primary" : "text-muted-foreground")}
           >
             <item.icon className="h-3.5 w-3.5" />
             {item.label}

@@ -35,7 +35,7 @@ const FAQS = [
   },
   {
     question: "Where can I review my open orders?",
-    answer: "Open orders appear in the lower trading panel. Prediction and P2P orders also have dedicated order pages.",
+    answer: "Open orders appear in the lower trading panel. P2P orders also have a dedicated order page.",
   },
   {
     question: "How do I secure my account?",
@@ -86,7 +86,7 @@ export default function Support() {
           <div className="relative max-w-2xl">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary">
               <CircleHelp className="h-4 w-4" />
-              BitDx Support
+              DEX.ai Support
             </div>
             <h1 className="text-3xl font-black tracking-tight sm:text-4xl">How can we help?</h1>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">

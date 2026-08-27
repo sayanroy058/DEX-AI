@@ -168,7 +168,7 @@ const CopyTrade = () => {
             PRO
           </span>
         </div>
-        <p className="text-muted-foreground text-sm -mt-4">Mirror the best traders on BitDx with one tap.</p>
+        <p className="text-muted-foreground text-sm -mt-4">Mirror the best traders on DEX.ai with one tap.</p>
 
         {/* Top categories */}
         <div className="flex items-center gap-2 border-b border-border/30 pb-1 flex-wrap">

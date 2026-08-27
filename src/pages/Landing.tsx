@@ -14,8 +14,7 @@ export default function Landing() {
   const [walletOpen, setWalletOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const sponsors = [
-    { name: "Binance", logo: "https://logo.clearbit.com/binance.com" },
-    { name: "Coinbase", logo: "https://logo.clearbit.com/coinbase.com" },
+        { name: "Coinbase", logo: "https://logo.clearbit.com/coinbase.com" },
     { name: "Bybit", logo: "https://logo.clearbit.com/bybit.com" },
     { name: "OKX", logo: "https://logo.clearbit.com/okx.com" },
     { name: "Kraken", logo: "https://logo.clearbit.com/kraken.com" },
@@ -30,8 +29,11 @@ export default function Landing() {
     <div className="min-h-screen flex flex-col bg-[#0a0e27]">
       {/* Navigation */}
       <header className="px-6 lg:px-10 h-16 flex items-center justify-between border-b border-glass-border glass-strong sticky top-0 z-30">
-        <Link to="/" className="flex items-center">
-          <img src="/Logo.png" alt="BitDx" className="h-9 w-auto" />
+        <Link to="/" className="flex items-center gap-2">
+          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center shadow-lg">
+            <Zap className="h-5 w-5 text-white" strokeWidth={2.5} />
+          </div>
+          <span className="font-bold text-lg tracking-tight text-white">DEX<span className="text-cyan-400">.ai</span></span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-8 text-sm text-slate-400">
@@ -39,11 +41,9 @@ export default function Landing() {
           <Link to="/markets" className="hover:text-white transition-colors">Market</Link>
           <Link to="/copy" className="hover:text-white transition-colors">Copy</Link>
           <Link to="/prop" className="hover:text-white transition-colors">Prop Firm</Link>
-          <Link to="/prediction" className="hover:text-white transition-colors">Prediction</Link>
           <Link to="/p2p" className="hover:text-white transition-colors">P2P</Link>
           <Link to="/token" className="hover:text-white transition-colors">Token</Link>
           <Link to="/sip" className="hover:text-white transition-colors">SIP/SWP</Link>
-          <Link to="/about" className="hover:text-white transition-colors">About Us</Link>
         </nav>
 
         <div className="flex items-center gap-2">
@@ -68,11 +68,9 @@ export default function Landing() {
           <Link to="/markets" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Market</Link>
           <Link to="/copy" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Copy</Link>
           <Link to="/prop" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Prop Firm</Link>
-          <Link to="/prediction" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Prediction</Link>
           <Link to="/p2p" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>P2P</Link>
           <Link to="/token" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Token</Link>
-          <Link to="/sip" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>SIP/SWP</Link>
-          <Link to="/about" className="text-slate-300 hover:text-white font-medium py-2" onClick={() => setMobileMenuOpen(false)}>About Us</Link>
+          <Link to="/sip" className="text-slate-300 hover:text-white font-medium py-2" onClick={() => setMobileMenuOpen(false)}>SIP/SWP</Link>
         </div>
       )}
 
@@ -150,11 +148,10 @@ export default function Landing() {
 
           {/* Description */}
           <p className="text-base md:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed tracking-wide">
-            Trade Crypto, Forex, Stocks & Commodities with institutional-grade Al intelligence. One platform. Every market. Zero limits.
+            Trade Crypto, Forex, Stocks & Commodities with institutional-grade Al intelligence.
             <br />
-             
-BitDx is your gateway to advanced trading, providing seamless access to global markets with AI-powered tools. Experience security, performance, and innovation — only at BitDx.
-
+            One platform | Every market | Zero limits
+            
           </p>
 
           {/* CTA Buttons */}
@@ -228,7 +225,7 @@ BitDx is your gateway to advanced trading, providing seamless access to global m
           <div className="text-center mb-16 space-y-4">
             <h2 className="text-4xl md:text-5xl font-black text-white">Built for serious traders</h2>
             <p className="text-lg text-slate-400 max-w-2xl mx-auto">
-              FROM FIRST TRADE TO FULL TIME PRO ---- ALL TOOLS INCLUDED
+              FROM FIRST TRADE TO FULL TIME PRO | ALL TOOLS INCLUDED
             </p>
           </div>
 
@@ -266,7 +263,7 @@ BitDx is your gateway to advanced trading, providing seamless access to global m
                 <Shield className="h-6 w-6 text-cyan-400" />
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Self-Custody</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">Connect MetaMask, Coinbase, Trust, Binance, Bitget.</p>
+              <p className="text-slate-400 text-sm leading-relaxed">Connect MetaMask, Coinbase, and Bitget.</p>
             </div>
 
             {/* Multi-Asset */}
@@ -291,7 +288,7 @@ BitDx is your gateway to advanced trading, providing seamless access to global m
       </section>
 
       {/* Mobile App Download Section */}
-      <section className="relative overflow-hidden py-20 px-6 lg:px-10 bg-[#030821]">
+      <section className="hidden relative overflow-hidden py-20 px-6 lg:px-10 bg-[#030821]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_40%,rgba(9,184,255,0.16),transparent_36%),radial-gradient(circle_at_88%_38%,rgba(0,115,255,0.12),transparent_32%)]" />
         <div className="relative max-w-7xl mx-auto flex flex-col lg:grid lg:grid-cols-[1fr_auto_1fr] gap-10 items-center">
           {/* Left Side - Content */}
@@ -533,11 +530,14 @@ BitDx is your gateway to advanced trading, providing seamless access to global m
       <footer className="border-t border-slate-800/70 bg-[#070b20] px-6 py-10 lg:px-10">
         <div className="mx-auto grid max-w-6xl gap-8 grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div className="space-y-4 col-span-2 md:col-span-1">
-            <Link to="/" className="inline-flex items-center">
-              <img src="/Logo.png" alt="BitDx" className="h-10 w-auto" />
+            <Link to="/" className="inline-flex items-center gap-2">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <Zap className="h-5 w-5 text-white" strokeWidth={2.5} />
+              </div>
+              <span className="font-bold text-xl tracking-tight text-white">DEX<span className="text-cyan-400">.ai</span></span>
             </Link>
             <p className="max-w-sm text-sm leading-6 text-slate-400">
-              Multi-asset trading, wallet connectivity, copy strategies, prediction markets, and AI tools in one exchange experience.
+              Multi-asset trading, wallet connectivity, copy strategies, and AI tools in one exchange experience.
             </p>
           </div>
 
@@ -554,7 +554,6 @@ BitDx is your gateway to advanced trading, providing seamless access to global m
           <div>
             <h3 className="mb-4 text-sm font-bold text-white">Products</h3>
             <div className="space-y-3 text-sm text-slate-400">
-              <Link to="/prediction" className="block hover:text-cyan-300 transition-colors">Prediction</Link>
               <Link to="/p2p" className="block hover:text-cyan-300 transition-colors">P2P</Link>
               <Link to="/token" className="block hover:text-cyan-300 transition-colors">Token</Link>
               <Link to="/sip" className="block hover:text-cyan-300 transition-colors">DYP/SWAP</Link>
@@ -564,7 +563,6 @@ BitDx is your gateway to advanced trading, providing seamless access to global m
           <div>
             <h3 className="mb-4 text-sm font-bold text-white">Company</h3>
             <div className="space-y-3 text-sm text-slate-400">
-              <Link to="/about" className="block hover:text-cyan-300 transition-colors">About Us</Link>
               <Link to="/profile" className="block hover:text-cyan-300 transition-colors">Profile</Link>
               <Link to="/refer" className="block hover:text-cyan-300 transition-colors">Refer</Link>
               <Link to="/settings" className="block hover:text-cyan-300 transition-colors">Settings</Link>
@@ -574,22 +572,11 @@ BitDx is your gateway to advanced trading, providing seamless access to global m
         </div>
 
         <div className="mx-auto mt-10 flex max-w-6xl flex-col gap-4 border-t border-slate-800/70 pt-6 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 BitDx. All rights reserved.
-BitDx brings institutional-grade trading technology to everyone, redefining market access.</p>
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <p>© 2026 DEX.ai. All rights reserved.</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
             <a href="#" className="hover:text-cyan-300 transition-colors">Terms</a>
             <a href="#" className="hover:text-cyan-300 transition-colors">Privacy</a>
             <a href="#" className="hover:text-cyan-300 transition-colors">Risk Disclosure</a>
-            <a
-              href="https://www.ibackdigital.media/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold group"
-            >
-              <span className="text-slate-500 group-hover:text-slate-400 transition-colors">An initiative by </span>
-              <span style={{ color: "#4A9ED1" }}>IBACK</span>{" "}
-              <span style={{ color: "#F4791A" }}>Digital Media</span>
-            </a>
           </div>
         </div>
       </footer>
@@ -598,3 +585,4 @@ BitDx brings institutional-grade trading technology to everyone, redefining mark
     </div>
   );
 }
+

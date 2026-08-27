@@ -1,11 +1,12 @@
 import { AppShell } from "@/components/AppShell";
 import { useMarkets } from "@/lib/useMarkets";
 import { formatPrice } from "@/lib/mockData";
-import { Wallet, TrendingUp, ArrowUpRight, ArrowDownRight, PieChart, ArrowDownToLine, ArrowUpFromLine, History, DollarSign, BarChart3, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Wallet, TrendingUp, PieChart, ArrowDownToLine, ArrowUpFromLine, History, DollarSign, BarChart3, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMemo, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TransferDialog } from "@/components/wallet/TransferDialog";
+import { wallet, useWallet } from "@/lib/useWallet";
 
 const HOLDINGS = [
   { symbol: "BTC-PERP", side: "long", size: 0.142, entry: 66120, leverage: 10 },
@@ -43,6 +44,7 @@ const TRANSACTIONS = [
 
 const Portfolio = () => {
   const markets = useMarkets();
+  const walletState = useWallet();
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferMode, setTransferMode] = useState<"deposit" | "withdraw">("deposit");
 
@@ -60,10 +62,27 @@ const Portfolio = () => {
 
   const totalValue = positions.reduce((s, p) => s + p.value, 0);
   const totalPnl = positions.reduce((s, p) => s + p.pnl, 0);
-  const balance = 25000;
-  const equity = balance + totalPnl;
-  const totalFunds = equity + totalValue;
   const totalFrozen = FROZEN_AMOUNT.reduce((sum, item) => sum + item.value, 0);
+  const dbBalances = useMemo(() => {
+    const amountFor = (asset: string) => walletState.balances.find((balance) => balance.asset === asset)?.available ?? 0;
+    const usdc = amountFor("USDC");
+    const usdt = amountFor("USDT");
+    const busd = amountFor("BUSD");
+    const ourToken = amountFor("OUR_Token");
+
+    return {
+      totalFunds: usdc + usdt + busd + ourToken,
+      USDC: usdc,
+      USDT: usdt,
+      BUSD: busd,
+      OUR_Token: ourToken,
+    };
+  }, [walletState.balances]);
+
+  useEffect(() => {
+    if (!walletState.connected) return;
+    wallet.refreshBalances().catch(() => {});
+  }, [walletState.connected]);
 
   return (
     <AppShell>
@@ -84,11 +103,12 @@ const Portfolio = () => {
         </div>
 
         {/* Key stat cards */}
-        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <StatCard label="Total Funds" value={`$${totalFunds.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} sub="Equity + Position Value" icon={DollarSign} highlight />
-          <StatCard label="Available Balance" value={`$${balance.toLocaleString()}`} sub="Ready to trade" icon={Wallet} />
-          <StatCard label="Unrealized PnL" value={`${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(2)}`} sub={`${totalPnl >= 0 ? "+" : ""}${((totalPnl / balance) * 100).toFixed(2)}% return`} icon={totalPnl >= 0 ? ArrowUpRight : ArrowDownRight} tone={totalPnl >= 0 ? "buy" : "sell"} />
-          <StatCard label="Position Value" value={`$${totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} sub={`${positions.length} open positions`} icon={BarChart3} />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+          <StatCard label="Total Funds" value={formatTokenAmount(dbBalances.totalFunds)} sub="USDC + USDT + BUSD + OUR Token" icon={DollarSign} highlight />
+          <StatCard label="USDC" value={formatTokenAmount(dbBalances.USDC)} sub="Available Balance" icon={Wallet} />
+          <StatCard label="USDT" value={formatTokenAmount(dbBalances.USDT)} sub="Available Balance" icon={Wallet} />
+          <StatCard label="BUSD" value={formatTokenAmount(dbBalances.BUSD)} sub="Available Balance" icon={Wallet} />
+          <StatCard label="OUR Token" value={formatTokenAmount(dbBalances.OUR_Token)} sub="Available Balance" icon={Wallet} />
         </div>
 
         {/* Frozen amount allocation */}
@@ -231,6 +251,13 @@ const Portfolio = () => {
     </AppShell>
   );
 };
+
+function formatTokenAmount(value: number) {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: value >= 1 ? 2 : 6,
+  });
+}
 
 function StatCard({ label, value, sub, icon: Icon, tone, highlight }: { label: string; value: string; sub?: string; icon: any; tone?: "buy" | "sell"; highlight?: boolean }) {
   return (

@@ -2,31 +2,46 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { WALLETS, WalletId, wallet, useWallet, shortAddress } from "@/lib/useWallet";
+import { WALLETS, WalletId, wallet, useWallet, shortAddress, getWalletSourceLabel } from "@/lib/useWallet";
 import { cn } from "@/lib/utils";
 import { Loader2, Check, Copy, LogOut, Wallet as WalletIcon, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
-const ICONS: Record<WalletId, string> = {
-  metamask: "🦊",
-  coinbase: "🔵",
-  binance: "🟡",
-  trust: "🛡️",
-  bitget: "🟢",
+const ICONS: Record<WalletId, { src: string; alt: string }> = {
+  metamask: { src: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/MetaMask_Fox.svg/3840px-MetaMask_Fox.svg.png", alt: "MetaMask logo" },
+  coinbase: { src: "https://images.icon-icons.com/2407/PNG/512/coinbase_icon_146203.png", alt: "Coinbase Wallet logo" },
+  bitget: { src: "https://s2.coinmarketcap.com/static/img/coins/200x200/11092.png", alt: "Bitget Wallet logo" },
 };
+
+const SUPPORTED_WALLETS: WalletId[] = ["metamask", "coinbase", "bitget"];
 
 export function WalletDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const w = useWallet();
   const [connecting, setConnecting] = useState<WalletId | null>(null);
 
-  const handleConnect = (id: WalletId) => {
+  const handleConnect = async (id: WalletId) => {
+    if (!SUPPORTED_WALLETS.includes(id)) {
+      toast.error(`${WALLETS.find((x) => x.id === id)?.name ?? "Wallet"} is not supported yet`);
+      return;
+    }
+
     setConnecting(id);
-    setTimeout(() => {
-      wallet.connect(id);
-      setConnecting(null);
-      toast.success(`${WALLETS.find(x => x.id === id)?.name} connected`);
+    try {
+      await wallet.connect(id);
+      toast.success(`${WALLETS.find((x) => x.id === id)?.name} connected`);
       onOpenChange(false);
-    }, 900);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Wallet connection failed";
+      toast.error(message.includes("rejected") ? "Connection rejected by wallet" : message);
+    } finally {
+      setConnecting(null);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    await wallet.disconnect();
+    toast.message("Wallet disconnected");
+    onOpenChange(false);
   };
 
   return (
@@ -35,22 +50,21 @@ export function WalletDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <WalletIcon className="h-4 w-4 text-primary" />
-            {w.connected ? "Wallet" : "Connect a wallet"}
+            {w.connected ? "Wallet connected" : "Connect a wallet"}
           </DialogTitle>
           <DialogDescription>
-            {w.connected
-              ? "Manage your connected wallet."
-              : "Choose your preferred wallet to sign in, deposit, and trade."}
+            {w.connected ? "Manage your connected wallet." : "Choose your preferred wallet to sign in and trade."}
           </DialogDescription>
         </DialogHeader>
 
         {w.connected ? (
           <div className="space-y-3">
             <div className="glass rounded-xl p-4 flex items-center gap-3">
-              <div className="text-2xl">{ICONS[w.walletId!]}</div>
+              <img src={ICONS[w.walletId!].src} alt={ICONS[w.walletId!].alt} className="h-10 w-10 rounded-lg bg-slate-900/70 p-1.5 object-contain" />
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold">{WALLETS.find(x => x.id === w.walletId)?.name}</div>
+                <div className="text-sm font-semibold">{getWalletSourceLabel(w.walletId)}</div>
                 <div className="text-xs font-mono text-muted-foreground truncate">{shortAddress(w.address)}</div>
+                <div className="text-[11px] text-muted-foreground">{w.address}</div>
               </div>
               <Button
                 size="icon"
@@ -61,43 +75,29 @@ export function WalletDialog({ open, onOpenChange }: { open: boolean; onOpenChan
               </Button>
             </div>
 
-            <div className="glass rounded-xl p-3">
-              <div className="text-[11px] uppercase text-muted-foreground mb-2">Balances</div>
-              <div className="space-y-1.5">
-                {w.balances.map(b => (
-                  <div key={b.asset} className="flex justify-between text-sm">
-                    <span className="font-medium">{b.asset}</span>
-                    <span className="font-mono">{b.amount.toLocaleString(undefined, { maximumFractionDigits: 6 })}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => { wallet.disconnect(); toast.message("Wallet disconnected"); onOpenChange(false); }}
-            >
+            <Button variant="outline" className="w-full" onClick={handleDisconnect}>
               <LogOut className="h-3.5 w-3.5 mr-1.5" /> Disconnect
             </Button>
           </div>
         ) : (
           <div className="space-y-2">
-            {WALLETS.map(opt => {
+            {WALLETS.map((opt) => {
               const isConnecting = connecting === opt.id;
+              const isSupported = SUPPORTED_WALLETS.includes(opt.id);
               return (
                 <button
                   key={opt.id}
-                  disabled={!!connecting}
+                  disabled={!!connecting || !isSupported}
                   onClick={() => handleConnect(opt.id)}
                   className={cn(
-                    "w-full glass rounded-xl p-3 flex items-center gap-3 text-left transition-all",
+                    "group w-full glass rounded-xl p-3 flex items-center gap-3 text-left transition-all",
                     "hover:border-primary/40 hover:shadow-[0_0_20px_hsl(var(--primary)/0.15)]",
-                    isConnecting && "border-primary/60"
+                    isConnecting && "border-primary/60",
+                    !isSupported && "opacity-70 cursor-not-allowed hover:border-border hover:shadow-none"
                   )}
                 >
-                  <div className="text-2xl w-10 h-10 rounded-lg glass-strong flex items-center justify-center">
-                    {ICONS[opt.id]}
+                  <div className="text-2xl w-10 h-10 rounded-lg glass-strong flex items-center justify-center overflow-hidden shrink-0">
+                    <img src={ICONS[opt.id].src} alt={ICONS[opt.id].alt} className="h-full w-full object-contain p-1.5" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -110,10 +110,14 @@ export function WalletDialog({ open, onOpenChange }: { open: boolean; onOpenChan
                     </div>
                     <div className="text-[11px] text-muted-foreground">{opt.desc}</div>
                   </div>
-                  {isConnecting ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  {isSupported ? (
+                    isConnecting ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    ) : (
+                      <Check className="h-4 w-4 opacity-0 group-hover:opacity-100 text-primary" />
+                    )
                   ) : (
-                    <Check className="h-4 w-4 opacity-0 group-hover:opacity-100 text-primary" />
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Coming soon</span>
                   )}
                 </button>
               );

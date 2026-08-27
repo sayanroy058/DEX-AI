@@ -3,10 +3,10 @@ import {
   ArrowRight,
   ArrowUpDown,
   CheckCircle2,
-  ChevronDown,
-  Globe2,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { parseUnits } from "viem";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,47 +16,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { swapAssets } from "@/lib/authApi";
+import { wallet, useWallet } from "@/lib/useWallet";
 import { cn } from "@/lib/utils";
 
 interface Token {
-  symbol: string;
+  symbol: "USDC" | "USDT";
   name: string;
   color: string;
   textColor: string;
   icon: string;
 }
 
-type SwapDirection = "stable-to-usdn" | "usdn-to-stable";
-type Balances = Record<string, number>;
+const USDC_TOKEN: Token = { symbol: "USDC", name: "USD Coin", color: "#2775CA", textColor: "#fff", icon: "$" };
+const USDT_TOKEN: Token = { symbol: "USDT", name: "Tether", color: "#26A17B", textColor: "#fff", icon: "₮" };
 
-const STABLE_TOKENS: Token[] = [
-  { symbol: "USDT", name: "Tether", color: "#26A17B", textColor: "#fff", icon: "₮" },
-  { symbol: "USDC", name: "USD Coin", color: "#2775CA", textColor: "#fff", icon: "$" },
-  { symbol: "BUSD", name: "Binance USD", color: "#F0B90B", textColor: "#171717", icon: "B" },
-];
-
-const USDN_TOKEN: Token = {
-  symbol: "USDN",
-  name: "Neutrino USD",
-  color: "#7C3AED",
-  textColor: "#fff",
-  icon: "N",
-};
-
-const INITIAL_BALANCES: Balances = {
-  USDT: 5000,
-  USDC: 2400,
-  BUSD: 1200,
-  USDN: 800,
-};
-
-const USDN_PER_STABLE = 0.9997;
+// Fixed 1:1 test rate, matching the backend's test-only /wallet/swap endpoint
+// (USDC <-> USDT only). Both assets use 6 decimals.
+const SWAP_DECIMALS = 6;
 
 function TokenAvatar({ token, size = 32 }: { token: Token; size?: number }) {
   return (
@@ -77,64 +54,14 @@ function TokenAvatar({ token, size = 32 }: { token: Token; size?: number }) {
   );
 }
 
-function TokenDisplay({
-  token,
-  selectable = false,
-  onSelect,
-}: {
-  token: Token;
-  selectable?: boolean;
-  onSelect?: (token: Token) => void;
-}) {
-  const content = (
-    <span className="flex items-center gap-2">
-      <TokenAvatar token={token} size={34} />
-      <span className="font-bold">{token.symbol}</span>
-      {selectable && <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-    </span>
-  );
-
-  if (!selectable) {
-    return (
-      <div className="flex h-12 items-center rounded-xl border border-border bg-muted/30 px-3">
-        {content}
-      </div>
-    );
-  }
-
+function TokenDisplay({ token }: { token: Token }) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="flex h-12 items-center rounded-xl border border-transparent bg-muted/30 px-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label={`Select token, currently ${token.symbol}`}
-        >
-          {content}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="start"
-        className="w-52 border-glass-border bg-popover/95 p-1.5 backdrop-blur-xl"
-      >
-        {STABLE_TOKENS.map((option) => (
-          <DropdownMenuItem
-            key={option.symbol}
-            onSelect={() => onSelect?.(option)}
-            className={cn(
-              "flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5",
-              option.symbol === token.symbol && "bg-primary/10 text-primary",
-            )}
-          >
-            <TokenAvatar token={option} size={28} />
-            <span>
-              <span className="block text-sm font-semibold leading-none">{option.symbol}</span>
-              <span className="mt-1 block text-[10px] text-muted-foreground">{option.name}</span>
-            </span>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex h-12 items-center rounded-xl border border-border bg-muted/30 px-3">
+      <span className="flex items-center gap-2">
+        <TokenAvatar token={token} size={34} />
+        <span className="font-bold">{token.symbol}</span>
+      </span>
+    </div>
   );
 }
 
@@ -152,7 +79,7 @@ function amountForInput(value: number) {
 function sanitizeAmount(value: string) {
   const cleaned = value.replace(/[^\d.]/g, "");
   const [whole = "", ...decimalParts] = cleaned.split(".");
-  const decimal = decimalParts.join("").slice(0, 8);
+  const decimal = decimalParts.join("").slice(0, SWAP_DECIMALS);
   return decimalParts.length > 0 ? `${whole}.${decimal}` : whole;
 }
 
@@ -163,21 +90,19 @@ export function SwapDialog({
   open: boolean;
   onOpenChange: (value: boolean) => void;
 }) {
-  const [direction, setDirection] = useState<SwapDirection>("stable-to-usdn");
-  const [stableToken, setStableToken] = useState(STABLE_TOKENS[0]);
+  const [reversed, setReversed] = useState(false);
   const [amount, setAmount] = useState("");
-  const [balances, setBalances] = useState<Balances>(INITIAL_BALANCES);
+  const [submitting, setSubmitting] = useState(false);
+  const { balances } = useWallet();
 
-  const isStableToUsdn = direction === "stable-to-usdn";
-  const fromToken = isStableToUsdn ? stableToken : USDN_TOKEN;
-  const toToken = isStableToUsdn ? USDN_TOKEN : stableToken;
+  const fromToken = reversed ? USDT_TOKEN : USDC_TOKEN;
+  const toToken = reversed ? USDC_TOKEN : USDT_TOKEN;
   const numericAmount = Number.parseFloat(amount) || 0;
-  const outputAmount = isStableToUsdn
-    ? numericAmount * USDN_PER_STABLE
-    : numericAmount / USDN_PER_STABLE;
-  const fromBalance = balances[fromToken.symbol] ?? 0;
+  // Fixed 1:1 test rate.
+  const outputAmount = numericAmount;
+  const fromBalance = balances.find((b) => b.asset === fromToken.symbol)?.available ?? 0;
   const insufficient = numericAmount > fromBalance;
-  const canSwap = numericAmount > 0 && !insufficient;
+  const canSwap = numericAmount > 0 && !insufficient && !submitting;
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) setAmount("");
@@ -185,21 +110,15 @@ export function SwapDialog({
   };
 
   const handleDirectionChange = () => {
-    setDirection((current) => (
-      current === "stable-to-usdn" ? "usdn-to-stable" : "stable-to-usdn"
-    ));
+    setReversed((current) => !current);
     setAmount(outputAmount > 0 ? amountForInput(outputAmount) : "");
-  };
-
-  const handleStableTokenChange = (token: Token) => {
-    setStableToken(token);
   };
 
   const handleMax = () => {
     setAmount(amountForInput(fromBalance));
   };
 
-  const handleSwap = () => {
+  const handleSwap = async () => {
     if (numericAmount <= 0) {
       toast.error("Enter a valid amount");
       return;
@@ -209,15 +128,20 @@ export function SwapDialog({
       return;
     }
 
-    setBalances((current) => ({
-      ...current,
-      [fromToken.symbol]: Math.max(0, current[fromToken.symbol] - numericAmount),
-      [toToken.symbol]: (current[toToken.symbol] ?? 0) + outputAmount,
-    }));
-    toast.success("Swap completed", {
-      description: `${formatAmount(numericAmount)} ${fromToken.symbol} to ${formatAmount(outputAmount)} ${toToken.symbol}`,
-    });
-    handleOpenChange(false);
+    setSubmitting(true);
+    try {
+      const amountRaw = parseUnits(amount, SWAP_DECIMALS).toString();
+      await swapAssets(fromToken.symbol, toToken.symbol, amountRaw);
+      await wallet.refreshBalances();
+      toast.success("Swap completed", {
+        description: `${formatAmount(numericAmount)} ${fromToken.symbol} to ${formatAmount(outputAmount)} ${toToken.symbol}`,
+      });
+      handleOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Swap failed");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -229,7 +153,7 @@ export function SwapDialog({
             Swap
           </DialogTitle>
           <DialogDescription className="sr-only">
-            Swap between supported stablecoins and USDN.
+            Swap between USDC and USDT at a fixed 1:1 test rate.
           </DialogDescription>
         </DialogHeader>
 
@@ -253,16 +177,11 @@ export function SwapDialog({
                 <span className="truncate">
                   Available: <span className="font-mono">{formatAmount(fromBalance)} {fromToken.symbol}</span>
                 </span>
-                <Globe2 className="h-3.5 w-3.5 shrink-0 text-primary" />
               </button>
             </div>
 
             <div className="flex items-center gap-3">
-              <TokenDisplay
-                token={fromToken}
-                selectable={isStableToUsdn}
-                onSelect={handleStableTokenChange}
-              />
+              <TokenDisplay token={fromToken} />
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <input
                   type="text"
@@ -314,11 +233,7 @@ export function SwapDialog({
               To
             </div>
             <div className="flex items-center gap-3">
-              <TokenDisplay
-                token={toToken}
-                selectable={!isStableToUsdn}
-                onSelect={handleStableTokenChange}
-              />
+              <TokenDisplay token={toToken} />
               <div className="min-w-0 flex-1 truncate text-right font-mono text-2xl font-bold">
                 <span className={outputAmount > 0 ? "text-foreground" : "text-muted-foreground/40"}>
                   {outputAmount > 0 ? formatAmount(outputAmount) : "0"}
@@ -329,10 +244,7 @@ export function SwapDialog({
 
           {numericAmount > 0 && (
             <div className="text-center font-mono text-[11px] text-muted-foreground">
-              1 {fromToken.symbol} ≈{" "}
-              {isStableToUsdn
-                ? `${USDN_PER_STABLE.toFixed(4)} USDN`
-                : `${(1 / USDN_PER_STABLE).toFixed(4)} ${stableToken.symbol}`}
+              1 {fromToken.symbol} ≈ 1.0000 {toToken.symbol} (fixed test rate)
             </div>
           )}
 
@@ -361,6 +273,11 @@ export function SwapDialog({
               "Enter Amount"
             ) : insufficient ? (
               "Insufficient Balance"
+            ) : submitting ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Swapping...
+              </span>
             ) : (
               <span className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4" />

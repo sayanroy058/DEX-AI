@@ -429,7 +429,7 @@ export default function Token() {
             </div>
 
             {[
-              { title: "Product", links: ["Spot","Futures","Options","Copy Trading","Prediction"] },
+              { title: "Product", links: ["Spot","Futures","Options","Copy Trading"] },
               { title: "Company",  links: ["About","Careers","Blog","Press","Contact"] },
               { title: "Legal",    links: ["Terms","Privacy","Cookies","Disclosures","Risk"] },
             ].map(col => (
@@ -445,7 +445,7 @@ export default function Token() {
           </div>
 
           <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-4 border-t border-border/50">
-            <span>© 2026 BitDx · All rights reserved · v3.2.1</span>
+            <span>© 2026 DEX.ai · All rights reserved · v3.2.1</span>
             <span className="flex items-center gap-1.5">
               Contract: <span className="font-mono">0x5f…4218</span>
             </span>

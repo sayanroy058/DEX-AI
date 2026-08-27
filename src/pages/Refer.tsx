@@ -66,13 +66,13 @@ export default function Refer() {
           <div>
             <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Share via</div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" className="glass gap-1.5 text-xs" onClick={() => window.open(`https://twitter.com/intent/tweet?text=Trade+on+BitDx+with+my+referral+code+${code}+and+get+10%25+discount!&url=${encodeURIComponent(link)}`)}>
+              <Button variant="outline" size="sm" className="glass gap-1.5 text-xs" onClick={() => window.open(`https://twitter.com/intent/tweet?text=Trade+on+DEX.ai+with+my+referral+code+${code}+and+get+10%25+discount!&url=${encodeURIComponent(link)}`)}>
                 <Twitter className="h-3.5 w-3.5 text-[#1DA1F2]" /> Twitter
               </Button>
               <Button variant="outline" size="sm" className="glass gap-1.5 text-xs" onClick={() => toast.success("Share via Telegram")}>
                 <Send className="h-3.5 w-3.5 text-[#26A5E4]" /> Telegram
               </Button>
-              <Button variant="outline" size="sm" className="glass gap-1.5 text-xs" onClick={() => { if (navigator.share) navigator.share({ title: "BitDx Referral", url: link }); else copy(link, "Link"); }}>
+              <Button variant="outline" size="sm" className="glass gap-1.5 text-xs" onClick={() => { if (navigator.share) navigator.share({ title: "DEX.ai Referral", url: link }); else copy(link, "Link"); }}>
                 <Share2 className="h-3.5 w-3.5" /> Share
               </Button>
             </div>
