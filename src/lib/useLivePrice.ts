@@ -1,5 +1,6 @@
 import { useMarket } from "./useMarkets";
 import { useIndexPrice } from "./useIndexPrice";
+import { usePriceFetcherPrice } from "./usePriceFetcher";
 import { backendMarketFor } from "./backendMarkets";
 
 // The single "what price is this symbol at right now" answer for the trade
@@ -24,10 +25,14 @@ import { backendMarketFor } from "./backendMarkets";
 export function useLivePrice(symbol: string): number {
   const market = useMarket(symbol);
   const index = useIndexPrice(market?.base);
+  // Direct read of price-fetcher's own /healthz — no backend in between.
+  // This is the most reliable source since it doesn't depend on the engine,
+  // trade-auth, or bots-api services being deployed/reachable at all.
+  const direct = usePriceFetcherPrice(market?.base);
   // The external index is the authoritative displayed reference for both
   // executable and display-only markets. The executable order book is quoted
   // around this value, but its tick-rounded bid/ask midpoint can differ by a
   // fraction of a tick; showing the index avoids that presentation drift.
-  if (backendMarketFor(symbol)) return index?.lastPrice ?? market?.price ?? 0;
-  return index?.lastPrice ?? market?.price ?? 0;
+  if (backendMarketFor(symbol)) return direct?.last ?? index?.lastPrice ?? market?.price ?? 0;
+  return direct?.last ?? index?.lastPrice ?? market?.price ?? 0;
 }

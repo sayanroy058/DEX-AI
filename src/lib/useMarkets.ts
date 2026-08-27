@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { INITIAL_MARKETS, Market, tickPrice } from "./mockData";
 import { backendMarketFor } from "./backendMarkets";
 import { getMarketSummary } from "./apiClient";
+import { usePriceFetcherAssets } from "./usePriceFetcher";
 
 // Singleton-style hook that simulates a websocket price feed
 let listeners: Set<(m: Market[]) => void> = new Set();
@@ -77,7 +78,18 @@ export function useMarkets() {
     listeners.add(setData);
     return () => { listeners.delete(setData); };
   }, []);
-  return data;
+
+  // Overlay price-fetcher's own /healthz prices directly (no backend in
+  // between) for any market whose base it tracks. This is the most reliable
+  // source since it doesn't depend on the engine/trade-auth/bots-api
+  // services being deployed at all — see usePriceFetcher.ts.
+  const direct = usePriceFetcherAssets();
+  if (Object.keys(direct).length === 0) return data;
+  return data.map(m => {
+    const a = direct[m.base];
+    if (!a || !(a.last > 0)) return m;
+    return { ...m, price: a.last, dataStatus: "live" as const, updatedAt: Date.parse(a.updatedAt) };
+  });
 }
 
 export function useMarket(symbol: string) {

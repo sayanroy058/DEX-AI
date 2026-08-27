@@ -3,6 +3,7 @@ import { useMarket } from "@/lib/useMarkets";
 import { formatCompact, formatPrice } from "@/lib/mockData";
 import { useIndexPrice } from "@/lib/useIndexPrice";
 import { useLivePrice } from "@/lib/useLivePrice";
+import { usePriceFetcherPrice } from "@/lib/usePriceFetcher";
 import { useTicker } from "@/lib/useTicker";
 import { backendMarketFor } from "@/lib/backendMarkets";
 import { TrendingUp, TrendingDown, Bot, Sparkles, Calculator, RotateCcw, Repeat } from "lucide-react";
@@ -23,6 +24,7 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
   // Not gated to crypto — price-fetcher's real feed also covers every
   // forex/commodity/stock base still in INITIAL_MARKETS (see mockData.ts).
   const index = useIndexPrice(market?.base);
+  const direct = usePriceFetcherPrice(market?.base);
   const livePrice = useLivePrice(symbol);
   const backendMarket = backendMarketFor(symbol);
   const ticker = useTicker(backendMarket?.symbol, backendMarket?.market);
@@ -33,8 +35,11 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
   // For executable crypto markets the Price-Fetcher index is authoritative,
   // including the headline price/stats. This keeps the large displayed price,
   // Mark and Index identical instead of mixing an empty engine midpoint with
-  // a valid external reference.
-  const externalIndex = index?.fresh && index.lastPrice > 0 ? index.lastPrice : 0;
+  // a valid external reference. Prefer the direct /healthz read (no backend
+  // dependency) over the bots-api-proxied index when both are available.
+  const externalIndex = direct && direct.last > 0
+    ? direct.last
+    : index?.fresh && index.lastPrice > 0 ? index.lastPrice : 0;
   const displayedPrice = externalIndex || livePrice;
   const liveChange = externalIndex ? (index?.changePercent ?? market.change24h) : market.change24h;
   const liveVolume = externalIndex ? (index?.quoteVolume ?? market.volume24h) : market.volume24h;
