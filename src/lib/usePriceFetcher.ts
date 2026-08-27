@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 
-// Fetches straight from the hosted price-fetcher's /healthz endpoint, no
-// backend in between. Covers BTC/ETH/SOL/BNB (crypto), EURUSD/GBPUSD/AUDUSD
-// (forex), GOLD/SILVER/CrudeOIL (commodity), and AAPL.us/TSLA.us/NVDA.us
-// (stocks) — see mockData.ts for the full list this service tracks.
-const PRICE_FETCHER_URL = "https://price-fetcher-api.onrender.com/healthz";
+// Fetches the hosted price-fetcher's /healthz data via our own /api/prices
+// serverless proxy (see api/prices.ts) rather than calling price-fetcher
+// directly — price-fetcher sends no CORS headers, so the browser blocks a
+// direct cross-origin fetch to it. Covers BTC/ETH/SOL/BNB (crypto),
+// EURUSD/GBPUSD/AUDUSD (forex), GOLD/SILVER/CrudeOIL (commodity), and
+// AAPL.us/TSLA.us/NVDA.us (stocks) — see mockData.ts for the full list.
+const PRICE_FETCHER_URL = "/api/prices";
 
 export type PriceFetcherAsset = {
   last: number;

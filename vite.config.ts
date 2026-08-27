@@ -11,6 +11,16 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      // Local dev has no Vercel edge runtime for api/prices.ts, so proxy
+      // straight to price-fetcher here (server-to-server, no CORS applies).
+      // Production uses the /api/prices serverless function instead.
+      "/api/prices": {
+        target: "https://price-fetcher-api.onrender.com",
+        changeOrigin: true,
+        rewrite: () => "/healthz",
+      },
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
