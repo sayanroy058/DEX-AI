@@ -10,6 +10,7 @@ import { WalletDialog } from "@/components/wallet/WalletDialog";
 import { TransferDialog } from "@/components/wallet/TransferDialog";
 import { useWallet, shortAddress, getWalletSourceLabel } from "@/lib/useWallet";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import logo from "@/assets/logo.png";
 
 const navItems = [
   { to: "/trade", icon: LineChart, label: "Trade" },
@@ -42,11 +43,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen w-full flex flex-col">
       <header className="h-14 px-3 sm:px-4 flex items-center gap-1 sm:gap-2 glass-strong border-b border-glass-border z-30 sticky top-0 overflow-hidden">
         <Link to="/" className="flex items-center gap-1.5 shrink-0">
-          <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow-primary shrink-0">
-            <Zap className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
-          </div>
-          <span className="font-bold text-base sm:text-lg tracking-tight">
-            DEX<span className="gradient-text">.ai</span>
+          <img src={logo} alt="BitDx logo" className="h-8 w-8 rounded-lg shadow-glow-primary shrink-0 object-contain" />
+          <span className="font-bold text-base sm:text-lg tracking-tight text-white">
+            BitDx
           </span>
         </Link>
 
@@ -132,7 +131,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <DropdownMenuContent align="end" className="glass-strong border-glass-border w-64">
             <div className="px-2 py-2">
               <div className="text-sm font-semibold">{w.connected ? shortAddress(w.address) : "Anonymous Trader"}</div>
-              <div className="text-[11px] text-muted-foreground">{w.connected ? getWalletSourceLabel(w.walletId) : "trader@dex.ai"}</div>
+              <div className="text-[11px] text-muted-foreground">{w.connected ? getWalletSourceLabel(w.walletId) : "trader@bitdx.ai"}</div>
             </div>
             <DropdownMenuSeparator />
             <div className="px-2 py-2">

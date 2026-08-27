@@ -157,7 +157,7 @@ export default function Profile() {
           <div className="flex-1 text-center md:text-left">
             <h1 className="text-2xl font-bold">{w.connected ? shortAddress(w.address) : "Anonymous Trader"}</h1>
             <div className="text-sm text-muted-foreground flex items-center gap-2 justify-center md:justify-start mt-1">
-              <Mail className="h-3 w-3" /> trader@dex.ai
+              <Mail className="h-3 w-3" /> trader@bitdx.ai
             </div>
             <div className="flex flex-wrap gap-2 mt-3 justify-center md:justify-start">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] bg-primary/15 text-primary border border-primary/30">
@@ -177,7 +177,7 @@ export default function Profile() {
           <div className="glass rounded-xl p-5">
             <h3 className="font-bold mb-3">Account</h3>
             <Row k="Username" v="trader_one" />
-            <Row k="Email" v="trader@dex.ai" />
+            <Row k="Email" v="trader@bitdx.ai" />
             {/* <Row k="Member Since" v={memberSince} /> */}
             <Row k="2FA" v="Enabled" />
             <Row k="Wallet" v={w.connected ? shortAddress(w.address) : "Not connected"} />

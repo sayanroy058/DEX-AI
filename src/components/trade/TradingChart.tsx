@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { INITIAL_MARKETS } from "@/lib/mockData";
 import { createBinanceDatafeed } from "@/lib/binanceDatafeed";
 
@@ -63,8 +63,32 @@ declare global {
 // silently reusing the wrong one.
 let loadedVariant: "advanced" | "embed" | null = null;
 let advancedLibScriptPromise: Promise<void> | null = null;
+let embedScriptEl: HTMLScriptElement | null = null;
+let advancedLibScriptEl: HTMLScriptElement | null = null;
+
+// The two script tags mutate the same `window.TradingView` global and
+// cannot coexist (see note below) — switching asset classes mid-session
+// must fully discard whichever variant is currently loaded (both its
+// script tag and the cached load promise) before the other can load, or
+// the new script's init runs against a global left half-clobbered by the
+// old one, corrupting the still-live widget it's replacing (surfaced as
+// "FEED [...]: Destroying with not-empty state" from the old widget and a
+// "Cannot read properties of null (reading 'parentNode')" crash from the
+// new one).
+function discardLoadedVariant() {
+  window.TradingView = undefined;
+  advancedLibScriptPromise = null;
+  tvScriptPromise = null;
+  advancedLibScriptEl?.remove();
+  advancedLibScriptEl = null;
+  embedScriptEl?.remove();
+  embedScriptEl = null;
+  loadedVariant = null;
+}
+
 function loadAdvancedChartingLibrary(): Promise<void> {
-  if (loadedVariant === "advanced") return Promise.resolve();
+  if (loadedVariant === "advanced") return advancedLibScriptPromise!;
+  if (loadedVariant === "embed") discardLoadedVariant();
   advancedLibScriptPromise = new Promise((resolve, reject) => {
     const script = document.createElement("script");
     script.src = "/charting_library/charting_library.standalone.js";
@@ -74,6 +98,7 @@ function loadAdvancedChartingLibrary(): Promise<void> {
       resolve();
     };
     script.onerror = reject;
+    advancedLibScriptEl = script;
     document.head.appendChild(script);
   });
   return advancedLibScriptPromise;
@@ -90,7 +115,8 @@ function loadAdvancedChartingLibrary(): Promise<void> {
 
 let tvScriptPromise: Promise<void> | null = null;
 function loadTradingViewEmbedScript(): Promise<void> {
-  if (loadedVariant === "embed") return Promise.resolve();
+  if (loadedVariant === "embed") return tvScriptPromise!;
+  if (loadedVariant === "advanced") discardLoadedVariant();
   tvScriptPromise = new Promise((resolve, reject) => {
     const script = document.createElement("script");
     script.src = "https://s3.tradingview.com/tv.js";
@@ -100,6 +126,7 @@ function loadTradingViewEmbedScript(): Promise<void> {
       resolve();
     };
     script.onerror = reject;
+    embedScriptEl = script;
     document.head.appendChild(script);
   });
   return tvScriptPromise;
@@ -111,6 +138,12 @@ function ChartPane({ symbol, timeframe }: { symbol: string; timeframe: string })
   const isCrypto = marketFor(symbol)?.asset === "crypto" || !marketFor(symbol);
   const base = (marketFor(symbol)?.base ?? symbol.split("-")[0]).toUpperCase();
   const tvSymbol = toTradingViewSymbol(symbol);
+  // useId gives a stable id across re-renders (unlike a counter/random value
+  // generated in the render body) without ever colliding with another
+  // ChartPane's id — tv.js's embed widget looks its container up by id
+  // string (container_id), not a DOM element reference, so it needs one.
+  const reactId = useId();
+  const containerId = `tv-embed-${reactId.replace(/:/g, "")}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -134,13 +167,13 @@ function ChartPane({ symbol, timeframe }: { symbol: string; timeframe: string })
       hide_top_toolbar: false,
       hide_legend: false,
       hide_side_toolbar: false,
-      // Pass the DOM element directly rather than an id string for the
-      // widget to look up itself (the previous `container_id: widgetId`
-      // approach threw "There is no such element - #" — the id-based
-      // lookup wasn't finding the container reliably). `container` accepts
-      // `HTMLElement | string` per charting_library.d.ts; passing the
-      // element we already hold via containerRef sidesteps the lookup
-      // entirely.
+      // Advanced Charting Library path: pass the DOM element directly
+      // (`container` accepts `HTMLElement | string` per
+      // charting_library.d.ts). The free tv.js embed path below strips this
+      // back out in favor of container_id — a previous container_id attempt
+      // failed with "There is no such element - #" only because the id it
+      // referenced was never actually set on the container's JSX (see
+      // containerId/useId above), not because tv.js can't take an id.
       container,
       disabled_features: [
         "header_compare",
@@ -164,10 +197,18 @@ function ChartPane({ symbol, timeframe }: { symbol: string; timeframe: string })
         });
       });
     } else {
+      // tv.js's free embed widget resolves its container by id string at
+      // construction time rather than accepting the DOM element directly —
+      // pass container_id (and drop the element-based `container` option,
+      // which this widget doesn't understand) with the id set on the JSX
+      // node below.
+      const { container: _container, ...embedOptions } = commonOptions;
       loadTradingViewEmbedScript().then(() => {
         if (cancelled || !window.TradingView) return;
+        if (!document.getElementById(containerId)) return;
         widgetRef.current = new window.TradingView.widget({
-          ...commonOptions,
+          ...embedOptions,
+          container_id: containerId,
           symbol: tvSymbol,
           studies: ["Volume@tv-basicstudies"],
         });
@@ -188,7 +229,7 @@ function ChartPane({ symbol, timeframe }: { symbol: string; timeframe: string })
     };
   }, [isCrypto, base, tvSymbol, timeframe]);
 
-  return <div ref={containerRef} className="h-full w-full" />;
+  return <div ref={containerRef} id={containerId} className="h-full w-full" />;
 }
 
 const LAYOUTS = [

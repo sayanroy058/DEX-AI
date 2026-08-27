@@ -51,7 +51,7 @@ export default function AdminMarketMakers() {
       .finally(() => setLoading(false));
 
   useEffect(() => {
-    document.title = "Market Makers | DEX.ai";
+    document.title = "Market Makers | BitDx";
     load();
     // Live refresh: unrealized P/L moves with the index.
     const t = setInterval(load, 4000);

@@ -23,7 +23,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <Zap className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
           </div>
           <div className="leading-tight">
-            <div className="font-bold text-base tracking-tight">DEX<span className="gradient-text">.ai</span></div>
+            <div className="font-bold text-base tracking-tight text-white">BitDx</div>
             <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Admin</div>
           </div>
         </Link>
@@ -45,7 +45,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           <DropdownMenuContent align="end" className="glass-strong border-glass-border w-64">
             <div className="px-2 py-2">
               <div className="text-sm font-semibold">{session?.user.name ?? "DEX Admin"}</div>
-              <div className="text-[11px] text-muted-foreground">{session?.user.email ?? "admin@dex.ai"}</div>
+              <div className="text-[11px] text-muted-foreground">{session?.user.email ?? "admin@bitdx.ai"}</div>
             </div>
             <DropdownMenuSeparator />
             <div className="px-2 py-2">

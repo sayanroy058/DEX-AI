@@ -416,7 +416,7 @@ export default function Token() {
                 <div className="h-7 w-7 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow-primary">
                   <Zap className="h-3.5 w-3.5 text-primary-foreground" strokeWidth={2.5} />
                 </div>
-                <span className="font-bold">DEX<span className="gradient-text">.ai</span></span>
+                <span className="font-bold text-white">BitDx</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed max-w-[200px]">
                 The all-in-one decentralized exchange for crypto, commodities, forex, and stocks. Built for the next billion traders.
@@ -445,7 +445,7 @@ export default function Token() {
           </div>
 
           <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-4 border-t border-border/50">
-            <span>© 2026 DEX.ai · All rights reserved · v3.2.1</span>
+            <span>© 2026 BitDx · All rights reserved · v3.2.1</span>
             <span className="flex items-center gap-1.5">
               Contract: <span className="font-mono">0x5f…4218</span>
             </span>

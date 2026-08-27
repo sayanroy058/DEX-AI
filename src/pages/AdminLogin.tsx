@@ -15,7 +15,7 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    document.title = "Admin Login | DEX.ai";
+    document.title = "Admin Login | BitDx";
   }, []);
 
   if (isAuthenticated()) {
@@ -49,7 +49,7 @@ export default function AdminLogin() {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Admin Login</h1>
-            <p className="text-sm text-muted-foreground">Sign in to manage DEX.ai operations</p>
+            <p className="text-sm text-muted-foreground">Sign in to manage BitDx operations</p>
           </div>
         </div>
 

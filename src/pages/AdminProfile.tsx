@@ -17,7 +17,7 @@ export default function AdminProfile() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    document.title = "Admin Profile | DEX.ai";
+    document.title = "Admin Profile | BitDx";
     getAdminProfile()
       .then((next) => {
         setProfile(next);

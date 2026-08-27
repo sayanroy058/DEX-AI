@@ -72,7 +72,7 @@ export default function Support() {
     }
 
     toast.success("Support request submitted", {
-      description: "A support specialist will reply to trader@dex.ai.",
+      description: "A support specialist will reply to trader@bitdx.ai.",
     });
     setSubject("");
     setMessage("");
@@ -86,7 +86,7 @@ export default function Support() {
           <div className="relative max-w-2xl">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary">
               <CircleHelp className="h-4 w-4" />
-              DEX.ai Support
+              BitDx Support
             </div>
             <h1 className="text-3xl font-black tracking-tight sm:text-4xl">How can we help?</h1>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -207,7 +207,7 @@ export default function Support() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-muted-foreground"><Mail className="h-4 w-4" /> Email</span>
-                  <span className="font-semibold">support@dex.ai</span>
+                  <span className="font-semibold">support@bitdx.ai</span>
                 </div>
               </div>
             </section>

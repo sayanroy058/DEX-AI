@@ -12,6 +12,7 @@ export function useOrderBook(symbol: string, market: string, levels = 20) {
   const [asks, setAsks] = useState<OrderBookLevel[]>([]);
 
   const refresh = useCallback(() => {
+    if (!symbol || !market) return;
     getDepth(symbol, market, levels)
       .then((res) => {
         setBids(res.bids.map(toLevel));
@@ -35,6 +36,7 @@ export function useRecentTrades(symbol: string, market: string, limit = 30) {
   const [trades, setTrades] = useState<Trade[]>([]);
 
   useEffect(() => {
+    if (!symbol || !market) return;
     let cancelled = false;
     getTrades(symbol, market, limit)
       .then((res) => {

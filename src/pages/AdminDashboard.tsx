@@ -24,7 +24,7 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    document.title = "Admin Dashboard | DEX.ai";
+    document.title = "Admin Dashboard | BitDx";
     load();
   }, []);
 
