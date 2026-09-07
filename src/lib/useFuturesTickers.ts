@@ -12,7 +12,8 @@ import type { Ticker } from "./useTicker";
 // that was the only source for the liquidation-price preview and could
 // silently drift from the real symbol_configs value.
 
-const POLL_MS = 5000;
+const BASE_POLL_MS = 15000;
+const MAX_POLL_MS = 120000;
 
 function toTicker(res: Awaited<ReturnType<typeof getTicker>>): Ticker {
   const num = (s: string | undefined) => {
@@ -51,28 +52,44 @@ export function useFuturesTickers(): Record<string, Ticker> {
     if (symbols.length === 0) return;
 
     let cancelled = false;
+    // Backing off together (one shared delay, not per-symbol) keeps this
+    // batch poller's failure behavior simple: any failure this round pushes
+    // the whole next round out, so a downed backend doesn't get hit by 13
+    // symbols' worth of requests every tick indefinitely.
+    let delay = BASE_POLL_MS;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
     const pollOne = async ({ symbol, market }: { symbol: string; market: string }) => {
       try {
         const res = await getTicker(symbol, market);
         if (cancelled) return;
         setTickers((prev) => ({ ...prev, [symbol]: toTicker(res) }));
+        return true;
       } catch {
         // Symbol not registered or transient network error: leave whatever
         // was last known (if anything) in place, retry next tick.
+        return false;
       }
     };
 
-    const pollAll = () => {
-      symbols.forEach((s) => void pollOne(s));
+    const scheduleNext = () => {
+      if (cancelled) return;
+      timer = setTimeout(pollAll, delay);
     };
 
-    pollAll();
-    const id = setInterval(pollAll, POLL_MS);
+    const pollAll = async () => {
+      const results = await Promise.all(symbols.map((s) => pollOne(s)));
+      if (cancelled) return;
+      const anyOk = results.some(Boolean);
+      delay = anyOk ? BASE_POLL_MS : Math.min(delay * 2, MAX_POLL_MS);
+      scheduleNext();
+    };
+
+    void pollAll();
     return () => {
       cancelled = true;
       mountedRef.current = false;
-      clearInterval(id);
+      if (timer) clearTimeout(timer);
     };
   }, []);
 

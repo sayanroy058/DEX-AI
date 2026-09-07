@@ -7,7 +7,10 @@ import { getMarketSummary } from "./apiClient";
 let listeners: Set<(m: Market[]) => void> = new Set();
 let markets: Market[] = INITIAL_MARKETS.map(m => ({ ...m }));
 let simulationInterval: ReturnType<typeof setInterval> | null = null;
-let summaryInterval: ReturnType<typeof setInterval> | null = null;
+let summaryTimer: ReturnType<typeof setTimeout> | null = null;
+const SUMMARY_BASE_MS = 15000;
+const SUMMARY_MAX_MS = 120000;
+let summaryDelay = SUMMARY_BASE_MS;
 
 function publish() {
   listeners.forEach(l => l(markets));
@@ -20,9 +23,9 @@ function setExecutableMarketsUnavailable() {
   );
 }
 
-async function refreshExecutableMarkets() {
+async function refreshExecutableMarkets(): Promise<boolean> {
   const executable = markets.filter(m => backendMarketFor(m.symbol));
-  await Promise.all(executable.map(async (market) => {
+  const results = await Promise.all(executable.map(async (market) => {
     const backend = backendMarketFor(market.symbol)!;
     try {
       const summary = await getMarketSummary(backend.symbol, backend.market);
@@ -39,6 +42,7 @@ async function refreshExecutableMarkets() {
         dataStatus: "live" as const,
         updatedAt,
       });
+      return true;
     } catch {
       markets = markets.map(m => {
         if (m.symbol !== market.symbol) return m;
@@ -47,9 +51,11 @@ async function refreshExecutableMarkets() {
         if (m.dataStatus === "live") return { ...m, dataStatus: "stale" as const };
         return { ...m, dataStatus: "unavailable" as const };
       });
+      return false;
     }
   }));
   publish();
+  return results.some(Boolean);
 }
 
 function start() {
@@ -66,8 +72,16 @@ function start() {
     });
     publish();
   }, 1500);
-  void refreshExecutableMarkets();
-  summaryInterval = setInterval(() => { void refreshExecutableMarkets(); }, 5000);
+  const runSummary = () => {
+    void refreshExecutableMarkets().then((anyOk) => {
+      // Back off together on a shared delay when every symbol fails (e.g. the
+      // backend is down), so a persistent outage doesn't keep hitting it
+      // every 15s for as many symbols as are executable, forever.
+      summaryDelay = anyOk ? SUMMARY_BASE_MS : Math.min(summaryDelay * 2, SUMMARY_MAX_MS);
+      summaryTimer = setTimeout(runSummary, summaryDelay);
+    });
+  };
+  runSummary();
 }
 
 export function useMarkets() {
