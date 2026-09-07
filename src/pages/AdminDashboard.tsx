@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, BarChart3, Clock, Database, Landmark, Loader2, Users, Wallet } from "lucide-react";
+import { Activity, BarChart3, Clock, Database, Landmark, Loader2, Users, Wallet, type LucideIcon } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,12 +48,13 @@ export default function AdminDashboard() {
 
         {error && <div className="rounded-lg border border-sell/30 bg-sell/10 px-3 py-2 text-sm text-sell">{error}</div>}
 
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
           <Stat label="Total Users" value={formatNumber(data?.totalUsers)} icon={Users} />
           <Stat label="Active 24h" value={formatNumber(data?.activeUsers24h)} icon={Activity} tone="buy" />
           <Stat label="Open Sessions" value={formatNumber(data?.openSessions)} icon={Clock} />
           <Stat label="Ledger Entries" value={formatNumber(data?.totalLedgerEntries)} icon={Database} />
           <Stat label="Pending Withdrawals" value={formatNumber(data?.pendingWithdrawals)} icon={Wallet} tone={data?.pendingWithdrawals ? "sell" : undefined} />
+          <Stat label="P2P Fee Wallet" value={`${formatBIUSDRaw(data?.p2pFeeWalletRaw)} BIUSD`} icon={Wallet} tone="buy" />
         </div>
 
         <div className="grid lg:grid-cols-3 gap-5">
@@ -170,7 +171,7 @@ export default function AdminDashboard() {
   );
 }
 
-function Stat({ label, value, icon: Icon, tone }: { label: string; value: string; icon: any; tone?: "buy" | "sell" }) {
+function Stat({ label, value, icon: Icon, tone }: { label: string; value: string; icon: LucideIcon; tone?: "buy" | "sell" }) {
   return (
     <div className="glass rounded-xl p-4">
       <div className="flex items-center justify-between mb-2">
@@ -184,7 +185,7 @@ function Stat({ label, value, icon: Icon, tone }: { label: string; value: string
   );
 }
 
-function SectionHeader({ icon: Icon, title }: { icon: any; title: string }) {
+function SectionHeader({ icon: Icon, title }: { icon: LucideIcon; title: string }) {
   return (
     <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between">
       <h2 className="font-semibold flex items-center gap-2"><Icon className="h-4 w-4 text-primary" /> {title}</h2>
@@ -214,6 +215,13 @@ function formatCompactRaw(value?: string) {
   if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
   if (n >= 1e3) return `${(n / 1e3).toFixed(2)}K`;
   return n.toLocaleString();
+}
+
+function formatBIUSDRaw(value?: string) {
+  const raw = BigInt(value || "0");
+  const whole = raw / 1_000_000n;
+  const cents = (raw % 1_000_000n) / 10_000n;
+  return `${whole}.${cents.toString().padStart(2, "0")}`;
 }
 
 function formatDate(value?: string) {

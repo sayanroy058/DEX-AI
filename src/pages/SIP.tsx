@@ -33,10 +33,40 @@ import {
   Tooltip,
 } from "recharts";
 
-const PROJECTION = Array.from({ length: 36 }, (_, i) => ({
-  m: i + 1,
-  value: Math.round(1000 + i * i * 40),
-}));
+const DEFAULT_PROJECTION_MONTHS = 36;
+const CYCLES_PER_YEAR: Record<string, number> = {
+  Daily: 365,
+  Weekly: 52,
+  Monthly: 12,
+  Yearly: 1,
+};
+
+function projectionMonths(startDate: string, endDate: string) {
+  if (!startDate || !endDate) return DEFAULT_PROJECTION_MONTHS;
+  const start = new Date(`${startDate}T00:00:00Z`);
+  const end = new Date(`${endDate}T00:00:00Z`);
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) return DEFAULT_PROJECTION_MONTHS;
+  const fullMonths = (end.getUTCFullYear() - start.getUTCFullYear()) * 12 + end.getUTCMonth() - start.getUTCMonth();
+  const includesPartialMonth = end.getUTCDate() > start.getUTCDate();
+  return Math.max(1, fullMonths + (includesPartialMonth ? 1 : 0));
+}
+
+function projectionDurationLabel(months: number) {
+  if (months < 12) return `${months} Month${months === 1 ? "" : "s"}`;
+  const years = Math.floor(months / 12);
+  const remainingMonths = months % 12;
+  return `${years} Year${years === 1 ? "" : "s"}${remainingMonths ? ` ${remainingMonths} Month${remainingMonths === 1 ? "" : "s"}` : ""}`;
+}
+
+function projectionTick(month: number, totalMonths: number) {
+  if (totalMonths <= 36) return month;
+  const years = month / 12;
+  return `${Number.isInteger(years) ? years : years.toFixed(1)}Y`;
+}
+
+function projectionMoney(value: number) {
+  return `$${Math.round(value).toLocaleString("en-US")}`;
+}
 
 type PlanType = "sip" | "swp";
 
@@ -133,10 +163,42 @@ const EXECUTION_HISTORY = [
 ];
 
 export default function SIP() {
-  const finalValue = useMemo(() => PROJECTION[PROJECTION.length - 1].value, []);
   const [activeTab, setActiveTab] = useState<PlanType>("sip");
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [plans, setPlans] = useState<Plan[]>(MOCK_PLANS);
+  const [amountPerCycle, setAmountPerCycle] = useState("0");
+  const [frequency, setFrequency] = useState("Daily");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  const projection = useMemo(() => {
+    const months = projectionMonths(startDate, endDate);
+    const amount = Math.max(0, Number(amountPerCycle) || 0);
+    const cyclesPerYear = CYCLES_PER_YEAR[frequency] ?? 12;
+    const data = Array.from({ length: months + 1 }, (_, month) => {
+      const completedCycles = month === 0 ? 0 : Math.max(1, Math.round((month / 12) * cyclesPerYear));
+      const contributed = amount * completedCycles;
+      const progress = month / months;
+      return {
+        m: month,
+        invested: Math.round(contributed),
+        lowerValue: Math.round(contributed * (1 + 0.3 * progress)),
+        upperValue: Math.round(contributed * (1 + 0.4 * progress)),
+      };
+    });
+    const final = data[data.length - 1];
+    return {
+      months,
+      data,
+      totalInvested: final.invested,
+      lowerValue: final.lowerValue,
+      upperValue: final.upperValue,
+      lowerGain: final.lowerValue - final.invested,
+      upperGain: final.upperValue - final.invested,
+    };
+  }, [amountPerCycle, endDate, frequency, startDate]);
+
+  const projectionDuration = projectionDurationLabel(projection.months);
 
   const filteredPlans = plans.filter((p) => p.type === activeTab);
 
@@ -432,10 +494,19 @@ export default function SIP() {
                   </select>
                 </Field>
                 <Field label={activeTab === "sip" ? "Amount per cycle (USD)" : "Withdrawal per cycle (USD)"}>
-                  <Input defaultValue="1000" />
+                  <Input
+                    type="number"
+                    min="0"
+                    value={amountPerCycle}
+                    onChange={(event) => setAmountPerCycle(event.target.value)}
+                  />
                 </Field>
                 <Field label="Frequency">
-                  <select className="w-full h-10 rounded-md bg-muted/30 border border-border px-3 text-sm">
+                  <select
+                    value={frequency}
+                    onChange={(event) => setFrequency(event.target.value)}
+                    className="w-full h-10 rounded-md bg-muted/30 border border-border px-3 text-sm"
+                  >
                     <option>Daily</option>
                     <option>Weekly</option>
                     <option>Monthly</option>
@@ -443,10 +514,15 @@ export default function SIP() {
                   </select>
                 </Field>
                 <Field label="Start Date">
-                  <Input type="date" />
+                  <Input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
                 </Field>
                 <Field label="End Date">
-                  <Input type="date" />
+                  <Input
+                    type="date"
+                    min={startDate || undefined}
+                    value={endDate}
+                    onChange={(event) => setEndDate(event.target.value)}
+                  />
                 </Field>
                 <Field label="Plan Name">
                   <Input defaultValue={activeTab === "sip" ? "SIP Plan 01" : "SWP Plan 01"} />
@@ -460,13 +536,13 @@ export default function SIP() {
 
             <div className="glass rounded-xl p-4 border border-border/40">
               <div className="flex items-center justify-between mb-3">
-                <div className="text-sm font-semibold">AI Projection (3 Years)</div>
+                <div className="text-sm font-semibold">AI Projection ({projectionDuration})</div>
                 <div className="text-[10px] text-muted-foreground">
-                  {activeTab === "sip" ? "~12% yearly return" : "~8% yearly withdrawal"}
+                  {activeTab === "sip" ? "30–40% estimated return range" : "Scheduled withdrawal estimate"}
                 </div>
               </div>
               <ResponsiveContainer width="100%" height={220}>
-                <AreaChart data={PROJECTION} margin={{ top: 10, right: 8, bottom: 0, left: -20 }}>
+                <AreaChart data={projection.data} margin={{ top: 10, right: 8, bottom: 0, left: -10 }}>
                   <defs>
                     <linearGradient id="planProjection" x1="0" y1="0" x2="0" y2="1">
                       <stop
@@ -482,27 +558,71 @@ export default function SIP() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(230 25% 18% / 0.4)" />
-                  <XAxis dataKey="m" tick={{ fill: "hsl(220 15% 55%)", fontSize: 10 }} />
-                  <YAxis tick={{ fill: "hsl(220 15% 55%)", fontSize: 10 }} />
-                  <Tooltip />
+                  <XAxis
+                    dataKey="m"
+                    minTickGap={24}
+                    tick={{ fill: "hsl(220 15% 55%)", fontSize: 10 }}
+                    tickFormatter={(month) => projectionTick(Number(month), projection.months)}
+                  />
+                  <YAxis
+                    width={58}
+                    tick={{ fill: "hsl(220 15% 55%)", fontSize: 10 }}
+                    tickFormatter={(value) => `$${Number(value).toLocaleString("en-US", { notation: "compact", maximumFractionDigits: 1 })}`}
+                  />
+                  <Tooltip
+                    formatter={(value: number, name: string) => [projectionMoney(value), name]}
+                    labelFormatter={(month) => {
+                      const numericMonth = Number(month);
+                      if (projection.months <= 36) return `Month ${numericMonth}`;
+                      const years = Math.floor(numericMonth / 12);
+                      const remainingMonths = numericMonth % 12;
+                      return `Year ${years}${remainingMonths ? `, Month ${remainingMonths}` : ""}`;
+                    }}
+                  />
                   <Area
                     type="monotone"
-                    dataKey="value"
+                    dataKey={activeTab === "sip" ? "upperValue" : "invested"}
+                    name={activeTab === "sip" ? "40% projection" : "Total scheduled"}
                     stroke={activeTab === "sip" ? "#22d3ee" : "#a78bfa"}
                     strokeWidth={2}
                     fill="url(#planProjection)"
                   />
+                  {activeTab === "sip" && (
+                    <Area
+                      type="monotone"
+                      dataKey="lowerValue"
+                      name="30% projection"
+                      stroke="#8b5cf6"
+                      strokeWidth={2}
+                      fill="transparent"
+                    />
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
-                <Mini label="Final Value" value={`$${finalValue.toLocaleString()}`} />
-                <Mini label={activeTab === "sip" ? "Total Invested" : "Total Withdrawn"} value="$36,000" />
-                <Mini
-                  label="Estimated Return"
-                  value={activeTab === "sip" ? "+$48,235" : "-$36,000"}
-                  positive={activeTab === "sip"}
-                />
+                {activeTab === "sip" ? (
+                  <>
+                    <Mini label="30% Projected Value" value={projectionMoney(projection.lowerValue)} positive />
+                    <Mini label="40% Projected Value" value={projectionMoney(projection.upperValue)} positive />
+                    <Mini label="Total Invested" value={projectionMoney(projection.totalInvested)} />
+                  </>
+                ) : (
+                  <>
+                    <Mini label="Projected Withdrawals" value={projectionMoney(projection.totalInvested)} />
+                    <Mini label="Cycles Scheduled" value={`${Math.round(projection.totalInvested / Math.max(1, Number(amountPerCycle) || 1))}`} />
+                    <Mini label="Projection Period" value={projectionDuration} />
+                  </>
+                )}
               </div>
+              {activeTab === "sip" && (
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
+                  <span>Estimated gain at 30%: <strong className="font-mono text-emerald-500">+{projectionMoney(projection.lowerGain)}</strong></span>
+                  <span>Estimated gain at 40%: <strong className="font-mono text-emerald-500">+{projectionMoney(projection.upperGain)}</strong></span>
+                </div>
+              )}
+              <p className="mt-3 border-t border-border/40 pt-3 text-[10px] leading-relaxed text-muted-foreground">
+                AI-generated projections are illustrative estimates only; actual market performance may vary materially.
+              </p>
             </div>
           </div>
         </div>

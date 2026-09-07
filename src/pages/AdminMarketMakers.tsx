@@ -38,11 +38,26 @@ const EDITABLE_CONFIG: { key: string; label: string; def: string }[] = [
   { key: "requoteBps", label: "Re-quote Threshold (bps)", def: "3" },
 ];
 
+type DeskTab = "all" | "spot" | "futures" | "options";
+
+const DESK_TABS: { key: DeskTab; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "spot", label: "Spot" },
+  { key: "futures", label: "Futures" },
+  { key: "options", label: "Options" },
+];
+
+function matchesTab(desk: MarketMaker, tab: DeskTab): boolean {
+  if (tab === "all") return true;
+  return desk.market?.toUpperCase() === tab.toUpperCase();
+}
+
 export default function AdminMarketMakers() {
   const [desks, setDesks] = useState<MarketMaker[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyAll, setBusyAll] = useState(false);
   const [error, setError] = useState("");
+  const [tab, setTab] = useState<DeskTab>("all");
 
   const load = () =>
     listMarketMakers()
@@ -103,6 +118,21 @@ export default function AdminMarketMakers() {
           <div className="glass rounded-lg p-3 text-sm text-sell border border-sell/30">{error}</div>
         )}
 
+        <Tabs value={tab} onValueChange={(v) => setTab(v as DeskTab)}>
+          <TabsList>
+            {DESK_TABS.map((t) => (
+              <TabsTrigger key={t.key} value={t.key}>
+                {t.label}
+                {!loading && (
+                  <span className="ml-1.5 text-[10px] text-muted-foreground">
+                    {desks.filter((d) => matchesTab(d, t.key)).length}
+                  </span>
+                )}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
         {loading ? (
           <div className="flex items-center justify-center py-20 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading desks…
@@ -111,9 +141,13 @@ export default function AdminMarketMakers() {
           <div className="glass rounded-xl p-10 text-center text-muted-foreground">
             No market-maker desks yet. Create one to start providing liquidity.
           </div>
+        ) : desks.filter((d) => matchesTab(d, tab)).length === 0 ? (
+          <div className="glass rounded-xl p-10 text-center text-muted-foreground">
+            No {tab === "all" ? "" : tab} desks yet.
+          </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
-            {desks.map((d) => (
+            {desks.filter((d) => matchesTab(d, tab)).map((d) => (
               <DeskCard key={d.id} desk={d} onChange={patch} onDeleted={remove} onError={setError} />
             ))}
           </div>
@@ -187,7 +221,7 @@ function DeskCard({
       </div>
 
       <div className="grid grid-cols-4 gap-3 text-sm">
-        <Stat label={`${desk.quoteAsset ?? "USDT"} (Buy)`} value={`$${fmt(desk.quoteBalance ?? desk.allocatedUsdc)}`} />
+        <Stat label={`${desk.quoteAsset ?? "BIUSD"} (Buy)`} value={`$${fmt(desk.quoteBalance ?? desk.quoteAmount)}`} />
         <Stat label={`${desk.base} (Sell)`} value={desk.baseBalance ? `${fmt(desk.baseBalance)} ${desk.base}` : "—"} />
         <Stat
           label="Index"
@@ -273,10 +307,13 @@ function FundDialog({
   onError: (msg: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [asset, setAsset] = useState<"base" | "quote">("quote");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const isDeposit = mode === "deposit";
+  const quoteLabel = desk.quoteAsset ?? "BIUSD";
+  const assetLabel = asset === "base" ? desk.base : quoteLabel;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -284,7 +321,7 @@ function FundDialog({
     onError("");
     try {
       const call = isDeposit ? depositMarketMaker : withdrawMarketMaker;
-      onDone(await call(desk.id, amount, note));
+      onDone(await call(desk.id, asset, amount, note));
       setOpen(false);
       setAmount("");
       setNote("");
@@ -311,11 +348,23 @@ function FundDialog({
         <form onSubmit={submit} className="space-y-4">
           <p className="text-xs text-muted-foreground">
             {isDeposit
-              ? "Record USDC already moved into the treasury wallet. This credits the desk's on-engine balance."
-              : "Record USDC removed from the treasury wallet. Blocked if the amount is locked behind live quotes."}
+              ? `Record ${assetLabel} already moved into the treasury wallet. This credits the desk's on-engine balance for that asset only — the two legs are funded independently.`
+              : `Record ${assetLabel} removed from the treasury wallet. Blocked if the amount is locked behind live quotes.`}
           </p>
           <div>
-            <Label htmlFor="amount">Amount (USDC)</Label>
+            <Label htmlFor="asset">Asset</Label>
+            <Select value={asset} onValueChange={(v) => setAsset(v as "base" | "quote")}>
+              <SelectTrigger id="asset">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="base">{desk.base} (base — sell side)</SelectItem>
+                <SelectItem value="quote">{quoteLabel} (quote — buy side)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="amount">Amount ({assetLabel})</Label>
             <Input
               id="amount"
               type="number"
@@ -491,7 +540,7 @@ function DetailSheet({ desk, onError }: { desk: MarketMaker; onError: (msg: stri
                     <div key={h.id} className="text-xs glass rounded p-2 space-y-0.5">
                       <div className="flex items-center justify-between">
                         <span className={h.direction === "deposit" ? "text-buy" : "text-sell"}>
-                          {h.direction === "deposit" ? "+" : "−"}{fmt(h.amount)}
+                          {h.direction === "deposit" ? "+" : "−"}{fmt(h.amount)} {h.asset === "base" ? desk.base : (desk.quoteAsset ?? "BIUSD")}
                         </span>
                         <span className="text-muted-foreground">bal {fmt(h.balanceAfter)}</span>
                       </div>

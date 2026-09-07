@@ -32,34 +32,43 @@ export type Market = {
 // `price` below is only the pre-live-data seed useMarkets() starts from —
 // see useLivePrice.ts, which prefers the real feed the instant it resolves.
 export const INITIAL_MARKETS: Market[] = [
-  // Crypto — perps map to the matching engine's real *-USDC futures markets
-  // (BTC-USDC, ETH-USDC); SOL/BNB perps have real pricing but no backend
-  // futures market yet, so they trade in simulated-book mode like the
-  // forex/commodity/stock entries below.
-  { symbol: "BTC-PERP", base: "BTC", quote: "USD", price: 67432.5, change24h: 2.34, volume24h: 1_240_000_000, category: "perp", asset: "crypto", trending: true, favorite: true, funding: 0.012, openInterest: 820_000_000 },
-  { symbol: "ETH-PERP", base: "ETH", quote: "USD", price: 3521.8, change24h: 1.87, volume24h: 720_000_000, category: "perp", asset: "crypto", trending: true, favorite: true, funding: 0.008, openInterest: 540_000_000 },
-  { symbol: "SOL-PERP", base: "SOL", quote: "USD", price: 168.42, change24h: -3.12, volume24h: 410_000_000, category: "perp", asset: "crypto", trending: true, funding: -0.005, openInterest: 290_000_000 },
-  { symbol: "BNB-PERP", base: "BNB", quote: "USD", price: 592.4, change24h: 1.15, volume24h: 210_000_000, category: "perp", asset: "crypto", funding: 0.006 },
-  { symbol: "BTC-USDT", base: "BTC", quote: "USDT", price: 67428.1, change24h: 2.31, volume24h: 980_000_000, category: "spot", asset: "crypto", favorite: true },
-  { symbol: "ETH-USDT", base: "ETH", quote: "USDT", price: 3520.5, change24h: 1.85, volume24h: 540_000_000, category: "spot", asset: "crypto" },
-  { symbol: "SOL-USDT", base: "SOL", quote: "USDT", price: 168.30, change24h: -3.10, volume24h: 280_000_000, category: "spot", asset: "crypto" },
-  { symbol: "BNB-USDT", base: "BNB", quote: "USDT", price: 592.1, change24h: 1.12, volume24h: 190_000_000, category: "spot", asset: "crypto" },
+  // Crypto — perps map to the matching engine's real *-BIUSD futures markets
+  // (BTC/ETH/SOL/BNB-BIUSD futures — collateralized/settled in BIUSD, not
+  // USDC). SOL/BNB spot books double as their funding/index underlying.
+  { symbol: "BTC-PERP", base: "BTC", quote: "BIUSD", price: 67432.5, change24h: 2.34, volume24h: 1_240_000_000, category: "perp", asset: "crypto", trending: true, favorite: true, funding: 0.012, openInterest: 820_000_000 },
+  { symbol: "ETH-PERP", base: "ETH", quote: "BIUSD", price: 3521.8, change24h: 1.87, volume24h: 720_000_000, category: "perp", asset: "crypto", trending: true, favorite: true, funding: 0.008, openInterest: 540_000_000 },
+  { symbol: "SOL-PERP", base: "SOL", quote: "BIUSD", price: 168.42, change24h: -3.12, volume24h: 410_000_000, category: "perp", asset: "crypto", trending: true, funding: -0.005, openInterest: 290_000_000 },
+  { symbol: "BNB-PERP", base: "BNB", quote: "BIUSD", price: 592.4, change24h: 1.15, volume24h: 210_000_000, category: "perp", asset: "crypto", funding: 0.006 },
+  // BTC/ETH/SOL/BNB-BIUSD are the real, backend-connected spot markets (see
+  // backendMarkets.ts); BIUSD is the platform's internal stable quote
+  // currency, pegged 1:1 to USDT.
+  { symbol: "BTC-BIUSD", base: "BTC", quote: "BIUSD", price: 67428.1, change24h: 2.31, volume24h: 980_000_000, category: "spot", asset: "crypto", favorite: true },
+  { symbol: "ETH-BIUSD", base: "ETH", quote: "BIUSD", price: 3520.5, change24h: 1.85, volume24h: 540_000_000, category: "spot", asset: "crypto" },
+  { symbol: "SOL-BIUSD", base: "SOL", quote: "BIUSD", price: 168.30, change24h: -3.10, volume24h: 280_000_000, category: "spot", asset: "crypto" },
+  { symbol: "BNB-BIUSD", base: "BNB", quote: "BIUSD", price: 592.1, change24h: 1.12, volume24h: 190_000_000, category: "spot", asset: "crypto" },
   // Crypto options — BTC is the only backend-configured options underlying.
   { symbol: "BTC-OPT", base: "BTC", quote: "USD", price: 67432.5, change24h: 2.34, volume24h: 120_000_000, category: "options", asset: "crypto" },
-  // Forex (futures only)
-  { symbol: "EURUSD", base: "EURUSD", quote: "USD", price: 1.0842, change24h: 0.21, volume24h: 5_400_000_000, category: "perp", asset: "forex", funding: 0.0001 },
-  { symbol: "GBPUSD", base: "GBPUSD", quote: "USD", price: 1.2654, change24h: -0.14, volume24h: 3_100_000_000, category: "perp", asset: "forex", funding: 0.0002 },
-  { symbol: "AUDUSD", base: "AUDUSD", quote: "USD", price: 0.6612, change24h: -0.32, volume24h: 1_800_000_000, category: "perp", asset: "forex", funding: 0.00015 },
-  // Commodities (futures only)
-  { symbol: "XAU-USD", base: "GOLD", quote: "USD", price: 2384.5, change24h: 0.82, volume24h: 980_000_000, category: "perp", asset: "commodity", funding: 0.0008 },
-  { symbol: "XAG-USD", base: "SILVER", quote: "USD", price: 28.42, change24h: 1.24, volume24h: 220_000_000, category: "perp", asset: "commodity", funding: 0.001 },
-  { symbol: "WTI-USD", base: "CrudeOIL", quote: "USD", price: 78.32, change24h: -1.42, volume24h: 540_000_000, category: "perp", asset: "commodity", funding: 0.002 },
-  // Stocks — base carries Live-Rates.com's exact case-sensitive ticker
-  // ("AAPL.us", not "AAPL") since that's the real Redis key price-fetcher
-  // writes; see useIndexPrice.ts, which now looks these up verbatim.
-  { symbol: "AAPL", base: "AAPL.us", quote: "USD", price: 215.42, change24h: 1.42, volume24h: 8_400_000_000, category: "spot", asset: "stocks", favorite: true },
-  { symbol: "TSLA", base: "TSLA.us", quote: "USD", price: 248.21, change24h: -2.12, volume24h: 6_200_000_000, category: "spot", asset: "stocks", trending: true },
-  { symbol: "NVDA", base: "NVDA.us", quote: "USD", price: 124.84, change24h: 3.42, volume24h: 12_400_000_000, category: "spot", asset: "stocks", trending: true },
+  // Forex (futures only) — real engine markets (BASE-BIUSD/FUTURES); base is
+  // the Price-Fetcher's Live-Rates.com ticker.
+  { symbol: "EURUSD", base: "EURUSD", quote: "BIUSD", price: 1.0842, change24h: 0.21, volume24h: 5_400_000_000, category: "perp", asset: "forex", funding: 0.0001 },
+  { symbol: "GBPUSD", base: "GBPUSD", quote: "BIUSD", price: 1.2654, change24h: -0.14, volume24h: 3_100_000_000, category: "perp", asset: "forex", funding: 0.0002 },
+  { symbol: "AUDUSD", base: "AUDUSD", quote: "BIUSD", price: 0.6612, change24h: -0.32, volume24h: 1_800_000_000, category: "perp", asset: "forex", funding: 0.00015 },
+  // Commodities (futures only) — real engine markets (GOLD/SILVER/CrudeOIL
+  // -BIUSD/FUTURES); base is the Price-Fetcher ticker, case-sensitive.
+  { symbol: "XAU-USD", base: "GOLD", quote: "BIUSD", price: 2384.5, change24h: 0.82, volume24h: 980_000_000, category: "perp", asset: "commodity", funding: 0.0008 },
+  { symbol: "XAG-USD", base: "SILVER", quote: "BIUSD", price: 28.42, change24h: 1.24, volume24h: 220_000_000, category: "perp", asset: "commodity", funding: 0.001 },
+  { symbol: "WTI-USD", base: "CrudeOIL", quote: "BIUSD", price: 78.32, change24h: -1.42, volume24h: 540_000_000, category: "perp", asset: "commodity", funding: 0.002 },
+  // Stocks — futures + options only, no spot (matches forex/commodity,
+  // which are also futures-only above). base carries Live-Rates.com's exact
+  // case-sensitive ticker ("AAPL.us", not "AAPL") since that's the real
+  // Redis key price-fetcher writes; see useIndexPrice.ts, which looks these
+  // up verbatim. The perps are real engine markets (AAPL.us-BIUSD/FUTURES...).
+  { symbol: "AAPL-PERP", base: "AAPL.us", quote: "BIUSD", price: 215.42, change24h: 1.42, volume24h: 8_400_000_000, category: "perp", asset: "stocks", favorite: true, funding: 0.0003 },
+  { symbol: "TSLA-PERP", base: "TSLA.us", quote: "BIUSD", price: 248.21, change24h: -2.12, volume24h: 6_200_000_000, category: "perp", asset: "stocks", trending: true, funding: 0.0004 },
+  { symbol: "NVDA-PERP", base: "NVDA.us", quote: "BIUSD", price: 124.84, change24h: 3.42, volume24h: 12_400_000_000, category: "perp", asset: "stocks", trending: true, funding: 0.0005 },
+  { symbol: "AAPL-OPT", base: "AAPL.us", quote: "USD", price: 215.42, change24h: 1.42, volume24h: 320_000_000, category: "options", asset: "stocks" },
+  { symbol: "TSLA-OPT", base: "TSLA.us", quote: "USD", price: 248.21, change24h: -2.12, volume24h: 260_000_000, category: "options", asset: "stocks" },
+  { symbol: "NVDA-OPT", base: "NVDA.us", quote: "USD", price: 124.84, change24h: 3.42, volume24h: 410_000_000, category: "options", asset: "stocks" },
 ];
 
 export function tickPrice(price: number, volatility = 0.0008): number {

@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { wallet, shortAddress, WALLETS } from "./useWallet";
 
-function createProvider(flags: { metaMask?: boolean; coinbase?: boolean; bitget?: boolean; accounts?: string[] }) {
+function createProvider(flags: { metaMask?: boolean; coinbase?: boolean; bitget?: boolean; trust?: boolean; binance?: boolean; accounts?: string[] }) {
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
   const provider = {
     isMetaMask: flags.metaMask,
     isCoinbaseWallet: flags.coinbase,
     isBitgetWallet: flags.bitget,
+    isTrustWallet: flags.trust,
+    isBinanceWallet: flags.binance,
     request: vi.fn(async ({ method }: { method: string }) => {
       if (method === "eth_requestAccounts" || method === "eth_accounts") {
         return flags.accounts ?? ["0x1111111111111111111111111111111111111111"];
@@ -84,6 +86,53 @@ describe("wallet state", () => {
     expect(wallet.get().address).toBe("0xcccc000000000000000000000000000000000003");
   });
 
+  it("connects the Trust Wallet provider explicitly", async () => {
+    const metaMask = createProvider({ metaMask: true });
+    const trust = createProvider({ trust: true, accounts: ["0xdddd000000000000000000000000000000000004"] });
+
+    Object.defineProperty(window as any, "ethereum", {
+      configurable: true,
+      value: { providers: [metaMask, trust] },
+    });
+
+    await wallet.connect("trust");
+
+    expect(trust.request).toHaveBeenCalledWith({ method: "eth_requestAccounts", params: undefined });
+    expect(metaMask.request).not.toHaveBeenCalledWith({ method: "eth_requestAccounts", params: undefined });
+    expect(wallet.get().walletId).toBe("trust");
+  });
+
+  it("discovers Trust Wallet through EIP-6963", async () => {
+    const trust = createProvider({ trust: true, accounts: ["0xffff000000000000000000000000000000000006"] });
+    window.dispatchEvent(new CustomEvent("eip6963:announceProvider", {
+      detail: {
+        info: { uuid: "123e4567-e89b-42d3-a456-426614174000", name: "Trust Wallet", icon: "data:image/svg+xml,<svg/>", rdns: "com.trustwallet.app" },
+        provider: trust,
+      },
+    }));
+
+    await wallet.connect("trust");
+
+    expect(trust.request).toHaveBeenCalledWith({ method: "eth_requestAccounts", params: undefined });
+    expect(wallet.get().walletId).toBe("trust");
+  });
+
+  it("connects the Binance Wallet provider explicitly", async () => {
+    const metaMask = createProvider({ metaMask: true });
+    const binance = createProvider({ binance: true, accounts: ["0xeeee000000000000000000000000000000000005"] });
+
+    Object.defineProperty(window as any, "ethereum", {
+      configurable: true,
+      value: { providers: [metaMask, binance] },
+    });
+
+    await wallet.connect("binance");
+
+    expect(binance.request).toHaveBeenCalledWith({ method: "eth_requestAccounts", params: undefined });
+    expect(metaMask.request).not.toHaveBeenCalledWith({ method: "eth_requestAccounts", params: undefined });
+    expect(wallet.get().walletId).toBe("binance");
+  });
+
   it("disconnect clears session state and cached storage", async () => {
     const metaMask = createProvider({ metaMask: true });
     Object.defineProperty(window as any, "ethereum", {
@@ -120,14 +169,14 @@ describe("wallet state", () => {
   });
 
   it("exposes only supported wallets in the modal list", () => {
-    expect(WALLETS.map((wallet) => wallet.id)).toEqual(["metamask", "coinbase", "bitget"]);
+    expect(WALLETS.map((wallet) => wallet.id)).toEqual(["metamask", "trust", "binance", "coinbase", "bitget"]);
   });
 
   it("subtracts pending withdrawal holds from available balance", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
-      balances: { USDC: "20669000", USDT: "0", BUSD: "0", OUR_Token: "0" },
-      locked: { USDC: "1000000", USDT: "0", BUSD: "0", OUR_Token: "0" },
-      withdrawalLocked: { USDC: "15000000", USDT: "0", BUSD: "0", OUR_Token: "0" },
+      balances: { USDC: "20669000", USDT: "0", BI: "0" },
+      locked: { USDC: "1000000", USDT: "0", BI: "0" },
+      withdrawalLocked: { USDC: "15000000", USDT: "0", BI: "0" },
     }), { status: 200, headers: { "Content-Type": "application/json" } })));
 
     await wallet.refreshBalances();

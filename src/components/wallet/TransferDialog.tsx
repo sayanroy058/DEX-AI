@@ -139,6 +139,16 @@ export function TransferDialog({
                   <SelectContent>
                     {mode === "deposit" && network === "Avalanche Fuji" ? (
                       <SelectItem value="USDC">USDC</SelectItem>
+                    ) : mode === "withdraw" ? (
+                      // BIUSD has no on-chain contract (it's the platform's
+                      // internal 1:1-pegged trading currency, see
+                      // useWallet.ts) — nothing to withdraw it as. Only
+                      // assets with a real withdrawal path (currently USDC)
+                      // belong here, so picking one never dead-ends in the
+                      // submit-time "only USDC withdrawals" error.
+                      w.balances.filter((b) => b.asset === "USDC").map((b) => (
+                        <SelectItem key={b.asset} value={b.asset}>{b.asset}</SelectItem>
+                      ))
                     ) : (
                       w.balances.map((b) => (
                         <SelectItem key={b.asset} value={b.asset}>{b.asset}</SelectItem>

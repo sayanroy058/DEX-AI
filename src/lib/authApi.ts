@@ -39,22 +39,25 @@ export function me() {
 }
 export type WalletBalanceResponse = {
   balances: {
+    BTC: string;
+    BIUSD: string;
     USDC: string;
     USDT: string;
-    BUSD: string;
-    OUR_Token: string;
+    BI: string;
   };
   locked: {
+    BTC: string;
+    BIUSD: string;
     USDC: string;
     USDT: string;
-    BUSD: string;
-    OUR_Token: string;
+    BI: string;
   };
   withdrawalLocked?: {
+    BTC: string;
+    BIUSD: string;
     USDC: string;
     USDT: string;
-    BUSD: string;
-    OUR_Token: string;
+    BI: string;
   };
   token: string;
   amount: string;
@@ -72,9 +75,12 @@ export function requestWithdrawal(asset: string, amount: string) {
   });
 }
 
-// Test-only fixed 1:1 conversion between USDC and USDT ledger balances.
+// Converts deposit-intake stables and the platform's internal stable, one
+// direction only: USDT→BIUSD and USDC→BIUSD are free (1:1); BIUSD→USDT and
+// BIUSD→USDC carry a 1% conversion fee deducted from the credited amount.
+// `amount` is raw 6-decimal integer units of the source asset.
 export function swapAssets(sourceAsset: string, destinationAsset: string, amount: string) {
-  return authReq<{ status: string; sourceAsset: string; destinationAsset: string; amount: string }>(`/wallet/swap`, {
+  return authReq<{ status: string; sourceAsset: string; destinationAsset: string; amount: string; creditedAmount: string; feeAmount?: string }>(`/wallet/swap`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sourceAsset, destinationAsset, amount }),

@@ -15,7 +15,9 @@ export default function Landing() {
   const [walletOpen, setWalletOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const sponsors = [
-        { name: "Coinbase", logo: "https://logo.clearbit.com/coinbase.com" },
+    { name: "Coinbase", logo: "https://logo.clearbit.com/coinbase.com" },
+    { name: "Trust Wallet", logo: "/wallet-icons/trust.svg?v=2" },
+    { name: "Binance Wallet", logo: "/wallet-icons/binance.svg?v=2" },
     { name: "Bybit", logo: "https://logo.clearbit.com/bybit.com" },
     { name: "OKX", logo: "https://logo.clearbit.com/okx.com" },
     { name: "Kraken", logo: "https://logo.clearbit.com/kraken.com" },
@@ -27,22 +29,22 @@ export default function Landing() {
   const goTrade = () => navigate("/trade");
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0a0e27]">
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
       {/* Navigation */}
       <header className="px-6 lg:px-10 h-16 flex items-center justify-between border-b border-glass-border glass-strong sticky top-0 z-30">
         <Link to="/" className="flex items-center gap-2">
           <img src={logo} alt="BitDx logo" className="h-9 w-9 rounded-lg shadow-lg object-contain" />
-          <span className="font-bold text-lg tracking-tight text-white">BitDx</span>
+          <span className="font-bold text-lg tracking-tight text-foreground">BitDx</span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-8 text-sm text-slate-400">
-          <Link to="/trade" className="hover:text-white transition-colors">Trade</Link>
-          <Link to="/markets" className="hover:text-white transition-colors">Market</Link>
-          <Link to="/copy" className="hover:text-white transition-colors">Copy</Link>
-          <Link to="/prop" className="hover:text-white transition-colors">Prop Firm</Link>
-          <Link to="/p2p" className="hover:text-white transition-colors">P2P</Link>
-          <Link to="/token" className="hover:text-white transition-colors">Token</Link>
-          <Link to="/sip" className="hover:text-white transition-colors">SIP/SWP</Link>
+        <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
+          <Link to="/trade" className="hover:text-foreground transition-colors">Trade</Link>
+          <Link to="/markets" className="hover:text-foreground transition-colors">Market</Link>
+          <Link to="/copy" className="hover:text-foreground transition-colors">Copy</Link>
+          <Link to="/prop" className="hover:text-foreground transition-colors">Prop Firm</Link>
+          <Link to="/p2p" className="hover:text-foreground transition-colors">P2P</Link>
+          <Link to="/token" className="hover:text-foreground transition-colors">Token</Link>
+          <Link to="/sip" className="hover:text-foreground transition-colors">SIP/SWP</Link>
         </nav>
 
         <div className="flex items-center gap-2">
@@ -54,7 +56,7 @@ export default function Landing() {
           </Button>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-slate-400 hover:text-white transition-colors"
+            className="md:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
           >
             {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
@@ -62,14 +64,14 @@ export default function Landing() {
       </header>
 
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-x-0 top-16 bg-[#0a0e27]/95 backdrop-blur-lg border-b border-glass-border z-40 py-6 px-6 flex flex-col gap-4">
-          <Link to="/trade" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Trade</Link>
-          <Link to="/markets" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Market</Link>
-          <Link to="/copy" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Copy</Link>
-          <Link to="/prop" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Prop Firm</Link>
-          <Link to="/p2p" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>P2P</Link>
-          <Link to="/token" className="text-slate-300 hover:text-white font-medium py-2 border-b border-slate-800/50" onClick={() => setMobileMenuOpen(false)}>Token</Link>
-          <Link to="/sip" className="text-slate-300 hover:text-white font-medium py-2" onClick={() => setMobileMenuOpen(false)}>SIP/SWP</Link>
+        <div className="md:hidden fixed inset-x-0 top-16 bg-card/95 backdrop-blur-lg border-b border-border z-40 py-6 px-6 flex flex-col gap-4">
+          <Link to="/trade" className="text-muted-foreground hover:text-foreground font-medium py-2 border-b border-border/60" onClick={() => setMobileMenuOpen(false)}>Trade</Link>
+          <Link to="/markets" className="text-muted-foreground hover:text-foreground font-medium py-2 border-b border-border/60" onClick={() => setMobileMenuOpen(false)}>Market</Link>
+          <Link to="/copy" className="text-muted-foreground hover:text-foreground font-medium py-2 border-b border-border/60" onClick={() => setMobileMenuOpen(false)}>Copy</Link>
+          <Link to="/prop" className="text-muted-foreground hover:text-foreground font-medium py-2 border-b border-border/60" onClick={() => setMobileMenuOpen(false)}>Prop Firm</Link>
+          <Link to="/p2p" className="text-muted-foreground hover:text-foreground font-medium py-2 border-b border-border/60" onClick={() => setMobileMenuOpen(false)}>P2P</Link>
+          <Link to="/token" className="text-muted-foreground hover:text-foreground font-medium py-2 border-b border-border/60" onClick={() => setMobileMenuOpen(false)}>Token</Link>
+          <Link to="/sip" className="text-muted-foreground hover:text-foreground font-medium py-2" onClick={() => setMobileMenuOpen(false)}>SIP/SWP</Link>
         </div>
       )}
 
@@ -130,7 +132,7 @@ export default function Landing() {
         <div className="relative max-w-3xl w-full text-center space-y-8">
           {/* Badge */}
           <div className="mx-auto max-w-full">
-            <span className="inline-block max-w-[92vw] sm:max-w-none text-center whitespace-normal break-words leading-snug text-base font-semibold text-slate-300 px-4 py-2 rounded-full border border-slate-700 bg-slate-800/50">
+            <span className="inline-block max-w-[92vw] sm:max-w-none text-center whitespace-normal break-words leading-snug text-base font-semibold text-muted-foreground px-4 py-2 rounded-full border border-border bg-muted/50">
               ⚡ AI-Powered Multi-Asset Trading Platform
             </span>
           </div>
@@ -138,7 +140,7 @@ export default function Landing() {
           {/* Main Heading */}
           <div className="space-y-4">
             <h1 className="text-4xl md:text-6xl lg:text-[64px] font-black tracking-tight leading-[1.02]">
-              <span className="block text-white mb-2">ALL IN ONE</span>
+              <span className="block text-foreground mb-2">ALL IN ONE</span>
               <span className="block bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
                 AI-POWERED DEX
               </span>
@@ -146,7 +148,7 @@ export default function Landing() {
           </div>
 
           {/* Description */}
-          <p className="text-base md:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed tracking-wide">
+          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed tracking-wide">
             Trade Crypto, Forex, Stocks & Commodities with institutional-grade Al intelligence.
             <br />
             One platform | Every market | Zero limits
@@ -164,7 +166,7 @@ export default function Landing() {
             <Button 
               onClick={() => navigate("/markets")}
               variant="outline"
-              className="border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 font-bold px-8 h-12 rounded-lg text-base bg-transparent"
+              className="border-border text-muted-foreground hover:text-foreground hover:border-primary/50 font-bold px-8 h-12 rounded-lg text-base bg-transparent"
             >
               Explore Markets
             </Button>
@@ -173,7 +175,7 @@ export default function Landing() {
       </div>
 
       {/* Stats + Asset Section */}
-      <section className="relative overflow-hidden px-6 py-16 lg:px-10 bg-[#040d1c] border-y border-cyan-900/30">
+      <section className="relative overflow-hidden px-6 py-16 lg:px-10 bg-card border-y border-border">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_18%,rgba(22,175,255,0.12),transparent_35%),radial-gradient(circle_at_85%_12%,rgba(90,92,255,0.1),transparent_35%)]" />
         <div className="relative max-w-7xl mx-auto space-y-14">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -183,35 +185,35 @@ export default function Landing() {
               { value: "350+", label: "Markets" },
               { value: "90+", label: "Blockchains" },
             ].map((item) => (
-              <div key={item.label} className="rounded-2xl border border-cyan-700/40 bg-[#0a1328]/90 px-5 py-6 text-center shadow-[0_0_20px_rgba(34,211,238,0.08)]">
-                <p className="text-3xl md:text-4xl font-black bg-gradient-to-r from-cyan-300 to-indigo-300 bg-clip-text text-transparent">{item.value}</p>
-                <p className="text-slate-400 text-sm mt-1">{item.label}</p>
+              <div key={item.label} className="rounded-2xl border border-primary/30 bg-background/75 px-5 py-6 text-center shadow-[0_0_20px_rgba(34,211,238,0.08)]">
+                <p className="text-3xl md:text-4xl font-black bg-gradient-to-r from-primary to-violet-500 bg-clip-text text-transparent">{item.value}</p>
+                <p className="text-muted-foreground text-sm mt-1">{item.label}</p>
               </div>
             ))}
           </div>
 
           <div className="text-center space-y-3">
-            <p className="text-cyan-400 text-xs md:text-sm font-semibold tracking-[0.22em] uppercase">Everything In One Place</p>
-            <h2 className="text-3xl md:text-5xl font-black text-white">Trade Any Asset Class</h2>
+            <p className="text-cyan-600 dark:text-cyan-400 text-xs md:text-sm font-semibold tracking-[0.22em] uppercase">Everything In One Place</p>
+            <h2 className="text-3xl md:text-5xl font-black text-foreground">Trade Any Asset Class</h2>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { title: "Crypto", sub: "Spot, Futures & Options", icon: TrendingUp, color: "text-cyan-400 bg-cyan-500/15 border-cyan-500/35" },
-              { title: "Forex", sub: "150+ Currency Pairs", icon: Globe, color: "text-violet-300 bg-violet-500/15 border-violet-500/35" },
-              { title: "Commodities", sub: "Gold, Oil, Gas & More", icon: Layers, color: "text-emerald-300 bg-emerald-500/15 border-emerald-500/35" },
-              { title: "Stocks", sub: "US & Global Equities", icon: TrendingUp, color: "text-amber-300 bg-amber-500/15 border-amber-500/35" },
-              { title: "SIP", sub: "Systematic Investment Plan", icon: Shield, color: "text-cyan-300 bg-cyan-500/15 border-cyan-500/35" },
-              { title: "SWP", sub: "Systematic Withdrawal Plan", icon: Zap, color: "text-violet-300 bg-violet-500/15 border-violet-500/35" },
-              { title: "Algo Trading", sub: "Automated Strategies", icon: Bot, color: "text-emerald-300 bg-emerald-500/15 border-emerald-500/35" },
-              { title: "Bot Trading", sub: "AI-Powered Bots", icon: Bot, color: "text-amber-300 bg-amber-500/15 border-amber-500/35" },
+              { title: "Crypto", sub: "Spot, Futures & Options", icon: TrendingUp, color: "text-cyan-600 dark:text-cyan-400 bg-cyan-500/15 border-cyan-500/35" },
+              { title: "Forex", sub: "Currency Pairs", icon: Globe, color: "text-violet-600 dark:text-violet-300 bg-violet-500/15 border-violet-500/35" },
+              { title: "Commodities", sub: "Gold, Oil, Gas & More", icon: Layers, color: "text-emerald-600 dark:text-emerald-300 bg-emerald-500/15 border-emerald-500/35" },
+              { title: "Stocks", sub: "US & Global Equities", icon: TrendingUp, color: "text-amber-600 dark:text-amber-300 bg-amber-500/15 border-amber-500/35" },
+              { title: "SIP", sub: "Systematic Investment Plan", icon: Shield, color: "text-cyan-600 dark:text-cyan-300 bg-cyan-500/15 border-cyan-500/35" },
+              { title: "SWP", sub: "Systematic Withdrawal Plan", icon: Zap, color: "text-violet-600 dark:text-violet-300 bg-violet-500/15 border-violet-500/35" },
+              { title: "AI Agent Trading", sub: "AI Automated Strategies", icon: Bot, color: "text-emerald-600 dark:text-emerald-300 bg-emerald-500/15 border-emerald-500/35" },
+              { title: "Bot Trading", sub: "AI-Powered Bots", icon: Bot, color: "text-amber-600 dark:text-amber-300 bg-amber-500/15 border-amber-500/35" },
             ].map((item) => (
-              <div key={item.title} className="group rounded-2xl border border-cyan-800/35 bg-[#071127]/90 p-5 md:p-6 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10 transition-all">
+              <div key={item.title} className="group rounded-2xl border border-border bg-background/75 p-5 md:p-6 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 transition-all">
                 <div className={`h-10 w-10 rounded-xl border flex items-center justify-center mb-4 ${item.color} group-hover:shadow-lg group-hover:shadow-cyan-500/50 transition-all`}>
                   <item.icon className="h-5 w-5" />
                 </div>
-                <h3 className="text-white text-2xl font-semibold mb-1">{item.title}</h3>
-                <p className="text-slate-400 text-sm">{item.sub}</p>
+                <h3 className="text-foreground text-2xl font-semibold mb-1">{item.title}</h3>
+                <p className="text-muted-foreground text-sm">{item.sub}</p>
               </div>
             ))}
           </div>
@@ -219,75 +221,75 @@ export default function Landing() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-6 lg:px-10 bg-[#0a0e27]">
+      <section className="py-20 px-6 lg:px-10 bg-background">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16 space-y-4">
-            <h2 className="text-4xl md:text-5xl font-black text-white">Built for serious traders</h2>
-            <p className="text-lg text-slate-400 max-w-2xl mx-auto">
+            <h2 className="text-4xl md:text-5xl font-black text-foreground">Built for serious traders</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               FROM FIRST TRADE TO FULL TIME PRO | ALL TOOLS INCLUDED
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Pro Charting */}
-            <div className="group border border-slate-700/50 bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur rounded-2xl p-6 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10 transition-all">
+            <div className="group border border-border bg-gradient-to-br from-card to-muted/40 backdrop-blur rounded-2xl p-6 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 transition-all">
               <div className="h-12 w-12 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-4 group-hover:shadow-lg group-hover:shadow-cyan-500/50 transition-all">
-                <TrendingUp className="h-6 w-6 text-cyan-400" />
+                <TrendingUp className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Pro Charting</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">Lightning-fast charts with 50+ indicators & drawing tools.</p>
+              <h3 className="text-xl font-bold text-foreground mb-2">Pro Charting</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">Lightning-fast charts with 50+ indicators & drawing tools.</p>
             </div>
 
             {/* Spot · Futures · Options */}
-            <div className="group border border-slate-700/50 bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur rounded-2xl p-6 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10 transition-all">
+            <div className="group border border-border bg-gradient-to-br from-card to-muted/40 backdrop-blur rounded-2xl p-6 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 transition-all">
               <div className="h-12 w-12 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-4 group-hover:shadow-lg group-hover:shadow-cyan-500/50 transition-all">
-                <Layers className="h-6 w-6 text-cyan-400" />
+                <Layers className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Spot · Futures · Options</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">Trade every market type from one unified terminal.</p>
+              <h3 className="text-xl font-bold text-foreground mb-2">Spot · Futures · Options</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">Trade every market type from one unified terminal.</p>
             </div>
 
             {/* AI Agents & Bots */}
-            <div className="group border border-slate-700/50 bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur rounded-2xl p-6 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10 transition-all">
+            <div className="group border border-border bg-gradient-to-br from-card to-muted/40 backdrop-blur rounded-2xl p-6 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 transition-all">
               <div className="h-12 w-12 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-4 group-hover:shadow-lg group-hover:shadow-cyan-500/50 transition-all">
-                <Bot className="h-6 w-6 text-cyan-400" />
+                <Bot className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">AI Agents & Bots</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">Automate strategies with AI-powered trading assistants.</p>
+              <h3 className="text-xl font-bold text-foreground mb-2">AI Agents & Bots</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">Automate strategies with AI-powered trading assistants.</p>
             </div>
 
             {/* Self-Custody */}
-            <div className="group border border-slate-700/50 bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur rounded-2xl p-6 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10 transition-all">
+            <div className="group border border-border bg-gradient-to-br from-card to-muted/40 backdrop-blur rounded-2xl p-6 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 transition-all">
               <div className="h-12 w-12 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-4 group-hover:shadow-lg group-hover:shadow-cyan-500/50 transition-all">
-                <Shield className="h-6 w-6 text-cyan-400" />
+                <Shield className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Self-Custody</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">Connect MetaMask, Coinbase, and Bitget.</p>
+              <h3 className="text-xl font-bold text-foreground mb-2">Self-Custody</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">Connect MetaMask, Trust Wallet, Binance Wallet, Coinbase, and Bitget.</p>
             </div>
 
             {/* Multi-Asset */}
-            <div className="group border border-slate-700/50 bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur rounded-2xl p-6 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10 transition-all">
+            <div className="group border border-border bg-gradient-to-br from-card to-muted/40 backdrop-blur rounded-2xl p-6 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 transition-all">
               <div className="h-12 w-12 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-4 group-hover:shadow-lg group-hover:shadow-cyan-500/50 transition-all">
-                <Globe className="h-6 w-6 text-cyan-400" />
+                <Globe className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Multi-Asset</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">Crypto, Forex, Commodities and Stocks in one place.</p>
+              <h3 className="text-xl font-bold text-foreground mb-2">Multi-Asset</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">Crypto, Forex, Commodities and Stocks in one place.</p>
             </div>
 
             {/* Up to 100× Leverage */}
-            <div className="group border border-slate-700/50 bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur rounded-2xl p-6 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10 transition-all">
+            <div className="group border border-border bg-gradient-to-br from-card to-muted/40 backdrop-blur rounded-2xl p-6 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 transition-all">
               <div className="h-12 w-12 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-4 group-hover:shadow-lg group-hover:shadow-cyan-500/50 transition-all">
-                <Zap className="h-6 w-6 text-cyan-400" />
+                <Zap className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Up to 100× Leverage</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">Deep liquidity and ultra-low fees on every fill.</p>
+              <h3 className="text-xl font-bold text-foreground mb-2">Up to 100× Leverage</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">Deep liquidity and ultra-low fees on every fill.</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* Mobile App Download Section */}
-      <section className="hidden relative overflow-hidden py-20 px-6 lg:px-10 bg-[#030821]">
+      <section className="hidden relative overflow-hidden py-20 px-6 lg:px-10 bg-background">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_40%,rgba(9,184,255,0.16),transparent_36%),radial-gradient(circle_at_88%_38%,rgba(0,115,255,0.12),transparent_32%)]" />
         <div className="relative max-w-7xl mx-auto flex flex-col lg:grid lg:grid-cols-[1fr_auto_1fr] gap-10 items-center">
           {/* Left Side - Content */}
@@ -300,33 +302,33 @@ export default function Landing() {
                 Trade
               </div>
               <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[0.88] tracking-tight">
-                <span className="block text-white">Anytime</span>
+                <span className="block text-foreground">Anytime</span>
                 <span className="block text-cyan-400">Anywhere</span>
-                <span className="block text-white">Any Device</span>
+                <span className="block text-foreground">Any Device</span>
               </h2>
             </div>
 
-            <p className="text-base md:text-lg text-slate-400 max-w-xl">
+            <p className="text-base md:text-lg text-muted-foreground max-w-xl">
               Native apps for mobile and desktop with the same lightning-fast experience.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3.5 pt-1">
-              <button className="w-full sm:w-[300px] border border-slate-700/80 bg-slate-900/55 transition-all rounded-2xl pl-5 pr-4 py-2.5 flex items-center gap-4 opacity-60 pointer-events-none">
+              <button className="w-full sm:w-[300px] border border-border bg-card/70 transition-all rounded-2xl pl-5 pr-4 py-2.5 flex items-center gap-4 opacity-60 pointer-events-none">
                 <div className="h-12 w-12 rounded-lg bg-black/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
                   <img src={appStoreImg} alt="App Store" className="w-8 h-8 object-contain grayscale opacity-40" />
                 </div>
                 <div className="text-left">
-                  <div className="text-[9px] text-slate-500">Download on the</div>
-                  <div className="text-[22px] leading-none font-extrabold text-slate-400">App Store</div>
+                  <div className="text-[9px] text-muted-foreground">Download on the</div>
+                  <div className="text-[22px] leading-none font-extrabold text-muted-foreground">App Store</div>
                 </div>
               </button>
-              <button className="w-full sm:w-[300px] border border-slate-700/80 bg-slate-900/55 transition-all rounded-2xl pl-5 pr-4 py-2.5 flex items-center gap-4 opacity-60 pointer-events-none">
+              <button className="w-full sm:w-[300px] border border-border bg-card/70 transition-all rounded-2xl pl-5 pr-4 py-2.5 flex items-center gap-4 opacity-60 pointer-events-none">
                 <div className="h-12 w-12 rounded-lg bg-black/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
                   <img src={playStoreImg} alt="Google Play" className="w-8 h-8 object-contain grayscale opacity-40" />
                 </div>
                 <div className="text-left">
-                  <div className="text-[9px] text-slate-500">GET IT ON</div>
-                  <div className="text-[22px] leading-none font-extrabold text-slate-400">Google Play</div>
+                  <div className="text-[9px] text-muted-foreground">GET IT ON</div>
+                  <div className="text-[22px] leading-none font-extrabold text-muted-foreground">Google Play</div>
                 </div>
               </button>
             </div>
@@ -340,14 +342,14 @@ export default function Landing() {
               ].map((item) => (
                 <button
                   key={item.label}
-                  className="border border-slate-700/80 bg-slate-900/55 hover:border-cyan-500/60 hover:bg-slate-900/80 transition-all rounded-2xl px-3 py-2.5 flex items-center gap-2 sm:gap-4 group min-w-0"
+                  className="border border-border bg-card/70 hover:border-primary/60 hover:bg-muted/70 transition-all rounded-2xl px-3 py-2.5 flex items-center gap-2 sm:gap-4 group min-w-0"
                 >
                   <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-black/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
                     <img src={item.img} alt={item.label} className="w-7 h-7 sm:w-8 sm:h-8 object-contain" />
                   </div>
                   <div className="text-left min-w-0">
-                    <div className="text-[9px] text-slate-400 group-hover:text-slate-300 transition-colors truncate">{item.sub}</div>
-                    <div className="text-base sm:text-[22px] leading-none font-extrabold text-white truncate">{item.label}</div>
+                    <div className="text-[9px] text-muted-foreground group-hover:text-foreground transition-colors truncate">{item.sub}</div>
+                    <div className="text-base sm:text-[22px] leading-none font-extrabold text-foreground truncate">{item.label}</div>
                   </div>
                 </button>
               ))}
@@ -367,7 +369,7 @@ export default function Landing() {
               <div className="h-9 w-9 rounded-xl bg-cyan-500/20 flex items-center justify-center">
                 <QrCode className="h-[18px] w-[18px] text-cyan-400" />
               </div>
-              <p className="text-base md:text-lg text-slate-400 text-center">Scan to download on your mobile</p>
+              <p className="text-base md:text-lg text-muted-foreground text-center">Scan to download on your mobile</p>
             </div>
           </div>
 
@@ -481,7 +483,7 @@ export default function Landing() {
       </section>
 
       {/* Sponsor Marquee
-      <section className="relative overflow-hidden px-6 py-10 lg:px-10 bg-[#030821] border-t border-slate-800/40 border-b border-slate-800/40">
+      <section className="relative overflow-hidden px-6 py-10 lg:px-10 bg-card border-y border-border">
         <style>{`
           @keyframes sponsorMarquee {
             0% { transform: translateX(0); }
@@ -490,7 +492,7 @@ export default function Landing() {
         `}</style>
         <div className="mx-auto max-w-7xl space-y-6">
           <div className="text-center">
-            <p className="text-sm font-semibold tracking-[0.2em] uppercase text-slate-400">
+            <p className="text-sm font-semibold tracking-[0.2em] uppercase text-muted-foreground">
               Trusted By Sponsors
             </p>
           </div>
@@ -507,7 +509,7 @@ export default function Landing() {
                 {[...sponsors, ...sponsors].map((sponsor, idx) => (
                   <div
                     key={`${sponsor.name}-${idx}`}
-                    className="min-w-[180px] md:min-w-[220px] rounded-2xl border border-slate-700/70 bg-slate-900/50 px-5 py-4 flex items-center gap-3"
+                    className="min-w-[180px] md:min-w-[220px] rounded-2xl border border-border bg-background/65 px-5 py-4 flex items-center gap-3"
                   >
                     <div className="h-9 w-9 rounded-full bg-white/95 p-1.5 flex items-center justify-center overflow-hidden">
                       <img
@@ -517,7 +519,7 @@ export default function Landing() {
                         loading="lazy"
                       />
                     </div>
-                    <span className="text-sm md:text-base font-semibold text-slate-200">{sponsor.name}</span>
+                    <span className="text-sm md:text-base font-semibold text-foreground">{sponsor.name}</span>
                   </div>
                 ))}
               </div>
@@ -526,59 +528,59 @@ export default function Landing() {
         </div>
       </section> */}
 
-      <footer className="border-t border-slate-800/70 bg-[#070b20] px-6 py-10 lg:px-10">
+      <footer className="border-t border-border bg-card px-6 py-10 lg:px-10">
         <div className="mx-auto grid max-w-6xl gap-8 grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div className="space-y-4 col-span-2 md:col-span-1">
             <Link to="/" className="inline-flex items-center gap-2">
               <img src={logo} alt="BitDx logo" className="h-10 w-10 rounded-lg shadow-lg shadow-blue-500/20 object-contain" />
-              <span className="font-bold text-xl tracking-tight text-white">BitDx</span>
+              <span className="font-bold text-xl tracking-tight text-foreground">BitDx</span>
             </Link>
-            <p className="max-w-sm text-sm leading-6 text-slate-400">
+            <p className="max-w-sm text-sm leading-6 text-muted-foreground">
               Multi-asset trading, wallet connectivity, copy strategies, and AI tools in one exchange experience.
             </p>
           </div>
 
           <div>
-            <h3 className="mb-4 text-sm font-bold text-white">Trade</h3>
-            <div className="space-y-3 text-sm text-slate-400">
-              <Link to="/trade" className="block hover:text-cyan-300 transition-colors">Trading Terminal</Link>
-              <Link to="/markets" className="block hover:text-cyan-300 transition-colors">Markets</Link>
-              <Link to="/copy" className="block hover:text-cyan-300 transition-colors">Copy Trading</Link>
-              <Link to="/prop" className="block hover:text-cyan-300 transition-colors">Prop Firm</Link>
+            <h3 className="mb-4 text-sm font-bold text-foreground">Trade</h3>
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <Link to="/trade" className="block hover:text-primary transition-colors">Trading Terminal</Link>
+              <Link to="/markets" className="block hover:text-primary transition-colors">Markets</Link>
+              <Link to="/copy" className="block hover:text-primary transition-colors">Copy Trading</Link>
+              <Link to="/prop" className="block hover:text-primary transition-colors">Prop Firm</Link>
             </div>
           </div>
 
           <div>
-            <h3 className="mb-4 text-sm font-bold text-white">Products</h3>
-            <div className="space-y-3 text-sm text-slate-400">
-              <Link to="/p2p" className="block hover:text-cyan-300 transition-colors">P2P</Link>
-              <Link to="/token" className="block hover:text-cyan-300 transition-colors">Token</Link>
-              <Link to="/sip" className="block hover:text-cyan-300 transition-colors">DYP/SWAP</Link>
+            <h3 className="mb-4 text-sm font-bold text-foreground">Products</h3>
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <Link to="/p2p" className="block hover:text-primary transition-colors">P2P</Link>
+              <Link to="/token" className="block hover:text-primary transition-colors">Token</Link>
+              <Link to="/sip" className="block hover:text-primary transition-colors">DYP/SWAP</Link>
             </div>
           </div>
 
           <div>
-            <h3 className="mb-4 text-sm font-bold text-white">Company</h3>
-            <div className="space-y-3 text-sm text-slate-400">
-              <Link to="/profile" className="block hover:text-cyan-300 transition-colors">Profile</Link>
-              <Link to="/refer" className="block hover:text-cyan-300 transition-colors">Refer</Link>
-              <Link to="/settings" className="block hover:text-cyan-300 transition-colors">Settings</Link>
-              <button onClick={() => setWalletOpen(true)} className="block text-left hover:text-cyan-300 transition-colors">Connect Wallet</button>
+            <h3 className="mb-4 text-sm font-bold text-foreground">Company</h3>
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <Link to="/profile" className="block hover:text-primary transition-colors">Profile</Link>
+              <Link to="/refer" className="block hover:text-primary transition-colors">Refer</Link>
+              <Link to="/settings" className="block hover:text-primary transition-colors">Settings</Link>
+              <button onClick={() => setWalletOpen(true)} className="block text-left hover:text-primary transition-colors">Connect Wallet</button>
             </div>
           </div>
         </div>
 
-        <div className="mx-auto mt-10 flex max-w-6xl flex-col gap-4 border-t border-slate-800/70 pt-6 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto mt-10 flex max-w-6xl flex-col gap-4 border-t border-border pt-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>© 2026 BitDx. All rights reserved.</p>
           <div className="flex flex-wrap gap-x-5 gap-y-2">
-            <a href="#" className="hover:text-cyan-300 transition-colors">Terms</a>
-            <a href="#" className="hover:text-cyan-300 transition-colors">Privacy</a>
-            <a href="#" className="hover:text-cyan-300 transition-colors">Risk Disclosure</a>
+            <a href="#" className="hover:text-primary transition-colors">Terms</a>
+            <a href="#" className="hover:text-primary transition-colors">Privacy</a>
+            <a href="#" className="hover:text-primary transition-colors">Risk Disclosure</a>
           </div>
         </div>
       </footer>
 
-      <WalletDialog open={walletOpen} onOpenChange={setWalletOpen} />
+      <WalletDialog open={walletOpen} onOpenChange={setWalletOpen} onConnected={goTrade} />
     </div>
   );
 }

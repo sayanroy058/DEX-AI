@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { INITIAL_MARKETS } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -22,15 +24,24 @@ type FlowStatus = "idle" | "ready" | "accepted";
 const strategyTypes = ["Spot Grid", "Futures Grid", "Spot DCA", "Futures DCA", "Arbitrage", "TWAP"];
 const riskLevels = ["Conservative", "Balanced", "Aggressive"];
 const timeframes = ["Intraday", "1-7 Days", "2-4 Weeks", "Long Term"];
+const marketPairs = INITIAL_MARKETS.map((item) => {
+  const isForex = item.asset === "forex" && /^[A-Z]{6}$/.test(item.symbol);
+  const base = isForex ? item.symbol.slice(0, 3) : item.base.replace(/\.us$/i, "");
+  const quote = isForex ? item.symbol.slice(3) : item.quote;
+  const marketType = item.category === "perp" ? "Futures" : item.category === "options" ? "Options" : "Spot";
+  return { value: item.symbol, label: `${base} / ${quote}`, marketType };
+});
 
 export default function AIAgent() {
   const [status, setStatus] = useState<FlowStatus>("idle");
   const [strategyType, setStrategyType] = useState("Spot Grid");
   const [risk, setRisk] = useState("Balanced");
   const [timeframe, setTimeframe] = useState("1-7 Days");
-  const [market, setMarket] = useState("TON/USDN");
+  const [market, setMarket] = useState("BTC-BIUSD");
   const [investment, setInvestment] = useState("280");
   const [goal, setGoal] = useState("Steady compounding with controlled drawdown");
+  const selectedMarket = marketPairs.find((item) => item.value === market);
+  const marketLabel = selectedMarket?.label ?? market;
 
   const flow = useMemo(() => {
     const gridCount = risk === "Conservative" ? 36 : risk === "Balanced" ? 48 : 72;
@@ -40,7 +51,7 @@ export default function AIAgent() {
     return [
       {
         title: "Market Scan",
-        body: `Analyze ${market || "selected market"} volatility, liquidity, spread, and trend strength for the ${timeframe.toLowerCase()} window.`,
+        body: `Analyze ${marketLabel || "selected market"} volatility, liquidity, spread, and trend strength for the ${timeframe.toLowerCase()} window.`,
       },
       {
         title: "Strategy Build",
@@ -55,7 +66,7 @@ export default function AIAgent() {
         body: `Allocate ${investment || "0"} USDN, preview expected trade frequency, then wait for your acceptance before activation.`,
       },
     ];
-  }, [investment, market, risk, strategyType, timeframe]);
+  }, [investment, marketLabel, risk, strategyType, timeframe]);
 
   const generateFlow = () => setStatus("ready");
   const acceptFlow = () => setStatus("accepted");
@@ -95,12 +106,18 @@ export default function AIAgent() {
 
               <div className="space-y-5">
                 <Field label="Market Pair">
-                  <input
-                    value={market}
-                    onChange={(event) => setMarket(event.target.value)}
-                    className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                    placeholder="BTC/USDN"
-                  />
+                  <Select value={market} onValueChange={setMarket}>
+                    <SelectTrigger className="h-11 w-full rounded-xl border-border bg-background text-sm font-semibold">
+                      <SelectValue placeholder="Select a market pair" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {marketPairs.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label} · {item.marketType}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </Field>
 
                 <Field label="Preferred Strategy">
@@ -124,7 +141,7 @@ export default function AIAgent() {
                       className="w-full bg-transparent text-sm font-semibold outline-none"
                       placeholder="0"
                     />
-                    <span className="text-sm font-black">USDN</span>
+                    <span className="text-sm font-black">BIUSD</span>
                   </div>
                 </Field>
 
@@ -168,7 +185,7 @@ export default function AIAgent() {
                   <div className="rounded-2xl border border-primary/25 bg-primary/10 p-4">
                     <div className="text-xs font-bold uppercase tracking-wide text-primary">Agent Summary</div>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      Build a {risk.toLowerCase()} {strategyType} bot for {market || "your selected market"} with {investment || "0"} USDN.
+                      Build a {risk.toLowerCase()} {strategyType} bot for {marketLabel || "your selected market"} with {investment || "0"} USDN.
                       Primary goal: {goal || "not specified"}.
                     </p>
                   </div>

@@ -1,6 +1,7 @@
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { INITIAL_MARKETS } from "@/lib/mockData";
 import { createBinanceDatafeed } from "@/lib/binanceDatafeed";
+import { readTheme, type ThemeMode } from "@/lib/theme";
 
 function marketFor(symbol: string) {
   return INITIAL_MARKETS.find(m => m.symbol === symbol);
@@ -135,6 +136,7 @@ function loadTradingViewEmbedScript(): Promise<void> {
 function ChartPane({ symbol, timeframe }: { symbol: string; timeframe: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<any>(null);
+  const [theme, setTheme] = useState<ThemeMode>(readTheme);
   const isCrypto = marketFor(symbol)?.asset === "crypto" || !marketFor(symbol);
   const base = (marketFor(symbol)?.base ?? symbol.split("-")[0]).toUpperCase();
   const tvSymbol = toTradingViewSymbol(symbol);
@@ -146,12 +148,21 @@ function ChartPane({ symbol, timeframe }: { symbol: string; timeframe: string })
   const containerId = `tv-embed-${reactId.replace(/:/g, "")}`;
 
   useEffect(() => {
+    const onThemeChange = (event: Event) => {
+      setTheme((event as CustomEvent<ThemeMode>).detail);
+    };
+
+    window.addEventListener("dex-theme-change", onThemeChange);
+    return () => window.removeEventListener("dex-theme-change", onThemeChange);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     const container = containerRef.current;
     if (!container) return;
     container.innerHTML = "";
 
-    const isLight = document.documentElement.getAttribute("data-theme") === "light";
+    const isLight = theme === "light";
 
     const commonOptions = {
       autosize: true,
@@ -227,7 +238,7 @@ function ChartPane({ symbol, timeframe }: { symbol: string; timeframe: string })
       }
       widgetRef.current = null;
     };
-  }, [isCrypto, base, tvSymbol, timeframe]);
+  }, [isCrypto, base, tvSymbol, timeframe, theme, containerId]);
 
   return <div ref={containerRef} id={containerId} className="h-full w-full" />;
 }

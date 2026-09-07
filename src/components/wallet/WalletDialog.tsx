@@ -9,13 +9,15 @@ import { toast } from "sonner";
 
 const ICONS: Record<WalletId, { src: string; alt: string }> = {
   metamask: { src: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/MetaMask_Fox.svg/3840px-MetaMask_Fox.svg.png", alt: "MetaMask logo" },
+  trust: { src: "/wallet-icons/trust.svg?v=2", alt: "Trust Wallet logo" },
+  binance: { src: "/wallet-icons/binance.svg?v=2", alt: "Binance Wallet logo" },
   coinbase: { src: "https://images.icon-icons.com/2407/PNG/512/coinbase_icon_146203.png", alt: "Coinbase Wallet logo" },
-  bitget: { src: "https://s2.coinmarketcap.com/static/img/coins/200x200/11092.png", alt: "Bitget Wallet logo" },
+  bitget: { src: "/wallet-icons/bitget.svg?v=2", alt: "Bitget Wallet logo" },
 };
 
-const SUPPORTED_WALLETS: WalletId[] = ["metamask", "coinbase", "bitget"];
+const SUPPORTED_WALLETS: WalletId[] = ["metamask", "trust", "binance", "coinbase", "bitget"];
 
-export function WalletDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function WalletDialog({ open, onOpenChange, onConnected }: { open: boolean; onOpenChange: (v: boolean) => void; onConnected?: () => void }) {
   const w = useWallet();
   const [connecting, setConnecting] = useState<WalletId | null>(null);
 
@@ -30,6 +32,7 @@ export function WalletDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       await wallet.connect(id);
       toast.success(`${WALLETS.find((x) => x.id === id)?.name} connected`);
       onOpenChange(false);
+      onConnected?.();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Wallet connection failed";
       toast.error(message.includes("rejected") ? "Connection rejected by wallet" : message);
@@ -60,7 +63,7 @@ export function WalletDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         {w.connected ? (
           <div className="space-y-3">
             <div className="glass rounded-xl p-4 flex items-center gap-3">
-              <img src={ICONS[w.walletId!].src} alt={ICONS[w.walletId!].alt} className="h-10 w-10 rounded-lg bg-slate-900/70 p-1.5 object-contain" />
+              <img src={ICONS[w.walletId!].src} alt={ICONS[w.walletId!].alt} className="h-10 w-10 rounded-lg bg-muted/70 p-1.5 object-contain" />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold">{getWalletSourceLabel(w.walletId)}</div>
                 <div className="text-xs font-mono text-muted-foreground truncate">{shortAddress(w.address)}</div>

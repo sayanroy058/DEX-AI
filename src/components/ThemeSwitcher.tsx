@@ -1,29 +1,16 @@
 import { useEffect, useState } from "react";
 import { Sun, Moon, Palette } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type ThemeMode = "dark" | "light" | "ocean";
+import { applyTheme, readTheme, type ThemeMode } from "@/lib/theme";
 
 const THEMES: { id: ThemeMode; label: string; icon: typeof Sun }[] = [
   { id: "dark", label: "Dark", icon: Moon },
   { id: "light", label: "Light", icon: Sun },
-  { id: "ocean", label: "Other", icon: Palette },
+  { id: "other", label: "Other", icon: Palette },
 ];
 
-function applyTheme(theme: ThemeMode) {
-  document.documentElement.setAttribute("data-theme", theme);
-  localStorage.setItem("dex-theme", theme);
-  window.dispatchEvent(new CustomEvent("dex-theme-change", { detail: theme }));
-}
-
 export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
-  const [theme, setTheme] = useState<ThemeMode>("dark");
-
-  useEffect(() => {
-    const saved = (localStorage.getItem("dex-theme") as ThemeMode | null) ?? "dark";
-    setTheme(saved);
-    applyTheme(saved);
-  }, []);
+  const [theme, setTheme] = useState<ThemeMode>(readTheme);
 
   useEffect(() => {
     const onThemeChange = (event: Event) => {
@@ -41,6 +28,8 @@ export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
         return (
           <button
             key={t.id}
+            type="button"
+            aria-pressed={theme === t.id}
             onClick={() => {
               setTheme(t.id);
               applyTheme(t.id);

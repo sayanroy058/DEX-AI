@@ -206,9 +206,9 @@ export default function Token() {
                       {SUPPLY_ALLOC.map((s, i) => <Cell key={i} fill={s.color} />)}
                     </Pie>
                     <Tooltip
-                      contentStyle={{ background: "hsl(230 25% 9%)", border: "1px solid hsl(230 25% 18%)", borderRadius: 8, fontSize: 11 }}
-                      itemStyle={{ color: "hsl(0 0% 98%)" }}
-                      labelStyle={{ color: "hsl(220 15% 70%)" }}
+                      contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))", fontSize: 11 }}
+                      itemStyle={{ color: "hsl(var(--popover-foreground))" }}
+                      labelStyle={{ color: "hsl(var(--muted-foreground))" }}
                       formatter={(v: number | string) => [`${v}%`, ""]}
                     />
                   </PieChart>
@@ -251,12 +251,12 @@ export default function Token() {
 
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={EMISSION_DATA} margin={{ top: 12, right: 8, bottom: 0, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(230 25% 18% / 0.5)" vertical={false} />
-                <XAxis dataKey="year" tick={{ fill: "hsl(220 15% 55%)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "hsl(220 15% 55%)", fontSize: 9 }} axisLine={false} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.5)" vertical={false} />
+                <XAxis dataKey="year" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9 }} axisLine={false} tickLine={false} />
                 <Tooltip
-                  contentStyle={{ background: "hsl(230 25% 9%)", border: "1px solid hsl(230 25% 18%)", borderRadius: 8, fontSize: 11 }}
-                  cursor={{ fill: "hsl(230 25% 18% / 0.4)" }}
+                  contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))", fontSize: 11 }}
+                  cursor={{ fill: "hsl(var(--border) / 0.4)" }}
                 />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10, paddingTop: 8 }} />
                 <Line type="monotone" dataKey="Circulating" stroke="#00e5ff" strokeWidth={2} dot={false} />
@@ -335,12 +335,12 @@ export default function Token() {
                       <stop offset="95%" stopColor="hsl(145 85% 50%)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(230 25% 18% / 0.5)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.5)" />
                   <XAxis dataKey="d" hide />
-                  <YAxis domain={[0.98, 1.01]} tick={{ fill: "hsl(220 15% 55%)", fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => `$${v.toFixed(3)}`} />
+                  <YAxis domain={[0.98, 1.01]} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => `$${v.toFixed(3)}`} />
                   <Tooltip
-                    contentStyle={{ background: "hsl(230 25% 9%)", border: "1px solid hsl(230 25% 18%)", borderRadius: 8, fontSize: 11 }}
-                    formatter={(v: any) => [`$${v}`, "Price"]}
+                    contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))", fontSize: 11 }}
+                    formatter={(v: number | string) => [`$${v}`, "Price"]}
                   />
                   <Area type="monotone" dataKey="price" stroke="hsl(145 85% 50%)" strokeWidth={1.5} fill="url(#gStable)" dot={false} isAnimationActive={false} />
                 </AreaChart>
@@ -416,7 +416,7 @@ export default function Token() {
                 <div className="h-7 w-7 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow-primary">
                   <Zap className="h-3.5 w-3.5 text-primary-foreground" strokeWidth={2.5} />
                 </div>
-                <span className="font-bold text-white">BitDx</span>
+                <span className="font-bold text-foreground">BitDx</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed max-w-[200px]">
                 The all-in-one decentralized exchange for crypto, commodities, forex, and stocks. Built for the next billion traders.

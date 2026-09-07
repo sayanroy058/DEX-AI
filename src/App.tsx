@@ -1,4 +1,4 @@
-import { useLayoutEffect, useEffect } from "react";
+import { useLayoutEffect, useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { setAuthExpiredHandler } from "@/lib/apiClient";
@@ -18,7 +18,9 @@ import TradingBots from "./pages/TradingBots.tsx";
 import AIAgent from "./pages/AIAgent.tsx";
 import P2P from "./pages/P2P.tsx";
 import P2POrders from "./pages/P2POrders.tsx";
+import P2POrderDetail from "./pages/P2POrderDetail.tsx";
 import P2PAdvertiser from "./pages/P2PAdvertiser.tsx";
+import P2PWallet from "./pages/P2PWallet.tsx";
 import Token from "./pages/Token.tsx";
 import Refer from "./pages/Refer.tsx";
 import SIP from "./pages/SIP.tsx";
@@ -29,7 +31,11 @@ import AdminLogin from "./pages/AdminLogin.tsx";
 import AdminDashboard from "./pages/AdminDashboard.tsx";
 import AdminProfile from "./pages/AdminProfile.tsx";
 import AdminMarketMakers from "./pages/AdminMarketMakers.tsx";
+import AdminMarketMakerPnl from "./pages/AdminMarketMakerPnl.tsx";
+import AdminTestBalances from "./pages/AdminTestBalances.tsx";
+import AdminP2PAppeals from "./pages/AdminP2PAppeals.tsx";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
+import { readTheme, type ThemeMode } from "@/lib/theme";
 
 const queryClient = new QueryClient();
 
@@ -58,11 +64,26 @@ function AuthExpiryWatcher() {
   return null;
 }
 
+function ThemeAwareSonner() {
+  const [theme, setTheme] = useState<ThemeMode>(readTheme);
+
+  useEffect(() => {
+    const onThemeChange = (event: Event) => {
+      setTheme((event as CustomEvent<ThemeMode>).detail);
+    };
+
+    window.addEventListener("dex-theme-change", onThemeChange);
+    return () => window.removeEventListener("dex-theme-change", onThemeChange);
+  }, []);
+
+  return <Sonner theme={theme === "light" ? "light" : "dark"} position="top-right" />;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider delayDuration={200}>
       <Toaster />
-      <Sonner theme="dark" position="top-right" />
+      <ThemeAwareSonner />
       <BrowserRouter>
         <ScrollToTop />
         <AuthExpiryWatcher />
@@ -80,7 +101,9 @@ const App = () => (
           <Route path="/prop" element={<PropFirm />} />
           <Route path="/p2p" element={<P2P />} />
           <Route path="/p2p/orders" element={<P2POrders />} />
+          <Route path="/p2p/orders/:orderId" element={<P2POrderDetail />} />
           <Route path="/p2p/advertiser" element={<P2PAdvertiser />} />
+          <Route path="/p2p/wallet" element={<P2PWallet />} />
           <Route path="/token" element={<Token />} />
           <Route path="/refer" element={<Refer />} />
           <Route path="/affiliate" element={<Affiliate />} />
@@ -90,6 +113,9 @@ const App = () => (
           <Route element={<AdminProtectedRoute />}>
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/market-makers" element={<AdminMarketMakers />} />
+            <Route path="/admin/market-makers/pnl" element={<AdminMarketMakerPnl />} />
+            <Route path="/admin/test-balances" element={<AdminTestBalances />} />
+            <Route path="/admin/p2p-appeals" element={<AdminP2PAppeals />} />
             <Route path="/admin/profile" element={<AdminProfile />} />
           </Route>
           <Route path="*" element={<NotFound />} />

@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { formatPrice, OptionContract } from "@/lib/mockData";
-import { TrendingUp, TrendingDown, Info, Zap, Shield, Calculator, ChevronDown, Plus, X } from "lucide-react";
+import { TrendingUp, TrendingDown, Info, Zap, Shield, Calculator, ChevronDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { backendMarketFor, backendOptionsMarketFor, optionInstrumentSymbol } from "@/lib/backendMarkets";
@@ -17,19 +17,10 @@ import { useMarketMetadata } from "@/lib/useMarketMetadata";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 type Side = "buy" | "sell";
-type OrderType = "market" | "limit" | "tpsl";
+type OrderType = "market" | "limit";
 export type MarketMode = "spot" | "futures" | "options";
 type MarginMode = "isolated" | "cross";
 type OptionType = "call" | "put";
-type TpslOrderMode = "market" | "limit";
-type TpslTarget = {
-  id: number;
-  tpEnabled: boolean;
-  slEnabled: boolean;
-  tp: string;
-  sl: string;
-  mode: TpslOrderMode;
-};
 
 export function TradePanel({
   symbol,
@@ -45,17 +36,30 @@ export function TradePanel({
   orders: ReturnType<typeof useOrders>;
 }) {
   const baseAsset = symbol.split("-")[0] || "BTC";
-  const quoteAsset = symbol.split("-")[1] || "USDC";
   const backendMarket = backendMarketFor(symbol);
   const marketMetadata = useMarketMetadata(symbol);
+  // Splitting the display symbol (e.g. "BTC-PERP") gave "PERP" as the quote
+  // asset for every futures market — marketMetadata.quoteCurrency is the
+  // backend's actual answer (now BIUSD for both spot and futures) and is
+  // always right, whatever the display symbol's suffix convention is.
+  const quoteAsset = marketMetadata?.quoteCurrency || symbol.split("-")[1] || "BIUSD";
   const walletState = useWallet();
   const [mode, setMode] = useState<MarketMode>("spot");
   const [side, setSide] = useState<Side>("buy");
   const isSpotSell = mode === "spot" && side === "sell";
+  const isSpotBuy = mode === "spot" && side === "buy";
+  const isOptions = mode === "options";
   const quoteBalance = walletState.balances.find((b) => b.asset === quoteAsset)?.available ?? 0;
   const baseBalance = walletState.balances.find((b) => b.asset === baseAsset)?.available ?? 0;
   // Buys spend quote currency; spot sells spend the purchased base asset.
   const BALANCE = isSpotSell ? baseBalance : quoteBalance;
+  // A spot buy's fee-inclusive engine reservation (orderValue * (1 +
+  // feeRate); see submit.go) means the max quote spendable at 100% is
+  // BALANCE / (1 + feeRate), not BALANCE itself. Computed here, ahead of
+  // sizeInput's own state, so the displayed size box and the actual order
+  // math (sizeUsd below) never disagree.
+  const feeRate = isOptions ? 0.001 : Number(marketMetadata?.takerFeePct ?? 0) / 100;
+  const maxSpendable = isSpotBuy ? BALANCE / (1 + feeRate) : BALANCE;
   const leverageInputRef = useRef<HTMLInputElement>(null);
   const sizeInputRef = useRef<HTMLInputElement>(null);
   const [orderType, setOrderType] = useState<OrderType>("limit");
@@ -67,10 +71,10 @@ export function TradePanel({
   const [leverageInput, setLeverageInput] = useState("10");
   const [isCustomLeverageOpen, setIsCustomLeverageOpen] = useState(false);
   const [sizePct, setSizePct] = useState(25);
-  const [sizeInput, setSizeInput] = useState((BALANCE * 0.25).toFixed(2));
+  const [sizeInput, setSizeInput] = useState((maxSpendable * 0.25).toFixed(2));
   useEffect(() => {
-    setSizeInput((BALANCE * (sizePct / 100)).toFixed(isSpotSell ? 8 : 2));
-  }, [BALANCE, isSpotSell, sizePct]);
+    setSizeInput((maxSpendable * (sizePct / 100)).toFixed(isSpotSell ? 8 : 2));
+  }, [maxSpendable, isSpotSell, sizePct]);
   const [limitPrice, setLimitPrice] = useState(price.toFixed(2));
   // useState(price...) above only reads `price` on first render. `price` is
   // 0 (or a mock value) until the real live-price hook resolves — usually
@@ -92,16 +96,14 @@ export function TradePanel({
   useEffect(() => {
     editedPriceRef.current = false;
   }, [symbol]);
-  const [tpslTargets, setTpslTargets] = useState<TpslTarget[]>([
-    {
-      id: 1,
-      tpEnabled: false,
-      slEnabled: false,
-      tp: (price * 1.05).toFixed(2),
-      sl: (price * 0.97).toFixed(2),
-      mode: "market",
-    },
-  ]);
+  // TP/SL is an optional attachment on any order (Market or Limit), not a
+  // separate order type — the user checks Take Profit and/or Stop Loss and
+  // enters a price for whichever is enabled. R:R only means anything once
+  // BOTH are enabled (a ratio needs two sides), so it's hidden otherwise.
+  const [tpEnabled, setTpEnabled] = useState(false);
+  const [slEnabled, setSlEnabled] = useState(false);
+  const [tp, setTp] = useState((price * 1.05).toFixed(2));
+  const [sl, setSl] = useState((price * 0.97).toFixed(2));
   const [optType, setOptType] = useState<OptionType>("call");
   const [expiry, setExpiry] = useState("7D");
   const [strike, setStrike] = useState((Math.round(price / 100) * 100).toString());
@@ -150,13 +152,15 @@ export function TradePanel({
 
   const isSpot = mode === "spot";
   const isFutures = mode === "futures";
-  const isOptions = mode === "options";
   const isIsolatedMargin = marginMode === "isolated";
   const effLeverage = isSpot ? 1 : leverage;
 
+  // maxSpendable (declared above, near BALANCE) already accounts for the
+  // spot-buy fee-inclusive reservation, so sizing off it here keeps this in
+  // sync with the sizeInput box without repeating the (1 + feeRate) math.
   const sizeUsd = isSpotSell
     ? BALANCE * (sizePct / 100) * price
-    : BALANCE * (sizePct / 100);
+    : maxSpendable * (sizePct / 100);
   const orderValue = sizeUsd * effLeverage;
   const lotSize = Number(marketMetadata?.lotSize ?? 0);
   const tickSize = Number(marketMetadata?.tickSize ?? 0);
@@ -180,15 +184,16 @@ export function TradePanel({
   const liqPrice = side === "buy"
     ? (price * (1 - 1 / effLeverage)) / (1 - mmr)
     : (price * (1 + 1 / effLeverage)) / (1 + mmr);
-  const feeRate = isOptions ? 0.001 : Number(marketMetadata?.takerFeePct ?? 0) / 100;
   const fee = orderValue * feeRate;
   const orderValueLabel = orderValue > 0 && orderValue < 1
     ? `$${orderValue.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 8 })}`
     : `$${orderValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-  const primaryTarget = tpslTargets[0];
-  const tpPct = ((parseFloat(primaryTarget.tp) - price) / price) * 100 * (side === "buy" ? 1 : -1);
-  const slPct = ((parseFloat(primaryTarget.sl) - price) / price) * 100 * (side === "buy" ? -1 : 1);
-  const rr = Number.isFinite(tpPct / slPct) && slPct !== 0 ? Math.abs(tpPct / slPct).toFixed(2) : "—";
+  const tpPct = ((parseFloat(tp) - price) / price) * 100 * (side === "buy" ? 1 : -1);
+  const slPct = ((parseFloat(sl) - price) / price) * 100 * (side === "buy" ? -1 : 1);
+  // R:R only means anything with both legs present — showing it off a
+  // half-configured order (only TP, or only SL) would be a meaningless number.
+  const showRR = tpEnabled && slEnabled;
+  const rr = showRR && Number.isFinite(tpPct / slPct) && slPct !== 0 ? Math.abs(tpPct / slPct).toFixed(2) : "—";
 
   const strikeNum = parseFloat(strike) || price;
   const days = parseInt(expiry) || 7;
@@ -255,7 +260,7 @@ export function TradePanel({
       // Match the options-mode pattern above: an honest "not available"
       // error, not a fabricated fill.
       toast.error(`${symbol} isn't available to trade yet`, {
-        description: "This market isn't live on the exchange yet — try BTC-USDT, ETH-USDT, SOL-USDT, BTC-PERP, or ETH-PERP.",
+        description: "This market isn't live on the exchange yet — try BTC-BIUSD, ETH-BIUSD, SOL-BIUSD, BTC-PERP, or ETH-PERP.",
       });
       return;
     }
@@ -267,8 +272,8 @@ export function TradePanel({
       return;
     }
 
-    const engineOrderType = orderType === "tpsl" ? "MARKET" : orderType.toUpperCase();
-    const rawRequestedPrice = orderType === "market" || orderType === "tpsl" ? price : Number(limitPrice);
+    const engineOrderType = orderType.toUpperCase();
+    const rawRequestedPrice = orderType === "market" ? price : Number(limitPrice);
     // JavaScript number arithmetic can produce values such as 78536.7702
     // from a tick-aligned input/calculation. Normalize the submitted limit
     // price to the exchange tick before validation and serialization.
@@ -307,42 +312,42 @@ export function TradePanel({
       return;
     }
 
-    const isMarketExecution = orderType === "market" || orderType === "tpsl";
+    const isMarketExecution = orderType === "market";
     if (isFutures && isMarketExecution && leverage > 1 && !confirmedMarketOrder) {
       setMarketConfirmOpen(true);
       return;
     }
 
-    // TP/SL is not a distinct order type on the engine — it's an entry order
-    // (placed here as a market order, since a resting-limit entry combined
-    // with contingent exits adds a "what if the entry never fills" state
-    // this panel doesn't track) plus one real STOP order per enabled target,
-    // submitted on the *opposite* side and reduce-only so it can only close
-    // the position it's protecting, never open a new one. Previously this
-    // branch submitted a plain market/limit order and silently discarded
-    // tpslTargets entirely — the position had zero actual protection despite
-    // the UI implying otherwise.
-    const isTpsl = orderType === "tpsl";
+    // TP/SL is an optional attachment on top of a regular Market or Limit
+    // entry, not a distinct order type on the engine — the entry order goes
+    // in as whatever orderType the user actually picked, plus one real STOP
+    // order per enabled leg, submitted on the *opposite* side and
+    // reduce-only so it can only close the position it's protecting, never
+    // open a new one. Previously (when TP/SL was its own tab) this branch
+    // silently forced the entry to MARKET and could discard the targets
+    // entirely on a plain submit — the position had zero actual protection
+    // despite the UI implying otherwise.
+    const hasTpsl = tpEnabled || slEnabled;
     const exitSide = side === "buy" ? "SELL" : "BUY";
-      const futuresParams = isFutures
+    const futuresParams = isFutures
       ? { leverage, marginMode: marginMode.toUpperCase() as "ISOLATED" | "CROSS", ...(reduceOnly ? { reduceOnly: true } : {}) }
       : {};
 
     try {
       const parentOrder = {
-          symbol: backendMarket.symbol,
+        symbol: backendMarket.symbol,
         market: backendMarket.market,
         side: side === "buy" ? "BUY" : "SELL",
-        type: orderType === "market" || isTpsl ? "MARKET" : "LIMIT",
-          price: orderType === "market" || isTpsl ? undefined : requestedPrice.toFixed(tickDecimals),
-          qty: positionSize.toFixed(quantityDecimals), account: "",
-          ...(isMarketExecution && Number(slippageBps) >= 0 ? { slippageBps: Math.round(Number(slippageBps)) } : {}),
-          ...futuresParams,
+        type: engineOrderType,
+        price: orderType === "market" ? undefined : requestedPrice.toFixed(tickDecimals),
+        qty: positionSize.toFixed(quantityDecimals), account: "",
+        ...(isMarketExecution && Number(slippageBps) >= 0 ? { slippageBps: Math.round(Number(slippageBps)) } : {}),
+        ...futuresParams,
       };
-      const res = isTpsl
+      const res = hasTpsl
         ? await submitAttachedOrder(parentOrder,
-            tpslTargets[0]?.tpEnabled ? { ...parentOrder, side: exitSide, type: "STOP", stopPrice: tpslTargets[0].tp, qty: "0" } : undefined,
-            tpslTargets[0]?.slEnabled ? { ...parentOrder, side: exitSide, type: "STOP", stopPrice: tpslTargets[0].sl, qty: "0" } : undefined)
+            tpEnabled ? { ...parentOrder, side: exitSide, type: "STOP", stopPrice: tp, qty: "0" } : undefined,
+            slEnabled ? { ...parentOrder, side: exitSide, type: "STOP", stopPrice: sl, qty: "0" } : undefined)
         : await orders.place(parentOrder);
       toast.success(`${side.toUpperCase()} ${orderType.toUpperCase()} placed`, {
         description: `Order ${res.orderId.slice(0, 8)} · status ${res.status} · filled ${res.filled}`,
@@ -371,7 +376,7 @@ export function TradePanel({
   const setSizePercentValue = (value: number) => {
     const next = clamp(value, 0.004, 100);
     setSizePct(next);
-    setSizeInput((BALANCE * (next / 100)).toFixed(isSpotSell ? 8 : 2));
+    setSizeInput((maxSpendable * (next / 100)).toFixed(isSpotSell ? 8 : 2));
   };
   const handleLeverageInputChange = (value: string) => {
     if (!isIsolatedMargin) return;
@@ -404,42 +409,18 @@ export function TradePanel({
       setSizeInput(value);
       return;
     }
-    const usdnValue = clamp(numericValue, 0, BALANCE);
+    const usdnValue = clamp(numericValue, 0, maxSpendable);
     setSizeInput(usdnValue === numericValue ? value : usdnValue.toFixed(isSpotSell ? 8 : 2));
-    setSizePct((usdnValue / BALANCE) * 100);
+    setSizePct((usdnValue / maxSpendable) * 100);
   };
   const handleSizeBlur = () => {
     const numericValue = parseFloat(sizeInput);
     const usdnValue = Number.isFinite(numericValue)
-      ? clamp(numericValue, 0, BALANCE)
+      ? clamp(numericValue, 0, maxSpendable)
       : sizeUsd;
-    setSizePct((usdnValue / BALANCE) * 100);
+    setSizePct((usdnValue / maxSpendable) * 100);
     setSizeInput(usdnValue.toFixed(isSpotSell ? 8 : 2));
   };
-  const addTpslTarget = () => {
-    setTpslTargets(current => {
-      const nextId = Math.max(...current.map(target => target.id)) + 1;
-      return [
-        ...current,
-        {
-          id: nextId,
-          tpEnabled: false,
-          slEnabled: false,
-          tp: (price * (1 + 0.05 + current.length * 0.02)).toFixed(2),
-          sl: (price * 0.97).toFixed(2),
-          mode: "market",
-        },
-      ];
-    });
-  };
-  const updateTpslTarget = (id: number, updates: Partial<Omit<TpslTarget, "id">>) => {
-    setTpslTargets(current => current.map(target => target.id === id ? { ...target, ...updates } : target));
-  };
-  const removeTpslTarget = (id: number) => {
-    setTpslTargets(current => current.length === 1 ? current : current.filter(target => target.id !== id));
-  };
-  const getTpPct = (value: string) => ((parseFloat(value) - price) / price) * 100 * (side === "buy" ? 1 : -1);
-  const getSlPct = (value: string) => ((parseFloat(value) - price) / price) * 100 * (side === "buy" ? -1 : 1);
 
   const Row = ({ label, value, valueClass = "" }: { label: React.ReactNode; value: React.ReactNode; valueClass?: string }) => (
     <div className="flex justify-between items-center gap-3">
@@ -501,10 +482,9 @@ export function TradePanel({
       {!isOptions && (
         <div className="px-3 pt-2">
           <Tabs value={orderType} onValueChange={v => setOrderType(v as OrderType)}>
-            <TabsList className="grid grid-cols-4 h-8 bg-muted/30 w-full rounded-lg p-0.5">
+            <TabsList className="grid grid-cols-3 h-8 bg-muted/30 w-full rounded-lg p-0.5">
               <TabsTrigger value="market" className="h-7 text-xs rounded-md">Market</TabsTrigger>
               <TabsTrigger value="limit" className="h-7 text-xs rounded-md">Limit</TabsTrigger>
-              <TabsTrigger value="tpsl" className="h-7 text-xs rounded-md">TP/SL</TabsTrigger>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -682,7 +662,7 @@ export function TradePanel({
               <input type="checkbox" checked={reduceOnly} onChange={e => setReduceOnly(e.target.checked)} className="accent-primary" />
               Reduce only
             </label>
-            {(orderType === "market" || orderType === "tpsl") && (
+            {orderType === "market" && (
               <label className="flex items-center gap-1 rounded-md border border-border bg-muted/20 px-2 text-xs text-muted-foreground">
                 Max slippage
                 <Input value={slippageBps} onChange={e => setSlippageBps(e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" className="h-7 border-0 bg-transparent px-1 text-right font-mono text-xs" aria-label="Maximum market-order slippage in basis points" />
@@ -734,84 +714,35 @@ export function TradePanel({
           <div className="mt-1 text-[11px] text-muted-foreground">Min. notional {marketMetadata?.minNotional ?? "—"}</div>
         </div>
 
-        {!isOptions && orderType === "tpsl" && (
+        {!isOptions && (
           <div className="space-y-1.5 pt-1.5 border-t border-border/50">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold">TP/SL targets</span>
-              <button
-                type="button"
-                onClick={addTpslTarget}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary/15 text-primary transition-colors hover:bg-primary/25"
-                aria-label="Add TP/SL target"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </button>
+            <span className="text-xs font-semibold">TP/SL (optional)</span>
+            <div className="grid grid-cols-[auto_1fr_minmax(88px,0.8fr)_48px] items-center gap-2">
+              <input
+                type="checkbox"
+                checked={tpEnabled}
+                onChange={e => setTpEnabled(e.target.checked)}
+                className="h-3.5 w-3.5 shrink-0 accent-primary"
+                aria-label="Enable take profit"
+              />
+              <span className="text-xs">Take Profit</span>
+              <Input disabled={!tpEnabled} value={tp} onChange={e => setTp(e.target.value)}
+                className="h-7 rounded-md font-mono text-xs text-buy px-2" />
+              <span className="text-xs text-right text-buy font-mono">+{tpPct.toFixed(1)}%</span>
             </div>
-            {tpslTargets.map((target, index) => {
-              const targetTpPct = getTpPct(target.tp);
-              const targetSlPct = getSlPct(target.sl);
-
-              return (
-                <div key={target.id} className="rounded-lg border border-border/50 bg-muted/20 p-2 space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold text-muted-foreground">Target {index + 1}</span>
-                    <div className="flex items-center gap-1">
-                      {(["market", "limit"] as const).map(modeOption => (
-                        <button
-                          key={modeOption}
-                          type="button"
-                          onClick={() => updateTpslTarget(target.id, { mode: modeOption })}
-                          className={cn(
-                            "h-6 rounded px-2 text-[11px] font-semibold capitalize transition-colors",
-                            target.mode === modeOption
-                              ? "bg-primary/20 text-primary"
-                              : "bg-background/50 text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          {modeOption}
-                        </button>
-                      ))}
-                      {tpslTargets.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeTpslTarget(target.id)}
-                          className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
-                          aria-label={`Remove target ${index + 1}`}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-[auto_1fr_minmax(88px,0.8fr)_48px] items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={target.tpEnabled}
-                      onChange={e => updateTpslTarget(target.id, { tpEnabled: e.target.checked })}
-                      className="h-3.5 w-3.5 shrink-0 accent-primary"
-                      aria-label={`Enable take profit for target ${index + 1}`}
-                    />
-                    <span className="text-xs">Take Profit</span>
-                    <Input disabled={!target.tpEnabled} value={target.tp} onChange={e => updateTpslTarget(target.id, { tp: e.target.value })}
-                      className="h-7 rounded-md font-mono text-xs text-buy px-2" />
-                    <span className="text-xs text-right text-buy font-mono">+{targetTpPct.toFixed(1)}%</span>
-                  </div>
-                  <div className="grid grid-cols-[auto_1fr_minmax(88px,0.8fr)_48px] items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={target.slEnabled}
-                      onChange={e => updateTpslTarget(target.id, { slEnabled: e.target.checked })}
-                      className="h-3.5 w-3.5 shrink-0 accent-primary"
-                      aria-label={`Enable stop loss for target ${index + 1}`}
-                    />
-                    <span className="text-xs">Stop Loss</span>
-                    <Input disabled={!target.slEnabled} value={target.sl} onChange={e => updateTpslTarget(target.id, { sl: e.target.value })}
-                      className="h-7 rounded-md font-mono text-xs text-sell px-2" />
-                    <span className="text-xs text-right text-sell font-mono">-{Math.abs(targetSlPct).toFixed(1)}%</span>
-                  </div>
-                </div>
-              );
-            })}
+            <div className="grid grid-cols-[auto_1fr_minmax(88px,0.8fr)_48px] items-center gap-2">
+              <input
+                type="checkbox"
+                checked={slEnabled}
+                onChange={e => setSlEnabled(e.target.checked)}
+                className="h-3.5 w-3.5 shrink-0 accent-primary"
+                aria-label="Enable stop loss"
+              />
+              <span className="text-xs">Stop Loss</span>
+              <Input disabled={!slEnabled} value={sl} onChange={e => setSl(e.target.value)}
+                className="h-7 rounded-md font-mono text-xs text-sell px-2" />
+              <span className="text-xs text-right text-sell font-mono">-{Math.abs(slPct).toFixed(1)}%</span>
+            </div>
           </div>
         )}
 
@@ -847,13 +778,15 @@ export function TradePanel({
               />
             )}
             <Row label="Fee" value={`$${fee.toFixed(2)}`} />
-            <div className="border-t border-border/50 pt-0.5">
-              <Row
-                label={<span className="flex items-center gap-1"><Calculator className="h-3 w-3" />R:R Ratio</span>}
-                value={`1 : ${rr}`}
-                valueClass="font-bold text-primary"
-              />
-            </div>
+            {showRR && (
+              <div className="border-t border-border/50 pt-0.5">
+                <Row
+                  label={<span className="flex items-center gap-1"><Calculator className="h-3 w-3" />R:R Ratio</span>}
+                  value={`1 : ${rr}`}
+                  valueClass="font-bold text-primary"
+                />
+              </div>
+            )}
           </div>
         )}
 

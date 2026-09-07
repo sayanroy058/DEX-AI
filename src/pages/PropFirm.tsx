@@ -6,7 +6,7 @@ import type { CSSProperties } from "react";
 import { useState, useEffect } from "react";
 
 const challenges = [
-  { name: "Starter", capital: "$5,000", fee: "$49", profit: "8%", drawdown: "5%", split: "80%", recommended: false, color: "border-slate-400/50", badge: "bg-slate-700/30 text-slate-300", glow: "148 163 184" },
+  { name: "Starter", capital: "$5,000", fee: "$49", profit: "8%", drawdown: "5%", split: "80%", recommended: false, color: "border-slate-400/50", badge: "bg-slate-700/30 text-slate-700 dark:text-slate-300", glow: "148 163 184" },
   { name: "Popular", capital: "$10,000", fee: "$99", profit: "8%", drawdown: "5%", split: "85%", recommended: true, color: "border-primary/50", badge: "bg-primary/20 text-primary", glow: "34 211 238" },
   { name: "Pro", capital: "$25,000", fee: "$249", profit: "8%", drawdown: "8%", split: "90%", recommended: false, color: "border-violet-400/50", badge: "bg-violet-500/15 text-violet-400", glow: "167 139 250" },
   { name: "Elite", capital: "$100,000", fee: "$499", profit: "10%", drawdown: "8%", split: "90%", recommended: false, color: "border-amber-400/50", badge: "bg-amber-500/15 text-amber-400", glow: "251 191 36" },
@@ -70,7 +70,7 @@ const objectiveData = {
 
 const leaderboard = [
   { name: "Eric S.", payout: "$20,432", badge: "Gold", icon: Trophy, tone: "from-amber-300/40 to-yellow-500/10", iconColor: "text-amber-300" },
-  { name: "Alex H.", payout: "$7,998", badge: "Silver", icon: Medal, tone: "from-slate-300/40 to-slate-500/10", iconColor: "text-slate-200" },
+  { name: "Alex H.", payout: "$7,998", badge: "Silver", icon: Medal, tone: "from-slate-300/40 to-slate-500/10", iconColor: "text-slate-600 dark:text-slate-200" },
   { name: "Brian K.", payout: "$6,819", badge: "Bronze", icon: Gem, tone: "from-orange-300/40 to-amber-700/10", iconColor: "text-orange-300" },
 ];
 
@@ -350,16 +350,16 @@ export default function PropFirm() {
             </div>
 
             <div className="rounded-2xl border border-primary/35 overflow-hidden shadow-glow-primary/20">
-              <div className="bg-gradient-to-r from-[#1a2f66] to-[#1b3f82] px-4 sm:px-6 py-3 grid grid-cols-4 text-sm font-semibold">
+              <div className="bg-gradient-to-r from-[#1a2f66] to-[#1b3f82] px-4 sm:px-6 py-3 grid grid-cols-4 text-sm font-semibold text-white">
                 <div>Objective</div>
                 <div className="text-center">Stage 1</div>
                 <div className="text-center">Stage 2</div>
                 <div className="text-center">Trader Stage</div>
               </div>
-              <div className="bg-[#0d1e46]/95">
+              <div className="bg-card/95">
                 {objectiveData[selectedPlanMode].map((row) => (
-                  <div key={row.metric} className="grid grid-cols-4 px-4 sm:px-6 py-3 text-sm border-t border-white/10">
-                    <div className="text-cyan-100/90">{row.metric}</div>
+                  <div key={row.metric} className="grid grid-cols-4 px-4 sm:px-6 py-3 text-sm border-t border-border">
+                    <div className="font-medium text-foreground">{row.metric}</div>
                     <div className="text-center">{row.stage1}</div>
                     <div className="text-center">{row.stage2}</div>
                     <div className="text-center text-primary font-medium">{row.trader}</div>
@@ -389,13 +389,13 @@ export default function PropFirm() {
 
             <div className="grid md:grid-cols-3 gap-6">
               {leaderboard.map((item) => (
-                <div key={item.name} className="rounded-2xl border border-primary/30 bg-[#0d1e46]/90 p-6 relative overflow-hidden">
+                <div key={item.name} className="rounded-2xl border border-primary/30 bg-card/90 p-6 relative overflow-hidden">
                   <div className={`absolute inset-0 bg-gradient-to-b ${item.tone} opacity-40`} />
                   <div className="relative">
-                    <div className="h-24 w-24 rounded-2xl bg-black/25 border border-white/20 flex items-center justify-center mb-5">
+                    <div className="h-24 w-24 rounded-2xl bg-black/25 border border-border flex items-center justify-center mb-5">
                       <item.icon className={`h-12 w-12 ${item.iconColor}`} />
                     </div>
-                    <div className="text-sm text-cyan-100/80">{item.badge}</div>
+                    <div className="text-sm text-muted-foreground">{item.badge}</div>
                     <div className="text-2xl font-bold mt-1">{item.name}</div>
                     <div className="text-4xl font-bold mt-4 gradient-text">{item.payout}</div>
                     <div className="text-sm text-muted-foreground mt-1">Payout Earned</div>

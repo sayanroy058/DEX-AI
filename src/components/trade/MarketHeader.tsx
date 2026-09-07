@@ -3,7 +3,6 @@ import { useMarket } from "@/lib/useMarkets";
 import { formatCompact, formatPrice } from "@/lib/mockData";
 import { useIndexPrice } from "@/lib/useIndexPrice";
 import { useLivePrice } from "@/lib/useLivePrice";
-import { usePriceFetcherPrice } from "@/lib/usePriceFetcher";
 import { useTicker } from "@/lib/useTicker";
 import { backendMarketFor } from "@/lib/backendMarkets";
 import { TrendingUp, TrendingDown, Bot, Sparkles, Calculator, RotateCcw, Repeat } from "lucide-react";
@@ -24,7 +23,6 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
   // Not gated to crypto — price-fetcher's real feed also covers every
   // forex/commodity/stock base still in INITIAL_MARKETS (see mockData.ts).
   const index = useIndexPrice(market?.base);
-  const direct = usePriceFetcherPrice(market?.base);
   const livePrice = useLivePrice(symbol);
   const backendMarket = backendMarketFor(symbol);
   const ticker = useTicker(backendMarket?.symbol, backendMarket?.market);
@@ -35,14 +33,10 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
   // For executable crypto markets the Price-Fetcher index is authoritative,
   // including the headline price/stats. This keeps the large displayed price,
   // Mark and Index identical instead of mixing an empty engine midpoint with
-  // a valid external reference. Prefer the direct /healthz read (no backend
-  // dependency) over the bots-api-proxied index when both are available.
-  const externalIndex = direct && direct.last > 0
-    ? direct.last
-    : index?.fresh && index.lastPrice > 0 ? index.lastPrice : 0;
+  // a valid external reference.
+  const externalIndex = index?.fresh && index.lastPrice > 0 ? index.lastPrice : 0;
   const displayedPrice = externalIndex || livePrice;
   const liveChange = externalIndex ? (index?.changePercent ?? market.change24h) : market.change24h;
-  const liveVolume = externalIndex ? (index?.quoteVolume ?? market.volume24h) : market.volume24h;
   const positive = liveChange >= 0;
 
   // Mark/index/funding: real when the symbol is backend-registered and the
@@ -53,11 +47,6 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
   // "Simulated"-style degrade the rest of the trade page already uses for
   // unregistered symbols.
   const hasRealTicker = !!ticker && ticker.markPrice > 0;
-  // The Price-Fetcher index is the single displayed reference price. The
-  // engine book remains executable and tick-aligned around it, while the
-  // header avoids showing a slightly different averaged book midpoint.
-  const markPrice = externalIndex || (hasRealTicker ? ticker.markPrice : livePrice);
-  const indexPrice = externalIndex || (hasRealTicker && ticker.indexPrice !== null ? ticker.indexPrice : livePrice);
   const fundingPct = hasRealTicker && ticker.fundingRatePct !== null
     ? ticker.fundingRatePct / 100
     : executable ? undefined : market.funding;
@@ -93,14 +82,6 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
         </div>
       </div>
 
-      <Stat label="24h Volume" value={`$${formatCompact(liveVolume)}`} />
-      {executable && (
-        <Stat
-          label="Feed"
-          value={market.updatedAt ? new Date(market.updatedAt).toLocaleTimeString("en-US", { hour12: false }) : "Unavailable"}
-          tone={market.dataStatus === "stale" ? "sell" : undefined}
-        />
-      )}
       {market.openInterest && <Stat label="Open Interest" value={`$${formatCompact(market.openInterest)}`} />}
       {fundingPct !== undefined && (
         <Stat
@@ -111,8 +92,6 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
       )}
       {index && <Stat label="24h High" value={`$${formatPrice(index.high)}`} />}
       {index && <Stat label="24h Low" value={`$${formatPrice(index.low)}`} />}
-      <Stat label="Mark Price" value={markPrice > 0 ? `$${formatPrice(markPrice)}` : "Unavailable"} />
-      <Stat label="Index" value={indexPrice > 0 ? `$${formatPrice(indexPrice)}` : "Unavailable"} />
 
       <div className="ml-auto flex items-center gap-2 min-w-fit">
         <Button
@@ -139,7 +118,7 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
           variant="outline"
           size="sm"
           onClick={() => navigate("/trading-bots")}
-          className="h-8 text-xs glass border-secondary/30 text-secondary hover:bg-secondary/10 hover:text-secondary"
+          className="h-8 text-xs glass border-accent/30 text-accent hover:bg-accent/10 hover:text-accent"
           title="Open trading bots"
         >
           <Bot className="h-3.5 w-3.5 mr-1.5" />

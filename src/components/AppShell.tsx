@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <header className="h-14 px-3 sm:px-4 flex items-center gap-1 sm:gap-2 glass-strong border-b border-glass-border z-30 sticky top-0 overflow-hidden">
         <Link to="/" className="flex items-center gap-1.5 shrink-0">
           <img src={logo} alt="BitDx logo" className="h-8 w-8 rounded-lg shadow-glow-primary shrink-0 object-contain" />
-          <span className="font-bold text-base sm:text-lg tracking-tight text-white">
+          <span className="font-bold text-base sm:text-lg tracking-tight text-foreground">
             BitDx
           </span>
         </Link>

@@ -171,7 +171,11 @@ export function createBinanceDatafeed() {
       const symbolInfo: LibrarySymbolInfo = {
         name: base,
         ticker: base,
-        description: `${base} / USDT`,
+        // Display-only: still fetches/streams Binance's real BTCUSDT spot
+        // feed under the hood (see toBinanceSymbol) — the platform's own
+        // BIUSD stablecoin is shown here purely as the on-chart label,
+        // treated as equivalent to USDT/USD for display purposes.
+        description: `${base} / BIUSD`,
         type: "crypto",
         session: "24x7",
         timezone: "Etc/UTC",

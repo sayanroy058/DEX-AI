@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMarkets } from "@/lib/useMarkets";
-import { formatCompact, formatPrice, AssetClass, MarketKind } from "@/lib/mockData";
+import { formatPrice, AssetClass, MarketKind } from "@/lib/mockData";
 import { Star, Search, ChevronLeft, ChevronRight, Bitcoin, DollarSign, Droplet, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ const ASSET_TABS: { id: AssetClass; label: string; icon: any; kinds: MarketKind[
   { id: "crypto", label: "Crypto", icon: Bitcoin, kinds: ["spot", "perp", "options"] },
   { id: "forex", label: "Forex", icon: DollarSign, kinds: ["perp"] },
   { id: "commodity", label: "Commodity", icon: Droplet, kinds: ["perp"] },
-  { id: "stocks", label: "Stocks", icon: Briefcase, kinds: ["spot", "perp", "options"] },
+  { id: "stocks", label: "Stocks", icon: Briefcase, kinds: ["perp", "options"] },
 ];
 
 const KIND_LABEL: Record<MarketKind, string> = { spot: "Spot", perp: "Future", options: "Options" };
@@ -135,9 +135,8 @@ export function MarketList({
       </div>
 
       <div className="grid grid-cols-12 gap-1 px-3 py-1.5 text-[10px] text-muted-foreground border-b border-border/50">
-        <div className="col-span-5">Pair</div>
-        <div className="col-span-4 text-right">Price</div>
-        <div className="col-span-3 text-right">24h%</div>
+        <div className="col-span-7">Pair</div>
+        <div className="col-span-5 text-right">Price</div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -156,7 +155,7 @@ export function MarketList({
                 isActive && "bg-primary/10 border-l-2 border-l-primary"
               )}
             >
-              <div className="col-span-5 flex items-center gap-1.5 min-w-0">
+              <div className="col-span-7 flex items-center gap-1.5 min-w-0">
                 <span
                   onClick={(e) => { e.stopPropagation(); toggleFav(m.symbol); }}
                   className={cn("cursor-pointer", isFav ? "text-warning" : "text-muted-foreground/40 hover:text-warning")}
@@ -165,13 +164,9 @@ export function MarketList({
                 </span>
                 <div className="text-left min-w-0">
                   <div className="font-semibold truncate">{m.base}</div>
-                  <div className="text-[9px] text-muted-foreground truncate">Vol {formatCompact(m.volume24h)}</div>
                 </div>
               </div>
-              <div className="col-span-4 text-right font-mono text-[11px]">{formatPrice(m.price)}</div>
-              <div className={cn("col-span-3 text-right font-mono text-[11px] font-semibold", m.change24h >= 0 ? "text-buy" : "text-sell")}>
-                {m.change24h >= 0 ? "+" : ""}{m.change24h.toFixed(2)}%
-              </div>
+              <div className="col-span-5 text-right font-mono text-[11px]">{formatPrice(m.price)}</div>
             </button>
           );
         })}

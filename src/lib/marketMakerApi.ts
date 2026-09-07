@@ -8,6 +8,8 @@ import type { BotMarket, BotStats } from "@/lib/botsApi";
 
 const BOTS_API_URL = import.meta.env.VITE_BOTS_API_URL ?? "http://localhost:8082";
 
+export type MMAsset = "base" | "quote";
+
 export type MarketMaker = {
   id: string;
   base: string;
@@ -15,7 +17,11 @@ export type MarketMaker = {
   symbol: string;
   walletAddress: string;
   botId: string;
-  allocatedUsdc: string;
+  // Each leg is funded independently and directly — an actual base-asset
+  // amount (BTC, ETH, ...) and an actual quote-asset amount (BIUSD for spot,
+  // USDC for futures), never one derived from the other by a formula.
+  baseAmount: string;
+  quoteAmount: string;
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -33,6 +39,7 @@ export type MarketMaker = {
 export type MMFundingEntry = {
   id: string;
   marketMakerId: string;
+  asset: MMAsset;
   direction: "deposit" | "withdraw";
   amount: string;
   balanceAfter: string;
@@ -91,17 +98,17 @@ export function deleteMarketMaker(id: string) {
   return mmReq<{ status: string }>(`/admin/mm/${id}`, { method: "DELETE" });
 }
 
-export function depositMarketMaker(id: string, amount: string, note?: string) {
+export function depositMarketMaker(id: string, asset: MMAsset, amount: string, note?: string) {
   return mmReq<MarketMaker>(`/admin/mm/${id}/deposit`, {
     method: "POST",
-    body: JSON.stringify({ amount, note: note ?? "" }),
+    body: JSON.stringify({ asset, amount, note: note ?? "" }),
   });
 }
 
-export function withdrawMarketMaker(id: string, amount: string, note?: string) {
+export function withdrawMarketMaker(id: string, asset: MMAsset, amount: string, note?: string) {
   return mmReq<MarketMaker>(`/admin/mm/${id}/withdraw`, {
     method: "POST",
-    body: JSON.stringify({ amount, note: note ?? "" }),
+    body: JSON.stringify({ asset, amount, note: note ?? "" }),
   });
 }
 

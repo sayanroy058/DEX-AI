@@ -593,7 +593,7 @@ function CreateBotButton() {
       <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform group-hover:rotate-12 group-hover:scale-110 group-hover:bg-primary-foreground group-hover:text-primary">
         <BotIcon className="h-4 w-4" />
       </span>
-      <span>Create Bot</span>
+      <span>Create AI Agent</span>
       <span className="pointer-events-none absolute right-0 top-full mt-2 w-max max-w-[220px] translate-y-1 rounded-lg border border-border bg-popover px-3 py-2 text-xs font-semibold text-popover-foreground opacity-0 shadow-xl transition-all group-hover:translate-y-0 group-hover:opacity-100">
         Create your own bot by yourself
       </span>

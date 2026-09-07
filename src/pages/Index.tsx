@@ -595,7 +595,15 @@ interface RightColumnProps {
 function RightColumn({ symbol, price, selectedOption, onTradeModeChange, orders }: RightColumnProps) {
   const [obOpen, setObOpen] = useState(true);
   const [tab, setTab] = useState<"book" | "trades">("book");
+  const orderBookPanelRef = useRef<ImperativePanelHandle>(null);
   const backendMarket = backendMarketFor(symbol);
+
+  const toggleOrderBook = useCallback(() => {
+    const panel = orderBookPanelRef.current;
+    if (!panel) return;
+    if (obOpen) panel.collapse();
+    else panel.expand();
+  }, [obOpen]);
 
   // Order book / trades: real depth for backend-registered pairs only. This
   // used to fall back to a fabricated order book (generateOrderBook) and
@@ -616,29 +624,42 @@ function RightColumn({ symbol, price, selectedOption, onTradeModeChange, orders 
   const spreadPct = price > 0 ? (spread / price) * 100 : 0;
 
   return (
-    <div className="h-full flex flex-col gap-2 min-h-0">
+    <PanelGroup direction="vertical" className="h-full min-h-0">
 
       {/* ── Trade Panel ── always present, expands when OB collapses ── */}
-      <div className={cn(
-        "glass rounded-xl flex flex-col transition-all duration-300 ease-in-out min-h-0",
-        obOpen ? "flex-[3]" : "flex-1",
-      )}>
-        <div className="flex-1 overflow-y-auto min-h-0">
-          <TradePanel
-            symbol={symbol}
-            price={price}
-            selectedOption={selectedOption}
-            onModeChange={onTradeModeChange}
-            orders={orders}
-          />
+      <Panel defaultSize={60} minSize={32}>
+        <div className="glass h-full min-h-0 rounded-xl flex flex-col">
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <TradePanel
+              symbol={symbol}
+              price={price}
+              selectedOption={selectedOption}
+              onModeChange={onTradeModeChange}
+              orders={orders}
+            />
+          </div>
         </div>
-      </div>
+      </Panel>
+
+      <PanelResizeHandle
+        className="group flex h-2 touch-none items-center justify-center cursor-row-resize"
+        aria-label="Resize Buy/Sell and Order Book panels"
+        title="Drag to resize Buy/Sell and Order Book"
+      >
+        <div className="h-0.5 w-10 rounded bg-border/70 transition-colors group-hover:bg-primary group-active:bg-primary" />
+      </PanelResizeHandle>
 
       {/* ── Order Book + Trades ── slides down / up ── */}
-      <div className={cn(
-        "glass rounded-xl flex flex-col overflow-hidden shrink-0 transition-all duration-300 ease-in-out",
-        obOpen ? "flex-[2] min-h-0" : "",
-      )}>
+      <Panel
+        ref={orderBookPanelRef}
+        defaultSize={40}
+        minSize={18}
+        collapsible
+        collapsedSize={8}
+        onCollapse={() => setObOpen(false)}
+        onExpand={() => setObOpen(true)}
+      >
+      <div className="glass h-full min-h-0 rounded-xl flex flex-col overflow-hidden">
         {/* Sticky header — always visible */}
         <div className="flex items-center border-b border-border/50 shrink-0 bg-background/20">
           <button
@@ -676,7 +697,7 @@ function RightColumn({ symbol, price, selectedOption, onTradeModeChange, orders 
           )}
           {/* Collapse / expand toggle */}
           <button
-            onClick={() => setObOpen(o => !o)}
+            onClick={toggleOrderBook}
             className="px-2.5 py-2.5 text-muted-foreground hover:text-primary transition-colors"
             title={obOpen ? "Collapse" : "Expand"}
           >
@@ -769,14 +790,15 @@ function RightColumn({ symbol, price, selectedOption, onTradeModeChange, orders 
           )}
         </div>
       </div>
-    </div>
+      </Panel>
+    </PanelGroup>
   );
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 const Index = () => {
-  const [symbol, setSymbol] = useState("BTC-USDT");
+  const [symbol, setSymbol] = useState("BTC-BIUSD");
   const [collapsed, setCollapsed] = useState(false);
   const account = useAccount();
   const orders = useOrders(account);
