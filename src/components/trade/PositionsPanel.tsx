@@ -4,12 +4,11 @@ import { useMarkets } from "@/lib/useMarkets";
 import { formatPrice } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Bot, Sparkles, X } from "lucide-react";
+import { Bot, Sparkles, X, Pencil, Check } from "lucide-react";
 import { getPositions, getOrderHistory, getFills, getFundingHistory, getPnlHistory, FuturesPositionDTO, OptionsPositionDTO, OrderHistoryDTO, FillDTO, RealizedPnlDTO } from "@/lib/apiClient";
 import { frontendSymbolFor } from "@/lib/backendMarkets";
 import { useFuturesTickers } from "@/lib/useFuturesTickers";
 import { useOrders } from "@/lib/useOrders";
-import { useWallet } from "@/lib/useWallet";
 import { wsClient, WSEvent } from "@/lib/wsClient";
 import { getMyBots, Bot as BotDTO } from "@/lib/botsApi";
 import { toast } from "sonner";
@@ -92,14 +91,25 @@ export function PositionsPanel({
   const [fills, setFills] = useState<FillDTO[]>([]);
   const [realizedPnl, setRealizedPnl] = useState<RealizedPnlDTO[]>([]);
   const [closing, setClosing] = useState<string | null>(null);
+  // Inline "modify order" editor state: which order id is being edited, and
+  // its draft price/qty. There is no backend amend endpoint, so committing
+  // this is a cancel-then-resubmit (see useOrders.modify).
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [editPrice, setEditPrice] = useState("");
+  const [editQty, setEditQty] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
   const futuresTickers = useFuturesTickers();
   const [myBots, setMyBots] = useState<BotDTO[]>([]);
   const [botsAuthed, setBotsAuthed] = useState(true);
 
-  const futuresOrders = orders.orders.filter(o => o.market === "FUTURES");
-  const optionsOrders = orders.orders.filter(o => o.market === "OPTIONS");
-  const spotOrders = orders.orders.filter(o => o.market === "SPOT");
-  const walletState = useWallet();
+  // Previously filtered to market === "FUTURES" only, so a resting SPOT
+  // order had nowhere in the UI to be cancelled or modified — the trade
+  // ticket could place one, but this was the only tab with cancel/modify
+  // controls and it silently excluded spot. useOrders/cancelOrder/
+  // modifyOrder are all market-agnostic (see useOrders.ts's OpenOrder type),
+  // so showing every open order here regardless of market is correct, not
+  // just a workaround.
+  const openOrders = orders.orders;
 
   const refetchPositions = useCallback(() => {
     if (!account) return;
@@ -154,6 +164,27 @@ export function PositionsPanel({
       toast.success("Order cancelled");
     } catch (err) {
       toast.error("Cancel failed", { description: err instanceof Error ? err.message : String(err) });
+    }
+  };
+
+  const startEdit = (o: { id: string; price?: string; qty: string }) => {
+    setEditingOrderId(o.id);
+    setEditPrice(o.price ?? "");
+    setEditQty(o.qty);
+  };
+
+  const cancelEdit = () => setEditingOrderId(null);
+
+  const commitEdit = async (o: { id: string; symbol: string; market: string; side: "BUY" | "SELL"; price?: string; qty: string }) => {
+    setSavingEdit(true);
+    try {
+      await orders.modify(o, { price: editPrice || undefined, qty: editQty });
+      toast.success("Order modified");
+      setEditingOrderId(null);
+    } catch (err) {
+      toast.error("Modify failed", { description: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -223,30 +254,113 @@ export function PositionsPanel({
     // or funding payment refetches immediately, so a position typically
     // updates within milliseconds of the fill instead of waiting up to 5s.
     const interval = setInterval(fetchPositions, 5000);
+    // WS-triggered refetches are coalesced to at most one per 750ms with a
+    // trailing call. The engine's market-maker desks replace their whole
+    // ladder every second, producing a constant stream of FUTURES fill
+    // events visible to every client (see the account-scoping note below);
+    // fetching on EVERY event amplified that storm into a same-rate
+    // getPositions() burst. The throttle keeps fill->display latency under
+    // a second while bounding this panel to ~1.3 requests/s worst case.
+    let refetchTimer: ReturnType<typeof setTimeout> | null = null;
+    let refetchPending = false;
+    const throttledRefetch = () => {
+      if (refetchTimer) {
+        refetchPending = true;
+        return;
+      }
+      fetchPositions();
+      refetchTimer = setTimeout(() => {
+        refetchTimer = null;
+        if (refetchPending) {
+          refetchPending = false;
+          throttledRefetch();
+        }
+      }, 750);
+    };
     const unsubWs = wsClient.subscribe((evt: WSEvent) => {
-      // The order-fill stream is a symbol-wide broadcast, not scoped to
-      // this account (the engine doesn't tag WS events with an account ID
-      // for order fills — only FUNDING carries accountId) — so this can
-      // trigger on someone else's fill too. That's a harmless extra
-      // getPositions() call (still correctly account-scoped server-side),
-      // not a correctness issue, and it's the best signal available without
-      // adding a new backend event type just for this.
-      const isFillOnFuturesSymbol =
+      // Order events carry the owning account (models.Order serializes
+      // accountId), so refetch only on this account's FUTURES fills — the
+      // MM desks' constant fill churn on other accounts no longer triggers
+      // anything. When accountId is absent (older engine), fall back to any
+      // FUTURES fill rather than miss own fills; the throttle bounds the
+      // cost either way, and the fetch itself is account-scoped server-side.
+      const ownFill =
         (evt.type === "ORDER_FILLED" || evt.type === "ORDER_PARTIALLY_FILLED") &&
-        evt.market === "FUTURES";
+        evt.market === "FUTURES" &&
+        (!evt.order?.accountId || evt.order.accountId === account);
       const isOwnFunding = evt.type === "FUNDING" && evt.funding?.accountId === account;
-      if (isFillOnFuturesSymbol || isOwnFunding) fetchPositions();
+      if (ownFill || isOwnFunding) throttledRefetch();
     });
     return () => {
       cancelled = true;
       clearInterval(interval);
+      if (refetchTimer) clearTimeout(refetchTimer);
       unsubWs();
     };
   }, [account]);
 
-  useEffect(() => { if (account) getOrderHistory().then(r => setOrderHistory(r.orders ?? [])).catch(() => setOrderHistory([])); }, [account]);
-  useEffect(() => { if (account) getFills().then(r => setFills(r.fills ?? [])).catch(() => setFills([])); }, [account]);
-  useEffect(() => { if (account) getPnlHistory().then(r => setRealizedPnl(r.entries ?? [])).catch(() => setRealizedPnl([])); }, [account]);
+  // Order History / Trade History (fills) / Realized PnL: previously fetched
+  // exactly once on mount (or account change) and never again, so placing an
+  // order after the panel had already loaded never showed up in any of these
+  // tabs — they silently went stale for the rest of the session.
+  //
+  // The original fix for this (see git history) relied entirely on
+  // wsClient's ORDER_FILLED/etc. events to trigger a refetch — but this
+  // app's WebSocket client is never actually connected at runtime (confirmed
+  // live 2026-09-14: zero WS entries in the browser's Network tab, ever,
+  // across a full session including hard reloads; every other "live"-looking
+  // panel on this page — depth, chart, positions, bots — actually works via
+  // plain 5s-or-faster REST polling, e.g. fetchPositions below and
+  // useOrderBook's polling, not push). So wsClient.subscribe here was
+  // registering a listener that could only ever fire if a connection existed
+  // that never does — a silent no-op, not a working live-update path.
+  // Added a 5s poll (same interval already used for positions/bots below)
+  // as the actual, working mechanism; the WS listener is kept as a harmless
+  // bonus for whenever a real WS connection exists.
+  useEffect(() => {
+    if (!account) {
+      setOrderHistory([]);
+      setFills([]);
+      setRealizedPnl([]);
+      return;
+    }
+    let cancelled = false;
+    const fetchHistory = () => {
+      getOrderHistory().then(r => { if (!cancelled) setOrderHistory(r.orders ?? []); }).catch(() => { if (!cancelled) setOrderHistory([]); });
+      getFills().then(r => { if (!cancelled) setFills(r.fills ?? []); }).catch(() => { if (!cancelled) setFills([]); });
+      getPnlHistory().then(r => { if (!cancelled) setRealizedPnl(r.entries ?? []); }).catch(() => { if (!cancelled) setRealizedPnl([]); });
+    };
+    fetchHistory();
+    const interval = setInterval(fetchHistory, 5000);
+    let refetchTimer: ReturnType<typeof setTimeout> | null = null;
+    let refetchPending = false;
+    const throttledRefetch = () => {
+      if (refetchTimer) {
+        refetchPending = true;
+        return;
+      }
+      fetchHistory();
+      refetchTimer = setTimeout(() => {
+        refetchTimer = null;
+        if (refetchPending) {
+          refetchPending = false;
+          throttledRefetch();
+        }
+      }, 750);
+    };
+    const unsubWs = wsClient.subscribe((evt: WSEvent) => {
+      const isOwnOrderEvent =
+        (evt.type === "ORDER_FILLED" || evt.type === "ORDER_PARTIALLY_FILLED" || evt.type === "ORDER_CANCELLED") &&
+        (!evt.order?.accountId || evt.order.accountId === account);
+      if (isOwnOrderEvent) throttledRefetch();
+    });
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      if (refetchTimer) clearTimeout(refetchTimer);
+      unsubWs();
+    };
+  }, [account]);
 
   // Bot / AI Agent tab: the account's own strategy bots (grid/DCA/TWAP/
   // market-maker) from the bots service, replacing 4 hardcoded fake rows
@@ -313,7 +427,14 @@ export function PositionsPanel({
     });
   }, [futuresPositions, markets, futuresTickers]);
 
-  const totalPnl = positions.reduce((s, p) => s + p.pnl, 0);
+  const unrealizedPnl = positions.reduce((s, p) => s + p.pnl, 0);
+  // Realized PnL is cumulative across every closed/liquidated futures
+  // position ever recorded for this account (getPnlHistory has no date
+  // filter here), so "Total PnL" below is lifetime-realized + currently
+  // open unrealized — matching what a user means by "PnL across all my
+  // trades", not just what's open right now.
+  const realizedPnlTotal = realizedPnl.reduce((s, p) => s + parseFloat(p.pnl), 0);
+  const totalPnl = unrealizedPnl + realizedPnlTotal;
 
   return (
     <div className="glass rounded-b-xl rounded-t-none h-full flex flex-col overflow-hidden">
@@ -324,12 +445,8 @@ export function PositionsPanel({
               <TabsTrigger value="positions" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">
                 Position <span className="ml-1.5 px-1.5 py-0.5 rounded bg-primary/20 text-[10px]">{positions.length}</span>
               </TabsTrigger>
-              <TabsTrigger value="holdings" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">Holdings</TabsTrigger>
-              <TabsTrigger value="futuresOrders" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">
-                Futures Orders <span className="ml-1.5 px-1.5 py-0.5 rounded bg-muted text-[10px]">{futuresOrders.length}</span>
-              </TabsTrigger>
-              <TabsTrigger value="optionsOrders" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">
-                Options Orders <span className="ml-1.5 px-1.5 py-0.5 rounded bg-muted text-[10px]">{optionsOrders.length}</span>
+              <TabsTrigger value="openOrders" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">
+                Open Orders <span className="ml-1.5 px-1.5 py-0.5 rounded bg-muted text-[10px]">{openOrders.length}</span>
               </TabsTrigger>
               <TabsTrigger value="automated" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">
                 Bot / AI Agent <span className="ml-1.5 px-1.5 py-0.5 rounded bg-secondary/15 text-secondary text-[10px]">{myBots.length}</span>
@@ -340,9 +457,21 @@ export function PositionsPanel({
               <TabsTrigger value="history" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs h-7">Order History</TabsTrigger>
             </TabsList>
           </div>
-          <div className="shrink-0 text-[11px] text-muted-foreground">
-            Total PnL: <span className={cn("font-mono font-bold", totalPnl >= 0 ? "text-buy" : "text-sell")}>
-              {totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)}
+          <div className="shrink-0 flex items-center gap-3 text-[11px] text-muted-foreground" title="Total = unrealized PnL on open positions + realized PnL from every closed/liquidated position">
+            <span>
+              Unrealized: <span className={cn("font-mono", unrealizedPnl >= 0 ? "text-buy" : "text-sell")}>
+                {unrealizedPnl >= 0 ? "+" : ""}${unrealizedPnl.toFixed(2)}
+              </span>
+            </span>
+            <span>
+              Realized: <span className={cn("font-mono", realizedPnlTotal >= 0 ? "text-buy" : "text-sell")}>
+                {realizedPnlTotal >= 0 ? "+" : ""}${realizedPnlTotal.toFixed(2)}
+              </span>
+            </span>
+            <span>
+              Total PnL: <span className={cn("font-mono font-bold", totalPnl >= 0 ? "text-buy" : "text-sell")}>
+                {totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)}
+              </span>
             </span>
           </div>
         </div>
@@ -414,77 +543,9 @@ export function PositionsPanel({
           )}
         </TabsContent>
 
-        <TabsContent value="holdings" className="flex-1 overflow-auto m-0">
-          <table className="w-full text-[11px] font-mono">
-            <thead className="text-[10px] text-muted-foreground uppercase">
-              <tr className="border-b border-border/50">
-                <th className="text-left px-3 py-1.5">Asset</th>
-                <th className="text-right">Total</th>
-                <th className="text-right">Available</th>
-                <th className="text-right">Order-Reserved</th>
-                <th className="text-right pr-3">Withdrawal-Locked</th>
-              </tr>
-            </thead>
-            <tbody>
-              {walletState.balances.map((b) => (
-                <tr key={b.asset} className="border-b border-border/30 hover:bg-muted/20">
-                  <td className="px-3 py-2 font-sans font-semibold">{b.asset}</td>
-                  <td className="text-right">{b.amount.toFixed(4)}</td>
-                  <td className="text-right text-buy">{b.available.toFixed(4)}</td>
-                  <td className="text-right text-muted-foreground">{b.tradingLocked.toFixed(4)}</td>
-                  <td className="text-right pr-3 text-muted-foreground">{b.withdrawalLocked.toFixed(4)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div className="border-t border-border/50 mt-2 pt-2 px-3 pb-3">
-            <div className="text-[10px] text-muted-foreground uppercase mb-1.5">
-              Spot open orders reserving balance ({spotOrders.length})
-            </div>
-            {spotOrders.length === 0 ? (
-              <div className="text-xs text-muted-foreground">No open spot orders.</div>
-            ) : (
-              <table className="w-full text-[11px] font-mono">
-                <tbody>
-                  {spotOrders.map((o) => (
-                    <tr key={o.id} className="border-b border-border/20">
-                      <td className="py-1 font-sans font-semibold">{o.symbol}</td>
-                      <td className={o.side === "BUY" ? "text-buy" : "text-sell"}>{o.side}</td>
-                      <td className="text-right">{o.qty}</td>
-                      <td className="text-right">{o.price ? formatPrice(Number(o.price)) : "MKT"}</td>
-                      <td className="text-right text-muted-foreground">{o.status}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-
-            <div className="text-[10px] text-muted-foreground uppercase mb-1.5 mt-3">
-              Recent spot fills ({fills.filter((f) => f.market === "SPOT").length})
-            </div>
-            {fills.filter((f) => f.market === "SPOT").length === 0 ? (
-              <div className="text-xs text-muted-foreground">No spot fills yet.</div>
-            ) : (
-              <table className="w-full text-[11px] font-mono">
-                <tbody>
-                  {fills.filter((f) => f.market === "SPOT").slice(0, 10).map((f) => (
-                    <tr key={f.tradeId} className="border-b border-border/20">
-                      <td className="py-1 font-sans font-semibold">{f.symbol}</td>
-                      <td className={f.side === "BUY" ? "text-buy" : "text-sell"}>{f.side}</td>
-                      <td className="text-right">{f.quantity} @ {formatPrice(parseFloat(f.price) || 0)}</td>
-                      <td className="text-right text-muted-foreground">{new Date(f.executedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="futuresOrders" className="flex-1 overflow-auto m-0">
-          {futuresOrders.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center p-6 text-xs text-muted-foreground">No open futures orders.</div>
+        <TabsContent value="openOrders" className="flex-1 overflow-auto m-0">
+          {openOrders.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center p-6 text-xs text-muted-foreground">No open orders.</div>
           ) : (
             <table className="w-full text-[11px] font-mono">
               <thead className="text-[10px] text-muted-foreground uppercase">
@@ -500,7 +561,7 @@ export function PositionsPanel({
                 </tr>
               </thead>
               <tbody>
-                {futuresOrders.map(o => (
+                {openOrders.map(o => (
                   <tr key={o.id} className="border-b border-border/30 hover:bg-muted/20">
                     <td className="px-3 py-2 font-sans font-semibold">{o.symbol}</td>
                     <td className={o.side === "BUY" ? "text-buy" : "text-sell"}>{o.side}</td>
@@ -519,49 +580,48 @@ export function PositionsPanel({
                         <span className="text-muted-foreground">—</span>
                       )}
                     </td>
-                    <td className="text-right">{o.qty}</td>
-                    <td className="text-right">{o.price ? formatPrice(Number(o.price)) : "MKT"}</td>
+                    {editingOrderId === o.id ? (
+                      <>
+                        <td className="text-right">
+                          <input value={editQty} onChange={(e) => setEditQty(e.target.value)}
+                            className="w-16 bg-muted/40 rounded px-1 text-right font-mono text-[11px]" />
+                        </td>
+                        <td className="text-right">
+                          {o.price ? (
+                            <input value={editPrice} onChange={(e) => setEditPrice(e.target.value)}
+                              className="w-20 bg-muted/40 rounded px-1 text-right font-mono text-[11px]" />
+                          ) : (
+                            <span className="text-muted-foreground">MKT</span>
+                          )}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="text-right">{o.qty}</td>
+                        <td className="text-right">{o.price ? formatPrice(Number(o.price)) : "MKT"}</td>
+                      </>
+                    )}
                     <td className="text-right text-muted-foreground">{o.filled}</td>
                     <td className="text-right text-muted-foreground">{o.status}</td>
-                    <td className="text-right pr-3">
-                      <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-sell"
-                        onClick={() => handleCancel(o.symbol, o.market, o.id)}><X className="h-3 w-3" /></Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </TabsContent>
-
-        <TabsContent value="optionsOrders" className="flex-1 overflow-auto m-0">
-          {optionsOrders.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center p-6 text-xs text-muted-foreground">No open options orders.</div>
-          ) : (
-            <table className="w-full text-[11px] font-mono">
-              <thead className="text-[10px] text-muted-foreground uppercase">
-                <tr className="border-b border-border/50">
-                  <th className="text-left px-3 py-1.5">Symbol</th>
-                  <th className="text-left">Side</th>
-                  <th className="text-right">Qty</th>
-                  <th className="text-right">Price</th>
-                  <th className="text-right">Filled</th>
-                  <th className="text-right">Status</th>
-                  <th className="text-right pr-3">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {optionsOrders.map(o => (
-                  <tr key={o.id} className="border-b border-border/30 hover:bg-muted/20">
-                    <td className="px-3 py-2 font-sans font-semibold">{o.symbol}</td>
-                    <td className={o.side === "BUY" ? "text-buy" : "text-sell"}>{o.side}</td>
-                    <td className="text-right">{o.qty}</td>
-                    <td className="text-right">{o.price ? formatPrice(Number(o.price)) : "MKT"}</td>
-                    <td className="text-right text-muted-foreground">{o.filled}</td>
-                    <td className="text-right text-muted-foreground">{o.status}</td>
-                    <td className="text-right pr-3">
-                      <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-sell"
-                        onClick={() => handleCancel(o.symbol, o.market, o.id)}><X className="h-3 w-3" /></Button>
+                    <td className="text-right pr-3 flex items-center justify-end gap-1">
+                      {editingOrderId === o.id ? (
+                        <>
+                          <Button size="icon" variant="ghost" disabled={savingEdit} className="h-6 w-6 text-muted-foreground hover:text-buy"
+                            onClick={() => commitEdit(o)}><Check className="h-3 w-3" /></Button>
+                          <Button size="icon" variant="ghost" disabled={savingEdit} className="h-6 w-6 text-muted-foreground hover:text-sell"
+                            onClick={cancelEdit}><X className="h-3 w-3" /></Button>
+                        </>
+                      ) : (
+                        <>
+                          {o.price && (
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-primary"
+                              title="Modify order (cancels and resubmits with your changes)"
+                              onClick={() => startEdit(o)}><Pencil className="h-3 w-3" /></Button>
+                          )}
+                          <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-sell"
+                            onClick={() => handleCancel(o.symbol, o.market, o.id)}><X className="h-3 w-3" /></Button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -654,7 +714,8 @@ export function PositionsPanel({
                   <th className="text-right">Avg Fill</th>
                   <th className="text-right">Fee</th>
                   <th className="text-right">Status</th>
-                  <th className="text-left pr-3">Reason</th>
+                  <th className="text-left">Reason</th>
+                  <th className="text-right pr-3">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -663,11 +724,57 @@ export function PositionsPanel({
                     <td className="px-3 py-2">{new Date(h.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
                     <td className="font-sans font-semibold">{h.symbol}</td>
                     <td className={h.side === "BUY" ? "text-buy" : "text-sell"}>{h.side}</td>
-                    <td className="text-right">{h.filled}/{h.quantity}</td>
-                    <td className="text-right">{parseFloat(h.avgFillPrice) > 0 ? formatPrice(parseFloat(h.avgFillPrice)) : "—"}</td>
+                    <td className="text-right">
+                      {editingOrderId === h.id ? (
+                        <input value={editQty} onChange={(e) => setEditQty(e.target.value)}
+                          className="w-16 bg-muted/40 rounded px-1 text-right font-mono text-[11px]" />
+                      ) : (
+                        <>{h.filled}/{h.quantity}</>
+                      )}
+                    </td>
+                    <td className="text-right">
+                      {editingOrderId === h.id ? (
+                        parseFloat(h.price) > 0 ? (
+                          <input value={editPrice} onChange={(e) => setEditPrice(e.target.value)}
+                            className="w-20 bg-muted/40 rounded px-1 text-right font-mono text-[11px]" />
+                        ) : (
+                          <span className="text-muted-foreground">MKT</span>
+                        )
+                      ) : (
+                        parseFloat(h.avgFillPrice) > 0 ? formatPrice(parseFloat(h.avgFillPrice)) : "—"
+                      )}
+                    </td>
                     <td className="text-right text-muted-foreground">{parseFloat(h.feePaid) > 0 ? h.feePaid : "—"}</td>
                     <td className="text-right text-muted-foreground">{h.status}</td>
-                    <td className="text-left pr-3 text-muted-foreground truncate max-w-[220px]" title={h.rejectReason}>{h.rejectReason ?? "—"}</td>
+                    <td className="text-left text-muted-foreground truncate max-w-[220px]" title={h.rejectReason}>{h.rejectReason ?? "—"}</td>
+                    <td className="text-right pr-3 flex items-center justify-end gap-1">
+                      {h.status === "OPEN" && (
+                        editingOrderId === h.id ? (
+                          <>
+                            <Button size="icon" variant="ghost" disabled={savingEdit} className="h-6 w-6 text-muted-foreground hover:text-buy"
+                              onClick={() => commitEdit({ id: h.id, symbol: h.symbol, market: h.market, side: h.side, price: parseFloat(h.price) > 0 ? h.price : undefined, qty: h.quantity })}>
+                              <Check className="h-3 w-3" />
+                            </Button>
+                            <Button size="icon" variant="ghost" disabled={savingEdit} className="h-6 w-6 text-muted-foreground hover:text-sell"
+                              onClick={cancelEdit}><X className="h-3 w-3" /></Button>
+                          </>
+                        ) : (
+                          <>
+                            {parseFloat(h.price) > 0 && (
+                              <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-primary"
+                                title="Modify order (cancels and resubmits with your changes)"
+                                onClick={() => startEdit({ id: h.id, price: h.price, qty: h.quantity })}>
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                            )}
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-sell"
+                              title="Cancel order" onClick={() => handleCancel(h.symbol, h.market, h.id)}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </>
+                        )
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

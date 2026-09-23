@@ -12,21 +12,37 @@ export type Session = {
   user: SessionUser;
 };
 
+type StoredSession = Session & {
+  /** epoch ms after which this session is considered expired */
+  expiresAt: number;
+};
+
 const SESSION_KEY = "dex_session";
 
+// How long a signed-in session (including admin) stays valid without
+// re-authenticating. Stored in localStorage so it survives tab/browser
+// restarts, rather than sessionStorage which is wiped when the tab closes.
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+
 export function getSession(): Session | null {
-  const raw = sessionStorage.getItem(SESSION_KEY);
+  const raw = localStorage.getItem(SESSION_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as Session;
+    const stored = JSON.parse(raw) as StoredSession;
+    if (!stored.expiresAt || Date.now() > stored.expiresAt) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return { token: stored.token, user: stored.user };
   } catch {
-    sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
     return null;
   }
 }
 
 export function setSession(session: Session) {
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  const stored: StoredSession = { ...session, expiresAt: Date.now() + SESSION_TTL_MS };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(stored));
 }
 
 export function updateSessionUser(user: SessionUser) {
@@ -36,7 +52,7 @@ export function updateSessionUser(user: SessionUser) {
 }
 
 export function clearSession() {
-  sessionStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(SESSION_KEY);
 }
 
 export function isAuthenticated() {

@@ -1,39 +1,56 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { INITIAL_MARKETS } from "@/lib/mockData";
 import { createBinanceDatafeed } from "@/lib/binanceDatafeed";
+import { createBI2XDatafeed } from "@/lib/bi2xDatafeed";
 import { readTheme, type ThemeMode } from "@/lib/theme";
 
 function marketFor(symbol: string) {
   return INITIAL_MARKETS.find(m => m.symbol === symbol);
 }
 
+// BI2X isn't a Binance ticker (see backendMarkets.ts's comment on this pair)
+// — it needs its own datafeed (bi2xDatafeed.ts, backed by the BI2X feed's
+// TradingView UDF endpoints via Dex-Backend's CORS-avoiding proxy) instead
+// of createBinanceDatafeed(), which would otherwise silently query Binance
+// for a "BI2XUSDT" pair that doesn't exist there.
+function isBI2X(symbol: string): boolean {
+  return (marketFor(symbol)?.base ?? symbol.split("-")[0]).toUpperCase() === "BI2X";
+}
+
 function toTradingViewSymbol(symbol: string): string {
   const market = marketFor(symbol);
-  const asset = market?.asset;
+  // const asset = market?.asset;
   const base = (market?.base ?? symbol.split("-")[0]).toUpperCase();
 
-  if (asset === "forex") return `FX:${symbol}`;
-  if (asset === "stocks") {
-    // market.base carries price-fetcher's exact Redis key casing
-    // ("AAPL.us") for the index-price lookup elsewhere — TradingView's own
-    // resolver wants the bare uppercase ticker, so strip the ".us" suffix
-    // rather than reuse the upper-cased `base` above (which would send the
-    // nonsensical "NASDAQ:AAPL.US").
-    const ticker = (market?.base ?? symbol).replace(/\.us$/i, "").toUpperCase();
-    return `NASDAQ:${ticker}`;
-  }
-  if (asset === "commodity") {
-    // Keyed against mockData.ts's `base` values (upper-cased above) — only
-    // GOLD, SILVER, and CrudeOIL are currently real (backed by
-    // price-fetcher's Live-Rates.com feed); WTI-USD's base is "CrudeOIL",
-    // not "OIL".
-    const commodityMap: Record<string, string> = {
-      GOLD: "TVC:GOLD",
-      SILVER: "TVC:SILVER",
-      CRUDEOIL: "TVC:USOIL",
-    };
-    return commodityMap[base] ?? `TVC:${base}`;
-  }
+  // Forex/commodity/stocks charting is DISABLED along with the rest of those
+  // asset classes (2026-09-11 product decision: crypto-only for now — see
+  // MarketList.tsx's comingSoon flag). MarketList/Markets.tsx no longer let a
+  // user select one of these symbols, so this branch is unreachable in
+  // practice; commented out rather than deleted so re-enabling those asset
+  // classes also restores their charts with no rework here.
+  //
+  // if (asset === "forex") return `FX:${symbol}`;
+  // if (asset === "stocks") {
+  //   // market.base carries price-fetcher's exact Redis key casing
+  //   // ("AAPL.us") for the index-price lookup elsewhere — TradingView's own
+  //   // resolver wants the bare uppercase ticker, so strip the ".us" suffix
+  //   // rather than reuse the upper-cased `base` above (which would send the
+  //   // nonsensical "NASDAQ:AAPL.US").
+  //   const ticker = (market?.base ?? symbol).replace(/\.us$/i, "").toUpperCase();
+  //   return `NASDAQ:${ticker}`;
+  // }
+  // if (asset === "commodity") {
+  //   // Keyed against mockData.ts's `base` values (upper-cased above) — only
+  //   // GOLD, SILVER, and CrudeOIL are currently real (backed by
+  //   // price-fetcher's Live-Rates.com feed); WTI-USD's base is "CrudeOIL",
+  //   // not "OIL".
+  //   const commodityMap: Record<string, string> = {
+  //     GOLD: "TVC:GOLD",
+  //     SILVER: "TVC:SILVER",
+  //     CRUDEOIL: "TVC:USOIL",
+  //   };
+  //   return commodityMap[base] ?? `TVC:${base}`;
+  // }
   // crypto (perp/spot/options) -> Binance live price feed on TradingView,
   // using the {BASE}USD pair (e.g. BINANCE:BTCUSD).
   return `BINANCE:${base}USD`;
@@ -136,6 +153,12 @@ function loadTradingViewEmbedScript(): Promise<void> {
 function ChartPane({ symbol, timeframe }: { symbol: string; timeframe: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<any>(null);
+  // Tracks which variant/theme the widget currently live in widgetRef was
+  // actually constructed with, so the theme-change effect below can tell
+  // "the widget already reflects this theme" (nothing to do — e.g. right
+  // after the reconstruction effect just built it with the current theme)
+  // apart from "a real toggle happened while the widget was already up".
+  const widgetThemeRef = useRef<ThemeMode | null>(null);
   const [theme, setTheme] = useState<ThemeMode>(readTheme);
   const isCrypto = marketFor(symbol)?.asset === "crypto" || !marketFor(symbol);
   const base = (marketFor(symbol)?.base ?? symbol.split("-")[0]).toUpperCase();
@@ -156,13 +179,46 @@ function ChartPane({ symbol, timeframe }: { symbol: string; timeframe: string })
     return () => window.removeEventListener("dex-theme-change", onThemeChange);
   }, []);
 
+  // Theme-only updates: call the Advanced Charting Library widget's own
+  // changeTheme() API instead of tearing down and rebuilding the whole
+  // widget (which the reconstruction effect below still does, but no
+  // longer runs for a theme toggle — see this effect's dependency array
+  // and the reconstruction effect's, which no longer lists `theme` at
+  // all). Toggling dark/light previously reloaded the widget's full price
+  // history on every toggle purely to repaint colors — see
+  // PERFORMANCE-CODE-REVIEW-FINDINGS.md frontend item #6. Only wired for
+  // the crypto/Advanced Charting Library path: the free tv.js embed (the
+  // non-crypto asset classes, currently UI-only/unreachable per this
+  // file's other comments) has no equivalent live-update API, so it keeps
+  // reconstructing on theme change same as before.
+  useEffect(() => {
+    if (!isCrypto) return;
+    if (widgetThemeRef.current === null || widgetThemeRef.current === theme) return;
+    const widget = widgetRef.current;
+    if (!widget?.changeTheme) return;
+    widget.changeTheme(theme === "light" ? "light" : "dark").catch(() => {
+      // Best-effort: if the live theme swap fails for any reason, the chart
+      // simply keeps its previous colors until the next full reconstruction
+      // (e.g. a symbol change) rather than crashing the pane.
+    });
+    widgetThemeRef.current = theme;
+  }, [theme, isCrypto]);
+
   useEffect(() => {
     let cancelled = false;
     const container = containerRef.current;
     if (!container) return;
     container.innerHTML = "";
 
-    const isLight = theme === "light";
+    // Read the CURRENT theme at construction time without listing `theme`
+    // in this effect's dependency array — a live theme toggle is handled
+    // entirely by the changeTheme effect above instead of tearing this
+    // widget down. `theme` is still what a brand-new widget (first mount,
+    // or a real reconstruction triggered by symbol/timeframe changing)
+    // opens with, since this reads the latest render's value each time the
+    // effect actually runs.
+    const initialTheme = theme;
+    const isLight = initialTheme === "light";
 
     const commonOptions = {
       autosize: true,
@@ -197,15 +253,17 @@ function ChartPane({ symbol, timeframe }: { symbol: string; timeframe: string })
     };
 
     if (isCrypto) {
+      const isBi2x = isBI2X(symbol);
       loadAdvancedChartingLibrary().then(() => {
         if (cancelled || !window.TradingView) return;
         widgetRef.current = new window.TradingView.widget({
           ...commonOptions,
-          symbol: base,
-          datafeed: createBinanceDatafeed(),
+          symbol: isBi2x ? "BI2X" : base,
+          datafeed: isBi2x ? createBI2XDatafeed() : createBinanceDatafeed(),
           library_path: "/charting_library/",
           studies_overrides: {},
         });
+        widgetThemeRef.current = initialTheme;
       });
     } else {
       // tv.js's free embed widget resolves its container by id string at
@@ -223,6 +281,7 @@ function ChartPane({ symbol, timeframe }: { symbol: string; timeframe: string })
           symbol: tvSymbol,
           studies: ["Volume@tv-basicstudies"],
         });
+        widgetThemeRef.current = initialTheme;
       });
     }
 
@@ -237,8 +296,14 @@ function ChartPane({ symbol, timeframe }: { symbol: string; timeframe: string })
         }
       }
       widgetRef.current = null;
+      widgetThemeRef.current = null;
     };
-  }, [isCrypto, base, tvSymbol, timeframe, theme, containerId]);
+    // `theme` is intentionally excluded — a live theme toggle is handled by
+    // the changeTheme effect above without tearing this widget down. This
+    // effect only reconstructs when the symbol, timeframe, asset-class
+    // variant, or container identity actually changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCrypto, base, tvSymbol, timeframe, containerId]);
 
   return <div ref={containerRef} id={containerId} className="h-full w-full" />;
 }

@@ -37,7 +37,9 @@ export default function AIAgent() {
   const [strategyType, setStrategyType] = useState("Spot Grid");
   const [risk, setRisk] = useState("Balanced");
   const [timeframe, setTimeframe] = useState("1-7 Days");
-  const [market, setMarket] = useState("BTC-BIUSD");
+  // BI2X-BI2XUSD, not BTC-BI2XUSD (removed 2026-09-13) — default strategyType
+  // above is "Spot Grid", so the default market should be a surviving spot pair.
+  const [market, setMarket] = useState("BI2X-BI2XUSD");
   const [investment, setInvestment] = useState("280");
   const [goal, setGoal] = useState("Steady compounding with controlled drawdown");
   const selectedMarket = marketPairs.find((item) => item.value === market);
@@ -141,7 +143,7 @@ export default function AIAgent() {
                       className="w-full bg-transparent text-sm font-semibold outline-none"
                       placeholder="0"
                     />
-                    <span className="text-sm font-black">BIUSD</span>
+                    <span className="text-sm font-black">BI2XUSD</span>
                   </div>
                 </Field>
 

@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { BarChart3, LogOut, User, Zap, Waves, Wallet, LineChart, Scale } from "lucide-react";
+import { BarChart3, LogOut, User, Zap, Waves, Wallet, LineChart, Scale, Radio, Percent, Users, Layers, Coins, ArrowLeftRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -33,8 +33,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           <AdminNavLink to="/admin" label="Dashboard" icon={BarChart3} end />
           <AdminNavLink to="/admin/market-makers" label="Market Makers" icon={Waves} />
           <AdminNavLink to="/admin/market-makers/pnl" label="MM P/L" icon={LineChart} />
+          <AdminNavLink to="/admin/market-makers/spread" label="Spread Control" icon={Radio} />
+          <AdminNavLink to="/admin/fees" label="Fee Control" icon={Percent} />
+          <AdminNavLink to="/admin/swap-pool" label="Swap Pool" icon={ArrowLeftRight} />
+          <AdminNavLink to="/admin/fee-revenue" label="Fee Revenue" icon={Layers} />
+          <AdminNavLink to="/admin/affiliate-links" label="Affiliate Links" icon={Users} />
           <AdminNavLink to="/admin/test-balances" label="Test Balances" icon={Wallet} />
           <AdminNavLink to="/admin/p2p-appeals" label="P2P Appeals" icon={Scale} />
+          <AdminNavLink to="/admin/bi2x-token" label="BI2X Token" icon={Coins} />
           <AdminNavLink to="/admin/profile" label="Profile" icon={User} />
         </nav>
 

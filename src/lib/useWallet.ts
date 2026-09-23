@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { getNonce, getWalletBalances, login as apiLogin, logout as apiLogout, me } from "@/lib/authApi";
+import { setWsAuthToken } from "@/lib/wsAuthToken";
 
 export type WalletId = "metamask" | "trust" | "binance" | "coinbase" | "bitget";
 
@@ -83,28 +84,33 @@ type SendTransactionParams = {
   data?: string;
 };
 
-// BIUSD is the platform's internal stable quote currency (pegged 1:1 to
+// BI2XUSD is the platform's internal stable quote currency (pegged 1:1 to
 // USDT, no on-chain contract of its own) — every market trades against it.
 // USDC/USDT stay listed as deposit-intake assets (a real on-chain deposit
-// lands there first, then converts to BIUSD — see Dex-Backend's
+// lands there first, then converts to BI2XUSD — see Dex-Backend's
 // chain.Listener), not because they're still tradable quote currencies.
-const SUPPORTED_ASSETS = ["BTC", "ETH", "SOL", "BNB", "BIUSD", "USDC", "USDT", "BI"] as const;
+//
+// ETH, SOL, and BNB removed (2026-09-12): they backed the ETH-BI2XUSD/
+// SOL-BI2XUSD/BNB-BI2XUSD SPOT markets, which no longer exist (ETH/SOL are
+// FUTURES-only now, settled entirely in BI2XUSD; BNB has no market at all) —
+// see Dex-Backend's user_balances migration dropping these columns.
+//
+// BI (the platform's own native token, distinct from BI2X/BI2XUSD) removed
+// (2026-09-13): never wired into any matching-engine market, same reasoning
+// as ETH/SOL/BNB above.
+const SUPPORTED_ASSETS = ["BTC", "BI2X", "BI2XUSD", "USDC", "USDT"] as const;
 type SupportedAsset = (typeof SUPPORTED_ASSETS)[number];
 
 const ASSET_DECIMALS: Record<SupportedAsset, number> = {
 	// The backend ledger stores every supported asset as a fixed-point raw
 	// integer with six fractional digits. BTC must use that same scale here:
 	// decoding it as eight decimals displayed balances 100x too small (for
-	// example, a real 0.000250 BTC appeared as 0.00000250 BTC). ETH/SOL/BNB
-	// use the same raw-unit convention (see Dex-Backend's user_balances schema).
+	// example, a real 0.000250 BTC appeared as 0.00000250 BTC).
 	BTC: 6,
-	ETH: 6,
-	SOL: 6,
-	BNB: 6,
-	BIUSD: 6,
+	BI2X: 6,
+	BI2XUSD: 6,
 	USDC: 6,
 	USDT: 6,
-	BI: 6,
 };
 
 const DEFAULT_BALANCES: Balance[] = SUPPORTED_ASSETS.map((asset) => ({
@@ -375,10 +381,36 @@ async function connect(source: WalletId) {
   }
 }
 
+// Referral/affiliate signup capture. App.tsx stashes a "?ref=CODE" URL param
+// here on first load (before any wallet connects); the code is only ever
+// meaningful for a NEW user's first login, so it's read (and cleared) once,
+// right at the login call, rather than kept around indefinitely.
+const PENDING_REFERRAL_CODE_KEY = "dex_pending_referral_code";
+
+export function stashPendingReferralCode(code: string) {
+  try {
+    localStorage.setItem(PENDING_REFERRAL_CODE_KEY, code);
+  } catch {
+    // localStorage may be unavailable (private browsing, etc.) — losing the
+    // code just means this signup won't be attributed, not a hard failure.
+  }
+}
+
+function consumePendingReferralCode(): string {
+  try {
+    const code = localStorage.getItem(PENDING_REFERRAL_CODE_KEY) ?? "";
+    if (code) localStorage.removeItem(PENDING_REFERRAL_CODE_KEY);
+    return code;
+  } catch {
+    return "";
+  }
+}
+
 async function authenticateWithBackend(provider: Eip1193Provider, source: WalletId, address: string) {
   const { message } = await getNonce(address);
   const signature = (await requestWithTimeout(provider, "personal_sign", [message, address])) as string;
-  const { user } = await apiLogin(address, signature, source);
+  const { user, token } = await apiLogin(address, signature, source, consumePendingReferralCode());
+  setWsAuthToken(token);
   setState({ userId: user.id });
 }
 
@@ -389,6 +421,7 @@ async function disconnect() {
   detachProvider(provider);
   activeProvider = null;
   clearPersistedSession();
+  setWsAuthToken(null);
   state = { connected: false, walletId: undefined, address: undefined, userId: undefined, balances: DEFAULT_BALANCES, error: undefined, pending: null, restored: true, provider: null };
   emit();
 
@@ -423,8 +456,20 @@ async function restoreSession() {
     const { user } = await me();
     setState({ userId: user.id });
   } catch {
-    // No active backend session (e.g. expired cookie) - re-authenticate silently.
-    await authenticateWithBackend(provider, stored.walletId, address);
+    // No active backend session (e.g. expired cookie) - re-authenticate.
+    // This prompts a wallet signature; if the user dismisses it or it
+    // otherwise fails, surface that into state.error instead of silently
+    // leaving `connected: true` with no real backend session — previously
+    // this rejection propagated to a bare `.catch(() => {})` at both call
+    // sites, so the UI kept showing "connected" while every authenticated
+    // request (e.g. placing a prediction order) failed with an opaque
+    // "unauthorized" and no indication why.
+    try {
+      await authenticateWithBackend(provider, stored.walletId, address);
+    } catch (err) {
+      setState({ userId: undefined, error: "Sign the wallet message to finish signing in." });
+      throw err;
+    }
   }
 
   await syncBalancesWithBackend();

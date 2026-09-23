@@ -7,12 +7,12 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  formatBIUSDAmount,
-  formatBIUSDSellCapacity,
+  formatBI2XUSDAmount,
+  formatBI2XUSDSellCapacity,
   fundP2PWallet,
   getP2PPaymentAccounts,
   getP2PWallet,
-  parseBIUSDAmount,
+  parseBI2XUSDAmount,
   P2P_PAYMENT_METHODS,
   saveP2PPaymentAccount,
   type P2PPaymentAccount,
@@ -22,7 +22,7 @@ import {
 import { useWallet, wallet } from "@/lib/useWallet";
 
 const emptyBalance: P2PWalletBalance = {
-  asset: "BIUSD",
+  asset: "BI2XUSD",
   availableRaw: "0",
   reservedRaw: "0",
   totalRaw: "0",
@@ -50,7 +50,7 @@ export default function P2PWallet() {
   const [savingAccount, setSavingAccount] = useState(false);
 
   const regularAvailable = useMemo(
-    () => balances.find((balance) => balance.asset === "BIUSD")?.available ?? 0,
+    () => balances.find((balance) => balance.asset === "BI2XUSD")?.available ?? 0,
     [balances],
   );
   const needsBankDetails = isBankPaymentMethod(method);
@@ -78,9 +78,9 @@ export default function P2PWallet() {
       setLoading(true);
       setTransferError("");
       setTransferSuccess("");
-      const response = await fundP2PWallet("BIUSD", parseBIUSDAmount(amount));
+      const response = await fundP2PWallet("BI2XUSD", parseBI2XUSDAmount(amount));
       setP2PBalance(response.balance);
-      setTransferSuccess(`${displayedAmount} BIUSD transferred to your P2P wallet.`);
+      setTransferSuccess(`${displayedAmount} BI2XUSD transferred to your P2P wallet.`);
       setAmount("0");
       try {
         await wallet.refreshBalances();
@@ -88,7 +88,7 @@ export default function P2PWallet() {
         setTransferError("Transfer succeeded, but the Balance Wallet display could not be refreshed yet.");
       }
     } catch (cause) {
-      setTransferError(cause instanceof Error ? cause.message : "Could not transfer BIUSD");
+      setTransferError(cause instanceof Error ? cause.message : "Could not transfer BI2XUSD");
     } finally {
       setLoading(false);
     }
@@ -122,7 +122,7 @@ export default function P2PWallet() {
             <ArrowLeft className="h-4 w-4" /> Back to Marketplace
           </Link>
           <h1 className="mt-4 text-3xl font-bold">P2P Wallet</h1>
-          <p className="text-muted-foreground">Move BIUSD from your Balance Wallet before using it for P2P selling.</p>
+          <p className="text-muted-foreground">Move BI2XUSD from your Balance Wallet before using it for P2P selling.</p>
         </div>
 
         {!userId ? (
@@ -130,10 +130,10 @@ export default function P2PWallet() {
         ) : (
           <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Kpi label="Balance Wallet" value={`${Number(regularAvailable.toFixed(6))} BIUSD`} />
-              <Kpi label="P2P Wallet Balance" value={`${formatBIUSDAmount(p2pBalance.totalRaw)} BIUSD`} />
-              <Kpi label="Available for Sale" value={`${formatBIUSDSellCapacity(p2pBalance.availableRaw)} BIUSD`} />
-              <Kpi label="Reserved in Ads" value={`${formatBIUSDAmount(p2pBalance.reservedRaw)} BIUSD`} />
+              <Kpi label="Balance Wallet" value={`${Number(regularAvailable.toFixed(6))} BI2XUSD`} />
+              <Kpi label="P2P Wallet Balance" value={`${formatBI2XUSDAmount(p2pBalance.totalRaw)} BI2XUSD`} />
+              <Kpi label="Available for Sale" value={`${formatBI2XUSDSellCapacity(p2pBalance.availableRaw)} BI2XUSD`} />
+              <Kpi label="Reserved in Ads" value={`${formatBI2XUSDAmount(p2pBalance.reservedRaw)} BI2XUSD`} />
             </div>
 
             {loadError && <p className="text-sm text-destructive">{loadError}</p>}
@@ -148,7 +148,7 @@ export default function P2PWallet() {
               </div>
               <div className="max-w-xl space-y-4">
                 <div>
-                  <label className="mb-2 block text-sm font-medium">BIUSD amount</label>
+                  <label className="mb-2 block text-sm font-medium">BI2XUSD amount</label>
                   <div className="relative">
                     <Input
                       inputMode="decimal"
@@ -157,9 +157,9 @@ export default function P2PWallet() {
                       onBlur={() => setAmount(String(Number(amount) || 0))}
                       className="pr-20"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold">BIUSD</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold">BI2XUSD</span>
                   </div>
-                  <p className="mt-2 text-xs text-muted-foreground">Available in Balance Wallet: {Number(regularAvailable.toFixed(6))} BIUSD</p>
+                  <p className="mt-2 text-xs text-muted-foreground">Available in Balance Wallet: {Number(regularAvailable.toFixed(6))} BI2XUSD</p>
                 </div>
                 {transferError && <p className="text-sm text-destructive">{transferError}</p>}
                 {transferSuccess && <p className="text-sm text-buy">{transferSuccess}</p>}

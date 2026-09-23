@@ -59,7 +59,22 @@ export type TradeDTO = {
 };
 export type TradesResponse = { symbol: string; market: string; trades: TradeDTO[] };
 
-export type OrderResponse = { orderId: string; status: string; filled: string; trades: number };
+export type OrderResponse = {
+  orderId: string;
+  status: string;
+  filled: string;
+  trades: number;
+  // Set only by /trade/attached-order (TRD-M1): groupId is present only if
+  // the entry actually activated a protection group; takeProfitId/stopLossId
+  // are each present only if that specific leg was placed. Previously these
+  // were returned by the backend but never typed or checked here, so a leg
+  // that silently failed to place (the shared reservation failing, e.g.)
+  // still showed a plain "order placed" toast with no indication that no
+  // TP/SL was actually attached.
+  groupId?: string;
+  takeProfitId?: string;
+  stopLossId?: string;
+};
 
 export type BalanceResponse = {
   account: string;
@@ -188,6 +203,16 @@ export type MarketSummaryResponse = {
 export function getMarketSummary(symbol: string, market: string) {
   const params = new URLSearchParams({ symbol, market });
   return req<MarketSummaryResponse>(`/market-summary?${params}`);
+}
+
+/**
+ * All registered symbols' summaries in ONE batched request — the engine's
+ * /market-summary returns every book when called without params. This is the
+ * fallback path for the market list; the primary path is the WS TICKER
+ * stream (see useMarkets), which needs no HTTP at all.
+ */
+export function getAllMarketSummaries() {
+  return req<MarketSummaryResponse[]>(`/market-summary`);
 }
 
 export type MarketMetadata = {
@@ -412,9 +437,73 @@ export type OptionChainResponse = {
   underlying: string;
   spot: string;
   chain: OptionChainEntry[];
+  // Real per-instrument fee from the engine's symbol_configs (market=OPTIONS),
+  // same percentage-string convention as MarketMetadata.makerFeePct/takerFeePct.
+  makerFeePct: string;
+  takerFeePct: string;
 };
 
 export function getOptionChain(underlying: string) {
   const params = new URLSearchParams({ underlying });
   return req<OptionChainResponse>(`/option-chain?${params}`);
+}
+
+// ─── BI2X staking ───────────────────────────────────────────────────────────
+// 5% APR, simple interest, no lock-up period, BI2X only. See
+// Dex-Backend/internal/api/staking.go for the backend side. The frontend
+// computes a LIVE estimate of accrued interest for display (see
+// stakingMath.ts) from principalRaw + startedAt alone — no polling needed
+// just to watch the number tick up — but the backend always recalculates
+// authoritatively at redeem time, so the actual payout never depends on the
+// frontend's estimate.
+
+export type StakingPosition = {
+  id: string;
+  asset: string;
+  principalRaw: string;
+  aprBps: number;
+  startedAt: string;
+  status: "active" | "redeemed";
+  closedAt?: string;
+};
+
+export function getStakingPositions() {
+  return tradeReq<{ positions: StakingPosition[] | null }>("/staking/positions");
+}
+
+// amount is a human-decimal BI2X string (e.g. "5000"), not raw units.
+export function stakeBI2X(amount: string) {
+  return tradeReq<{ position: StakingPosition }>("/staking/stake", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount }),
+  });
+}
+
+// amount omitted (or undefined) redeems the position's full remaining
+// principal; a human-decimal string redeems that much of it (partial).
+export function redeemStake(positionId: string, amount?: string) {
+  return tradeReq<{ position: StakingPosition; principalRaw: string; interestRaw: string; totalRaw: string }>("/staking/redeem", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ positionId, amount }),
+  });
+}
+
+// One entry in the staking history log — every stake and redeem action.
+// interestRaw is "0" for a 'stake' event; for a 'redeem' event it's the
+// exact interest paid out on that specific redemption (the backend's
+// authoritative figure, not a re-derived estimate) — this is what lets the
+// redemption history table show interest earned alongside principal.
+export type StakingEvent = {
+  id: number;
+  positionId: string;
+  kind: "stake" | "redeem";
+  principalRaw: string;
+  interestRaw: string;
+  createdAt: string;
+};
+
+export function getStakingHistory(limit = 100) {
+  return tradeReq<{ events: StakingEvent[] | null }>(`/staking/history?limit=${limit}`);
 }

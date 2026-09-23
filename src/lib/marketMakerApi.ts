@@ -18,7 +18,7 @@ export type MarketMaker = {
   walletAddress: string;
   botId: string;
   // Each leg is funded independently and directly — an actual base-asset
-  // amount (BTC, ETH, ...) and an actual quote-asset amount (BIUSD for spot,
+  // amount (BTC, ETH, ...) and an actual quote-asset amount (BI2XUSD for spot,
   // USDC for futures), never one derived from the other by a formula.
   baseAmount: string;
   quoteAmount: string;

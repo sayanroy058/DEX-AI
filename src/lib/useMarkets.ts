@@ -1,16 +1,14 @@
 import { useEffect, useState } from "react";
 import { INITIAL_MARKETS, Market, tickPrice } from "./mockData";
-import { backendMarketFor } from "./backendMarkets";
-import { getMarketSummary } from "./apiClient";
+import { backendMarketFor, frontendSymbolFor } from "./backendMarkets";
+import { getAllMarketSummaries } from "./apiClient";
+import { wsClient, WSTicker } from "./wsClient";
 
 // Singleton-style hook that simulates a websocket price feed
 let listeners: Set<(m: Market[]) => void> = new Set();
 let markets: Market[] = INITIAL_MARKETS.map(m => ({ ...m }));
 let simulationInterval: ReturnType<typeof setInterval> | null = null;
-let summaryTimer: ReturnType<typeof setTimeout> | null = null;
-const SUMMARY_BASE_MS = 15000;
-const SUMMARY_MAX_MS = 120000;
-let summaryDelay = SUMMARY_BASE_MS;
+let summaryInterval: ReturnType<typeof setInterval> | null = null;
 
 function publish() {
   listeners.forEach(l => l(markets));
@@ -23,39 +21,91 @@ function setExecutableMarketsUnavailable() {
   );
 }
 
-async function refreshExecutableMarkets(): Promise<boolean> {
+// Apply one engine ticker to the matching frontend market row (if any).
+// Returns true when a row changed, so callers can decide whether to publish.
+function applyTicker(t: WSTicker): boolean {
+  const frontendSymbol = frontendSymbolFor(t.symbol, t.market);
+  if (!backendMarketFor(frontendSymbol)) return false;
+  const price = Number(t.markPrice || t.midPrice);
+  const updatedAt = Date.now();
+  if (!Number.isFinite(price) || price <= 0) return false;
+  let changed = false;
+  markets = markets.map(m => {
+    if (m.symbol !== frontendSymbol) return m;
+    const change24h = t.has24hData ? Number(t.change24hPct ?? 0) : 0;
+    const volume24h = t.has24hData ? Number(t.volume24h ?? 0) : 0;
+    if (m.price === price && m.change24h === change24h && m.volume24h === volume24h && m.dataStatus === "live") {
+      return m;
+    }
+    changed = true;
+    return {
+      ...m,
+      price,
+      change24h,
+      volume24h,
+      dataStatus: "live" as const,
+      updatedAt,
+    };
+  });
+  return changed;
+}
+
+// One batched refresh of every executable market from the engine's batched
+// /market-summary response (or the WS ticker store when it has data). The old
+// shape — one HTTP request PER market every 5s — was the trade page's largest
+// source of request churn.
+async function refreshExecutableMarkets() {
   const executable = markets.filter(m => backendMarketFor(m.symbol));
-  const results = await Promise.all(executable.map(async (market) => {
-    const backend = backendMarketFor(market.symbol)!;
-    try {
-      const summary = await getMarketSummary(backend.symbol, backend.market);
-      const price = Number(summary.price);
-      const updatedAt = Date.parse(summary.updatedAt);
+  if (executable.length === 0) return;
+
+  // Prefer the WS ticker store when the socket is delivering: no HTTP at all.
+  const store = wsClient.getTickers();
+  if (wsClient.getStatus() === "open" && store.size > 0) {
+    let changed = false;
+    for (const t of store.values()) changed = applyTicker(t) || changed;
+    if (changed) publish();
+    return;
+  }
+
+  try {
+    const summaries = await getAllMarketSummaries();
+    let changed = false;
+    markets = markets.map(m => {
+      const backend = backendMarketFor(m.symbol);
+      if (!backend) return m;
+      const s = summaries.find(
+        x => x.symbol === backend.symbol && x.market === backend.market
+      );
+      if (!s) return m;
+      const price = Number(s.price);
+      const updatedAt = Date.parse(s.updatedAt);
       if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(updatedAt)) {
-        throw new Error("market summary is unavailable");
-      }
-      markets = markets.map(m => m.symbol !== market.symbol ? m : {
-        ...m,
-        price,
-        change24h: summary.has24hData ? Number(summary.change24hPct ?? 0) : 0,
-        volume24h: summary.has24hData ? Number(summary.volume24h ?? 0) : 0,
-        dataStatus: "live" as const,
-        updatedAt,
-      });
-      return true;
-    } catch {
-      markets = markets.map(m => {
-        if (m.symbol !== market.symbol) return m;
         // Retain the last genuine engine value but clearly mark it stale;
         // never replace it with a simulated or external value.
-        if (m.dataStatus === "live") return { ...m, dataStatus: "stale" as const };
-        return { ...m, dataStatus: "unavailable" as const };
-      });
-      return false;
-    }
-  }));
-  publish();
-  return results.some(Boolean);
+        return m.dataStatus === "live" ? { ...m, dataStatus: "stale" as const } : m;
+      }
+      const next = {
+        ...m,
+        price,
+        change24h: s.has24hData ? Number(s.change24hPct ?? 0) : 0,
+        volume24h: s.has24hData ? Number(s.volume24h ?? 0) : 0,
+        dataStatus: "live" as const,
+        updatedAt,
+      };
+      if (next.price !== m.price || next.dataStatus !== m.dataStatus) changed = true;
+      return next;
+    });
+    if (changed) publish();
+  } catch {
+    markets = markets.map(m => {
+      if (!backendMarketFor(m.symbol)) return m;
+      // Retain the last genuine engine value but clearly mark it stale;
+      // never replace it with a simulated or external value.
+      if (m.dataStatus === "live") return { ...m, dataStatus: "stale" as const };
+      return { ...m, dataStatus: "unavailable" as const };
+    });
+    publish();
+  }
 }
 
 function start() {
@@ -72,16 +122,15 @@ function start() {
     });
     publish();
   }, 1500);
-  const runSummary = () => {
-    void refreshExecutableMarkets().then((anyOk) => {
-      // Back off together on a shared delay when every symbol fails (e.g. the
-      // backend is down), so a persistent outage doesn't keep hitting it
-      // every 15s for as many symbols as are executable, forever.
-      summaryDelay = anyOk ? SUMMARY_BASE_MS : Math.min(summaryDelay * 2, SUMMARY_MAX_MS);
-      summaryTimer = setTimeout(runSummary, summaryDelay);
-    });
-  };
-  runSummary();
+  // Live executable-market prices arrive via the WS TICKER frame (1s, all
+  // symbols); the batched HTTP refresh is the bootstrap + fallback only.
+  wsClient.subscribeTickers(store => {
+    let changed = false;
+    for (const t of store.values()) changed = applyTicker(t) || changed;
+    if (changed) publish();
+  });
+  void refreshExecutableMarkets();
+  summaryInterval = setInterval(() => { void refreshExecutableMarkets(); }, 5000);
 }
 
 export function useMarkets() {

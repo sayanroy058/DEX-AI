@@ -1,21 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { CreateBotModal } from "@/components/bots/CreateBotModal";
 import { cn } from "@/lib/utils";
 import {
   Activity,
   BarChart3,
   Bot as BotIcon,
-  ChevronDown,
   CircleDollarSign,
   Crosshair,
   Grid3X3,
   Info,
   LineChart,
   RefreshCcw,
+  Scale,
   Settings2,
   SlidersHorizontal,
   Snowflake,
@@ -23,13 +21,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
-  copyBot,
   deleteBot,
-  getMarketplace,
   getMyBots,
   getTemplates,
-  MARKETPLACE_TABS,
-  MARKETPLACE_TAB_TO_STRATEGY,
   startBot,
   stopBot,
   type Bot,
@@ -65,19 +59,17 @@ const TEMPLATE_ICONS: Record<string, LucideIcon> = {
   spot_algo: Settings2,
   futures_twap: BarChart3,
   futures_vp: SlidersHorizontal,
+  options_market_maker: Scale,
 };
 
 export default function TradingBots() {
   const [category, setCategory] = useState<BotCategory>("All");
-  const [marketplaceTab, setMarketplaceTab] = useState<string>(MARKETPLACE_TABS[0]);
 
   const [templates, setTemplates] = useState<BotTemplate[]>([]);
   const [createTemplate, setCreateTemplate] = useState<BotTemplate | null>(null);
 
   const [myBots, setMyBots] = useState<Bot[]>([]);
   const [authed, setAuthed] = useState(true);
-  const [marketplaceBots, setMarketplaceBots] = useState<Bot[]>([]);
-  const [selectedBot, setSelectedBot] = useState<Bot | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   // Templates (public; works logged out).
@@ -88,9 +80,10 @@ export default function TradingBots() {
   }, []);
 
   const visibleTemplates = useMemo(() => {
-    const list = templates.length > 0
+    const list = (templates.length > 0
       ? templates
-      : FALLBACK_TEMPLATES.map((t) => ({ ...t, params: [] } as BotTemplate));
+      : FALLBACK_TEMPLATES.map((t) => ({ ...t, params: [] } as BotTemplate))
+    ).filter((t) => t.available);
     return category === "All" ? list : list.filter((t) => t.category === category);
   }, [templates, category]);
 
@@ -112,14 +105,6 @@ export default function TradingBots() {
     const id = setInterval(refreshMyBots, 5000);
     return () => clearInterval(id);
   }, [authed, refreshMyBots]);
-
-  // Marketplace (public). Refetch when the tab changes.
-  useEffect(() => {
-    const strategy = MARKETPLACE_TAB_TO_STRATEGY[marketplaceTab];
-    getMarketplace(strategy)
-      .then((r) => setMarketplaceBots(r.bots ?? []))
-      .catch(() => setMarketplaceBots([]));
-  }, [marketplaceTab]);
 
   const handleStart = async (id: string) => {
     setBusy(id);
@@ -148,21 +133,6 @@ export default function TradingBots() {
       setBusy(null);
     }
   };
-  const handleCopy = async (id: string) => {
-    setBusy(id);
-    try {
-      await copyBot(id);
-      setSelectedBot(null);
-      setAuthed(true);
-      await refreshMyBots();
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "";
-      if (/401|unauthorized|not authenticated/i.test(msg)) setAuthed(false);
-    } finally {
-      setBusy(null);
-    }
-  };
-
   return (
     <AppShell>
       <div className="min-h-screen bg-gradient-to-b from-background via-background/95 to-background px-4 py-8">
@@ -198,23 +168,12 @@ export default function TradingBots() {
                 return (
                   <button
                     key={t.key}
-                    disabled={!t.available}
-                    onClick={() => t.available && setCreateTemplate(t)}
-                    className={cn(
-                      "rounded-2xl border border-border/60 bg-card/60 p-5 text-left transition-all",
-                      t.available
-                        ? "hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/5"
-                        : "cursor-not-allowed opacity-60",
-                    )}
+                    onClick={() => setCreateTemplate(t)}
+                    className="rounded-2xl border border-border/60 bg-card/60 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/5"
                   >
                     <Icon className="mb-4 h-5 w-5 text-primary" />
                     <div className="font-bold">{t.title}</div>
                     <p className="mt-3 text-sm leading-6 text-muted-foreground">{t.desc}</p>
-                    {!t.available && (
-                      <span className="mt-3 inline-block rounded-full bg-muted/40 px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
-                        Coming soon
-                      </span>
-                    )}
                   </button>
                 );
               })}
@@ -248,45 +207,6 @@ export default function TradingBots() {
               )}
             </section>
           )}
-
-          {/* Marketplace */}
-          <section className="space-y-5">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-2xl font-bold">Marketplace</h2>
-                <Info className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Copy live bot strategies or use them as templates for your own automation.
-              </p>
-            </div>
-
-            <div className="flex gap-6 overflow-x-auto scrollbar-none">
-              {MARKETPLACE_TABS.map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setMarketplaceTab(tab)}
-                  className={cn(
-                    "relative shrink-0 pb-2 text-base font-bold transition-colors",
-                    marketplaceTab === tab ? "text-foreground" : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {tab}
-                  {marketplaceTab === tab && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-primary" />}
-                </button>
-              ))}
-            </div>
-
-            <div className="grid gap-5 lg:grid-cols-3">
-              {marketplaceBots.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No public bots in this category yet.</p>
-              ) : (
-                marketplaceBots.map((bot) => (
-                  <MarketplaceCard key={bot.id} bot={bot} onCopy={() => setSelectedBot(bot)} />
-                ))
-              )}
-            </div>
-          </section>
         </div>
       </div>
 
@@ -298,7 +218,6 @@ export default function TradingBots() {
           refreshMyBots();
         }}
       />
-      <BotDetailDialog bot={selectedBot} busy={busy === selectedBot?.id} onCopy={() => selectedBot && handleCopy(selectedBot.id)} onClose={() => setSelectedBot(null)} />
     </AppShell>
   );
 }
@@ -374,191 +293,7 @@ function StatusBadge({ status, running }: { status: string; running: boolean }) 
   return <span className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-bold capitalize", tone)}>{label}</span>;
 }
 
-/* ---------- Marketplace ---------- */
-
-function MarketplaceCard({ bot, onCopy }: { bot: Bot; onCopy: () => void }) {
-  const net = parseFloat(bot.stats.netPnl || "0");
-  const roi = parseFloat(bot.stats.roi || "0");
-  const positive = net >= 0;
-  const spark = sparkFromBot(bot);
-  return (
-    <button
-      type="button"
-      onClick={onCopy}
-      className="group rounded-2xl border border-border/60 bg-card/65 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/5 focus:outline-none focus:ring-2 focus:ring-primary/40"
-    >
-      <div className="mb-5 flex items-start justify-between gap-4">
-        <div>
-          <div className="text-xl font-black">{bot.symbol}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{strategyLabel(bot.strategy)} · {bot.name}</div>
-        </div>
-        <Button
-          onClick={(e) => {
-            e.stopPropagation();
-            onCopy();
-          }}
-          className="bg-warning text-black hover:bg-warning/90"
-        >
-          Copy
-        </Button>
-      </div>
-
-      <div className="mb-5 grid grid-cols-[1fr_auto] items-center gap-4">
-        <div>
-          <div className="text-xs text-muted-foreground">PNL</div>
-          <div className={cn("mt-2 font-mono text-3xl font-black", positive ? "text-buy" : "text-sell")}>
-            {fmtSigned(net)}
-          </div>
-        </div>
-        <MiniSpark data={spark} />
-      </div>
-
-      <div className="grid grid-cols-3 gap-4 text-sm">
-        <Metric label="ROI" value={`${positive ? "+" : ""}${roi.toFixed(2)}%`} positive={positive} />
-        <Metric label="Runtime" value={formatRuntime(bot.stats.runtimeSec)} />
-        <Metric label="Min. Investment" value={bot.investment} />
-        <Metric label="24H/Total Matched Trades" value={`${bot.stats.trades24h}/${bot.stats.matchedTrades}`} />
-        <Metric label="7D MDD" value={`${parseFloat(bot.stats.maxDrawdownPct || "0").toFixed(2)}%`} />
-      </div>
-    </button>
-  );
-}
-
-function BotDetailDialog({
-  bot,
-  busy,
-  onCopy,
-  onClose,
-}: {
-  bot: Bot | null;
-  busy: boolean;
-  onCopy: () => void;
-  onClose: () => void;
-}) {
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-  const net = parseFloat(bot?.stats.netPnl || "0");
-  const roi = parseFloat(bot?.stats.roi || "0");
-  const positive = net >= 0;
-  return (
-    <Dialog open={Boolean(bot)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl overflow-hidden border border-border bg-card p-0 text-foreground shadow-2xl dark:bg-card/95">
-        {bot && (
-          <div className="grid min-h-[520px] lg:grid-cols-[0.95fr_1fr]">
-            <div className="border-b border-border/60 p-6 lg:border-b-0 lg:border-r">
-              <div className="mb-6 flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-2xl font-black">{bot.symbol}</h3>
-                    <span className={cn("font-mono text-sm font-bold", positive ? "text-buy" : "text-sell")}>
-                      {positive ? "+" : ""}
-                      {roi.toFixed(2)}%
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">{strategyLabel(bot.strategy)} · {bot.name}</p>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-border/60 bg-background/40 p-4">
-                <div className="mb-4 flex items-center justify-between">
-                  <h4 className="font-bold">Profit History</h4>
-                  <span className="rounded-lg bg-primary/15 px-2.5 py-1 text-xs font-bold text-primary">ROI</span>
-                </div>
-                <DialogProfitChart data={sparkFromBot(bot)} />
-              </div>
-
-              <div className="mt-6 rounded-2xl border border-border/60 bg-background/40 p-4">
-                <h4 className="mb-4 font-bold">Basic Info</h4>
-                <div className="space-y-3">
-                  <InfoRow label="Runtime" value={formatRuntime(bot.stats.runtimeSec)} />
-                  <InfoRow label="24H/Total Matched Trades" value={`${bot.stats.trades24h}/${bot.stats.matchedTrades}`} />
-                  <InfoRow label="7D MDD" value={`${parseFloat(bot.stats.maxDrawdownPct || "0").toFixed(2)}%`} />
-                  <InfoRow label="Net PNL" value={fmtSigned(net)} />
-                  <InfoRow label="Min. Investment" value={bot.investment} />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col p-6">
-              <p className="mb-5 text-sm text-muted-foreground">
-                Copy this bot to clone its configuration into a new bot under your account. Market conditions differ, so
-                historical results cannot guarantee future performance.
-              </p>
-              <button
-                type="button"
-                onClick={() => setAdvancedOpen((o) => !o)}
-                className="flex items-center justify-between rounded-xl py-3 text-left font-bold text-muted-foreground hover:text-foreground"
-              >
-                Configuration
-                <ChevronDown className={cn("h-4 w-4 transition-transform", advancedOpen && "rotate-180")} />
-              </button>
-              {advancedOpen && (
-                <div className="mt-2 space-y-2 rounded-2xl border border-border/60 bg-background/45 p-4">
-                  {Object.entries(bot.config).map(([k, v]) => (
-                    <InfoRow key={k} label={k} value={String(v)} />
-                  ))}
-                  {Object.keys(bot.config).length === 0 && (
-                    <p className="text-sm text-muted-foreground">No custom parameters.</p>
-                  )}
-                </div>
-              )}
-              <div className="flex-1" />
-              <Button
-                onClick={onCopy}
-                disabled={busy}
-                className="ml-auto w-full bg-warning text-black hover:bg-warning/90 sm:w-44"
-              >
-                {busy ? "Copying…" : "Copy Bot"}
-              </Button>
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 /* ---------- shared helpers ---------- */
-
-function MiniSpark({ data }: { data: number[] }) {
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const points = data
-    .map((value, index) => {
-      const x = (index / (data.length - 1)) * 100;
-      const y = 48 - ((value - min) / (max - min || 1)) * 40;
-      return `${x},${y}`;
-    })
-    .join(" ");
-  return (
-    <svg viewBox="0 0 100 52" className="h-14 w-28 overflow-visible">
-      <path d="M0 48 H100" stroke="hsl(var(--border))" strokeDasharray="2 3" strokeWidth="1" />
-      <polyline points={points} fill="none" stroke="hsl(var(--buy))" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function DialogProfitChart({ data }: { data: number[] }) {
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const points = data
-    .map((value, index) => {
-      const x = 46 + (index / (data.length - 1)) * 152;
-      const y = 98 - ((value - min) / (max - min || 1)) * 58;
-      return `${x},${y}`;
-    })
-    .join(" ");
-  return (
-    <div className="relative h-36 overflow-hidden rounded-xl bg-muted/20">
-      <svg viewBox="0 0 220 122" className="h-full w-full">
-        {[40, 62, 84, 106].map((y) => (
-          <line key={y} x1="42" x2="200" y1={y} y2={y} stroke="hsl(var(--border))" strokeDasharray="3 3" />
-        ))}
-        <polyline points={points} fill="none" stroke="hsl(var(--buy))" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-        <path d={`M${points} L198 106 L46 106 Z`} fill="hsl(var(--buy) / 0.08)" />
-      </svg>
-    </div>
-  );
-}
 
 function Metric({ label, value, positive }: { label: string; value: string; positive?: boolean }) {
   return (
@@ -580,22 +315,25 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+// AI Agent bot creation is disabled — it never created a real bot (no
+// botsApi call, pure simulated frontend state), so the button is disabled
+// rather than wired to the commented-out /ai-agent route. Re-enable by
+// restoring the onClick + route in App.tsx once a real AI-driven bot
+// creation flow exists.
 function CreateBotButton() {
-  const navigate = useNavigate();
   return (
     <button
       type="button"
-      onClick={() => navigate("/ai-agent")}
-      className="group relative isolate inline-flex h-11 items-center gap-2 overflow-hidden rounded-full border border-primary/35 bg-primary/10 px-4 text-sm font-bold text-primary transition-all hover:-translate-y-0.5 hover:border-primary/70 hover:bg-primary hover:text-primary-foreground hover:shadow-[0_18px_45px_hsl(var(--primary)/0.25)]"
-      aria-label="Create your own bot by yourself"
+      disabled
+      className="group relative isolate inline-flex h-11 cursor-not-allowed items-center gap-2 overflow-hidden rounded-full border border-border/50 bg-muted/20 px-4 text-sm font-bold text-muted-foreground opacity-60"
+      aria-label="Create AI Agent (coming soon)"
     >
-      <span className="absolute inset-y-0 -left-10 -z-10 w-8 rotate-12 bg-white/35 opacity-0 blur-sm transition-all duration-500 group-hover:left-[120%] group-hover:opacity-100" />
-      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform group-hover:rotate-12 group-hover:scale-110 group-hover:bg-primary-foreground group-hover:text-primary">
+      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted/40 text-muted-foreground">
         <BotIcon className="h-4 w-4" />
       </span>
       <span>Create AI Agent</span>
       <span className="pointer-events-none absolute right-0 top-full mt-2 w-max max-w-[220px] translate-y-1 rounded-lg border border-border bg-popover px-3 py-2 text-xs font-semibold text-popover-foreground opacity-0 shadow-xl transition-all group-hover:translate-y-0 group-hover:opacity-100">
-        Create your own bot by yourself
+        Coming soon
       </span>
     </button>
   );
@@ -630,17 +368,4 @@ function formatRuntime(sec: number): string {
 function fmtSigned(n: number): string {
   const sign = n >= 0 ? "+" : "";
   return `${sign}${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-}
-
-// sparkFromBot builds a sparkline from the bot's persisted equity samples
-// (state.equity = [{ms,val}]); falls back to a flat line derived from net PnL.
-function sparkFromBot(bot: Bot): number[] {
-  const state = bot.state as { equity?: { ms: number; val: string }[] } | undefined;
-  const eq = state?.equity;
-  if (eq && eq.length >= 2) {
-    return eq.map((p) => parseFloat(p.val) || 0);
-  }
-  const net = parseFloat(bot.stats.netPnl || "0");
-  const base = 10;
-  return [base, base + net * 0.2, base + net * 0.5, base + net * 0.7, base + net];
 }

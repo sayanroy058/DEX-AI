@@ -174,9 +174,9 @@ describe("wallet state", () => {
 
   it("subtracts pending withdrawal holds from available balance", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
-      balances: { USDC: "20669000", USDT: "0", BI: "0" },
-      locked: { USDC: "1000000", USDT: "0", BI: "0" },
-      withdrawalLocked: { USDC: "15000000", USDT: "0", BI: "0" },
+      balances: { USDC: "20669000", USDT: "0" },
+      locked: { USDC: "1000000", USDT: "0" },
+      withdrawalLocked: { USDC: "15000000", USDT: "0" },
     }), { status: 200, headers: { "Content-Type": "application/json" } })));
 
     await wallet.refreshBalances();

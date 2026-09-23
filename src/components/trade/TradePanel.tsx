@@ -5,13 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { formatPrice, OptionContract } from "@/lib/mockData";
+import { formatPrice } from "@/lib/mockData";
 import { TrendingUp, TrendingDown, Info, Zap, Shield, Calculator, ChevronDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { backendMarketFor, backendOptionsMarketFor, optionInstrumentSymbol } from "@/lib/backendMarkets";
 import { useOrders } from "@/lib/useOrders";
-import { getOptionChain, OptionChainEntry, submitAttachedOrder } from "@/lib/apiClient";
+import { getOptionChain, OptionChainEntry, submitAttachedOrder, SubmitOrderParams } from "@/lib/apiClient";
 import { useWallet } from "@/lib/useWallet";
 import { useMarketMetadata } from "@/lib/useMarketMetadata";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -26,12 +26,18 @@ export function TradePanel({
   symbol,
   price,
   selectedOption,
+  mode: controlledMode,
   onModeChange,
   orders,
 }: {
   symbol: string;
   price: number;
-  selectedOption?: OptionContract | null;
+  selectedOption?: OptionChainEntry | null;
+  // Optional controlled mode, so the trade page can keep this panel's Spot/
+  // Futures/Options tab in sync with the market list's own Spot/Future
+  // sub-tab (selecting either one switches both). Uncontrolled (mode
+  // omitted) falls back to internal state, defaulting to "spot".
+  mode?: MarketMode;
   onModeChange?: (mode: MarketMode) => void;
   orders: ReturnType<typeof useOrders>;
 }) {
@@ -40,11 +46,13 @@ export function TradePanel({
   const marketMetadata = useMarketMetadata(symbol);
   // Splitting the display symbol (e.g. "BTC-PERP") gave "PERP" as the quote
   // asset for every futures market — marketMetadata.quoteCurrency is the
-  // backend's actual answer (now BIUSD for both spot and futures) and is
+  // backend's actual answer (now BI2XUSD for both spot and futures) and is
   // always right, whatever the display symbol's suffix convention is.
-  const quoteAsset = marketMetadata?.quoteCurrency || symbol.split("-")[1] || "BIUSD";
+  const quoteAsset = marketMetadata?.quoteCurrency || symbol.split("-")[1] || "BI2XUSD";
   const walletState = useWallet();
-  const [mode, setMode] = useState<MarketMode>("spot");
+  const [uncontrolledMode, setUncontrolledMode] = useState<MarketMode>("spot");
+  const mode = controlledMode ?? uncontrolledMode;
+  const setMode = setUncontrolledMode;
   const [side, setSide] = useState<Side>("buy");
   const isSpotSell = mode === "spot" && side === "sell";
   const isSpotBuy = mode === "spot" && side === "buy";
@@ -53,12 +61,18 @@ export function TradePanel({
   const baseBalance = walletState.balances.find((b) => b.asset === baseAsset)?.available ?? 0;
   // Buys spend quote currency; spot sells spend the purchased base asset.
   const BALANCE = isSpotSell ? baseBalance : quoteBalance;
+  // Real per-instrument options fee from the engine's /option-chain
+  // response (symbol_configs, market=OPTIONS) — previously a hardcoded
+  // 0.001 literal disconnected from actual fee configuration. Defaults to
+  // that same 0.001 (0.1%) until the chain has loaded once, so there's no
+  // flash of a $0 fee before the first fetch resolves.
+  const [optionsTakerFeePct, setOptionsTakerFeePct] = useState(0.1);
   // A spot buy's fee-inclusive engine reservation (orderValue * (1 +
   // feeRate); see submit.go) means the max quote spendable at 100% is
   // BALANCE / (1 + feeRate), not BALANCE itself. Computed here, ahead of
   // sizeInput's own state, so the displayed size box and the actual order
   // math (sizeUsd below) never disagree.
-  const feeRate = isOptions ? 0.001 : Number(marketMetadata?.takerFeePct ?? 0) / 100;
+  const feeRate = isOptions ? optionsTakerFeePct / 100 : Number(marketMetadata?.takerFeePct ?? 0) / 100;
   const maxSpendable = isSpotBuy ? BALANCE / (1 + feeRate) : BALANCE;
   const leverageInputRef = useRef<HTMLInputElement>(null);
   const sizeInputRef = useRef<HTMLInputElement>(null);
@@ -85,6 +99,17 @@ export function TradePanel({
   // actually edits the field themselves — editedPriceRef flips true the
   // moment they type, so a live price update never clobbers what they
   // typed mid-edit.
+  //
+  // Fixed 2026-09-15: editedPriceRef used to flip true only inside onChange,
+  // leaving a real window — between the user clicking/tabbing into the
+  // field and their first keystroke actually committing — during which a
+  // live price tick (the SSE index-price stream pushes roughly once a
+  // second, see useIndexPrice) could still land and overwrite whatever was
+  // there. Reported symptom: typing a price like 5.16 and having it snap
+  // back to the live market price (e.g. 5.15) moments later. Flipping the
+  // ref on focus too closes that window — the guard is active from the
+  // moment the user interacts with the field, not only after their first
+  // character registers.
   const editedPriceRef = useRef(false);
   useEffect(() => {
     if (editedPriceRef.current) return;
@@ -102,23 +127,53 @@ export function TradePanel({
   // BOTH are enabled (a ratio needs two sides), so it's hidden otherwise.
   const [tpEnabled, setTpEnabled] = useState(false);
   const [slEnabled, setSlEnabled] = useState(false);
+  // Spot sell entries reject an attached TP/SL server-side (backend only
+  // supports TP/SL on spot BUY entries, and on futures); previously the
+  // toggles stayed enabled here so a user filled out TP/SL for a spot sell
+  // and only found out it was rejected after submitting. Force both off
+  // whenever the form is in that state, matching the toggles being hidden.
+  useEffect(() => {
+    if (isSpotSell) {
+      setTpEnabled(false);
+      setSlEnabled(false);
+    }
+  }, [isSpotSell]);
   const [tp, setTp] = useState((price * 1.05).toFixed(2));
   const [sl, setSl] = useState((price * 0.97).toFixed(2));
+  // TP/SL can be entered as either an absolute price OR a percentage, with
+  // the other side auto-calculated — previously the percentage was a
+  // read-only derived <span> with no way to type into it at all. tpPctInput/
+  // slPctInput hold the text actually shown in the percent field; typing
+  // into IT recomputes tp/sl (the price), while typing into the price field
+  // recomputes the displayed percent — same "whichever the user touched
+  // last wins, the live price never fights it" pattern as editedPriceRef
+  // above, just per-leg and bidirectional instead of one-directional.
+  const [tpPctInput, setTpPctInput] = useState("5.0");
+  const [slPctInput, setSlPctInput] = useState("3.0");
+  // percentToTpPrice/percentToSlPrice invert tpPct/slPct's sign convention
+  // below (TP is always entered/shown as a positive %, SL always negative,
+  // regardless of buy/sell side) so typing "5" into either box means the
+  // same thing a user expects regardless of which side they're on.
+  const percentToTpPrice = (pct: number) => (side === "buy" ? price * (1 + pct / 100) : price * (1 - pct / 100));
+  const percentToSlPrice = (pct: number) => (side === "buy" ? price * (1 - pct / 100) : price * (1 + pct / 100));
   const [optType, setOptType] = useState<OptionType>("call");
   const [expiry, setExpiry] = useState("7D");
   const [strike, setStrike] = useState((Math.round(price / 100) * 100).toString());
   const [chain, setChain] = useState<OptionChainEntry[]>([]);
   const editedStrikeRef = useRef(false);
 
-  // Options trading is hidden from this delivery (plan.md 5.1) — the
-  // Options tab above is disabled, so this effect is intentionally a no-op
-  // rather than force-switching into a mode the UI no longer allows
-  // selecting. Index.tsx also no longer activates the options layout or
-  // passes a selectedOption, so selectedOption is expected to always be
-  // undefined here; this guard just keeps the two in agreement even if that
-  // assumption is ever violated by a future caller.
+  // TRD-L1: the Options tab's TabsTrigger is disabled (options orders are
+  // rejected server-side regardless), but this effect used to still fire
+  // from a click in Index.tsx's option-chain table, force-switching into
+  // that same disabled mode via setMode/onModeChange — a dead path a user
+  // could still reach even though the tab itself was unclickable. Left as
+  // prefilling optType/strike only (harmless bookkeeping if this feature is
+  // ever re-enabled) without actually forcing the panel into Options mode.
   useEffect(() => {
     if (!selectedOption) return;
+    setOptType(selectedOption.optionType === "CALL" ? "call" : "put");
+    editedStrikeRef.current = true;
+    setStrike(selectedOption.strike);
   }, [selectedOption]);
 
   // Same staleness bug as limitPrice: the initial useState only reads
@@ -145,7 +200,12 @@ export function TradePanel({
     if (!backendOptions) return;
     let cancelled = false;
     getOptionChain(backendOptions.symbol)
-      .then((res) => { if (!cancelled) setChain(res.chain); })
+      .then((res) => {
+        if (cancelled) return;
+        setChain(res.chain);
+        const pct = Number(res.takerFeePct);
+        if (Number.isFinite(pct) && pct >= 0) setOptionsTakerFeePct(pct);
+      })
       .catch(() => { if (!cancelled) setChain([]); });
     return () => { cancelled = true; };
   }, [mode, baseAsset]);
@@ -177,13 +237,27 @@ export function TradePanel({
   //   (margin + PnL) / notional < MMR
   // Solving for the mark price at which margin + unrealized PnL = MMR * notional:
   //   long:  liq = entry * (1 - 1/lev) / (1 - MMR)
-  //   short: liq = entry * (1 + 1/lev) / (1 - MMR)
+  //   short: liq = entry * (1 + 1/lev) / (1 + MMR)
   // These values are from /markets (the engine symbol configuration), never
-  // hardcoded browser fallbacks for executable markets.
+  // hardcoded browser fallbacks for executable markets. Verified 2026-09-15
+  // against the engine's actual settlement.Position.MarginRatio/PnL and
+  // liquidation.Engine.checkIsolated: this formula is the exact algebraic
+  // solve of the real trigger condition, not an approximation.
   const mmr = Number(marketMetadata?.maintenanceMarginRatePct ?? 0) / 100;
   const liqPrice = side === "buy"
     ? (price * (1 - 1 / effLeverage)) / (1 - mmr)
     : (price * (1 + 1 / effLeverage)) / (1 + mmr);
+  // At leverage 1 (full notional posted as margin, no borrowing), a long's
+  // liq price formula above collapses to exactly entry*(1-1/1)/(1-MMR) = 0 —
+  // verified against the backend's real trigger condition directly (not
+  // just this simplified formula): margin already equals the full notional,
+  // so (margin + PnL) / notional never drops below MMR for any mark price
+  // above zero. That $0 is mathematically correct, but shown as a bare
+  // number it reads as "you'll be liquidated once price hits zero" (real,
+  // if extreme, risk) rather than its true meaning: this position has no
+  // liquidation risk at all at 1x. hasLiquidationRisk gates the display so
+  // the UI says so directly instead of showing a misleading "$0.00000000".
+  const hasLiquidationRisk = effLeverage > 1;
   const fee = orderValue * feeRate;
   const orderValueLabel = orderValue > 0 && orderValue < 1
     ? `$${orderValue.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 8 })}`
@@ -194,28 +268,57 @@ export function TradePanel({
   // half-configured order (only TP, or only SL) would be a meaningless number.
   const showRR = tpEnabled && slEnabled;
   const rr = showRR && Number.isFinite(tpPct / slPct) && slPct !== 0 ? Math.abs(tpPct / slPct).toFixed(2) : "—";
+  // Keep the percent input showing what the current tp/sl price actually
+  // implies, whenever the price field (or the live price, or side) is what
+  // last changed — mirrors limitPrice's editedPriceRef guard: typing into
+  // the percent box itself skips this via the ref below, exactly like
+  // typing into the price box skips the live-price sync.
+  const editedTpPctRef = useRef(false);
+  const editedSlPctRef = useRef(false);
+  useEffect(() => {
+    if (editedTpPctRef.current) { editedTpPctRef.current = false; return; }
+    if (Number.isFinite(tpPct)) setTpPctInput(Math.abs(tpPct).toFixed(1));
+  }, [tp, price, side]);
+  useEffect(() => {
+    if (editedSlPctRef.current) { editedSlPctRef.current = false; return; }
+    if (Number.isFinite(slPct)) setSlPctInput(Math.abs(slPct).toFixed(1));
+  }, [sl, price, side]);
 
   const strikeNum = parseFloat(strike) || price;
   const days = parseInt(expiry) || 7;
   const intrinsic = optType === "call" ? Math.max(0, price - strikeNum) : Math.max(0, strikeNum - price);
   const timeValue = price * 0.02 * Math.sqrt(days / 30);
   const modeledPremium = intrinsic + timeValue;
+  // chainMatch is the single source of truth for "the" contract at the
+  // current strike/type — it comes from the same getOptionChain() fetch
+  // that populates Index.tsx's chain table (via selectedOption above), so
+  // there's no separate selectedOption-vs-chain reconciliation needed.
   const chainMatch = chain.find(
     (c) => c.optionType === optType.toUpperCase() && Math.abs(parseFloat(c.strike) - strikeNum) < 0.000001
   );
-  const selectedOptionMatches =
-    selectedOption &&
-    selectedOption.type === optType &&
-    selectedOption.expiry === expiry &&
-    Math.abs(selectedOption.strike - strikeNum) < 0.000001;
-  const activeOption = selectedOptionMatches ? selectedOption : null;
+  const activeOption = chainMatch ?? null;
   const optionPrice = chainMatch
     ? side === "buy" ? parseFloat(chainMatch.ask) : parseFloat(chainMatch.bid)
-    : activeOption
-      ? side === "buy" ? activeOption.ask : activeOption.bid
-      : modeledPremium;
-  const optionPriceType = chainMatch || activeOption ? (side === "buy" ? "Ask" : "Bid") : "Est.";
-  const contracts = sizePct / 10;
+    : modeledPremium;
+  const optionPriceType = chainMatch ? (side === "buy" ? "Ask" : "Bid") : "Est.";
+  // Contracts sized off the dollar amount the user actually dialed in via
+  // the shared Size box/slider (sizeUsd, same one spot/futures use) divided
+  // by the per-contract cost — previously `sizePct / 10`, a flat formula
+  // giving 0.1-10 contracts regardless of account balance, option price, or
+  // strike, completely disconnected from what the user could actually
+  // afford or what the engine would actually require.
+  //
+  // Buyer's per-contract cost is the premium itself (optionPrice). Writer
+  // (seller) collateral is approximated here as the full cash-secured
+  // strike*1 — the same conservative worst case the engine used before the
+  // margin-floor model (risk.shortOptionMargin) landed. The floor model can
+  // only *reduce* the writer's real requirement from that number depending
+  // on live spot/premium the frontend doesn't replicate exactly, so sizing
+  // off the conservative floor here never lets the size box promise more
+  // contracts than the account can actually afford — it can only be
+  // pleasantly surprised that less margin was actually locked.
+  const perContractCost = side === "buy" ? optionPrice : strikeNum;
+  const contracts = perContractCost > 0 ? sizeUsd / perContractCost : 0;
   const optionTotal = optionPrice * contracts;
 
   const handleSubmit = async (confirmedMarketOrder = false) => {
@@ -260,7 +363,7 @@ export function TradePanel({
       // Match the options-mode pattern above: an honest "not available"
       // error, not a fabricated fill.
       toast.error(`${symbol} isn't available to trade yet`, {
-        description: "This market isn't live on the exchange yet — try BTC-BIUSD, ETH-BIUSD, SOL-BIUSD, BTC-PERP, or ETH-PERP.",
+        description: "This market isn't live on the exchange yet — try BI2X-BI2XUSD, BTC-PERP, or ETH-PERP.",
       });
       return;
     }
@@ -272,7 +375,12 @@ export function TradePanel({
       return;
     }
 
-    const engineOrderType = orderType.toUpperCase();
+    // Was orderType.toUpperCase(), typed as plain `string` — TypeScript
+    // couldn't narrow it to SubmitOrderParams' "LIMIT" | "MARKET" | ... union,
+    // which is what made parentOrder below fail to type-check at its two
+    // call sites. The ternary form (matching the equivalent cast already
+    // used elsewhere in this file) keeps the literal type.
+    const engineOrderType: "LIMIT" | "MARKET" = orderType === "market" ? "MARKET" : "LIMIT";
     const rawRequestedPrice = orderType === "market" ? price : Number(limitPrice);
     // JavaScript number arithmetic can produce values such as 78536.7702
     // from a tick-aligned input/calculation. Normalize the submitted limit
@@ -334,7 +442,7 @@ export function TradePanel({
       : {};
 
     try {
-      const parentOrder = {
+      const parentOrder: SubmitOrderParams = {
         symbol: backendMarket.symbol,
         market: backendMarket.market,
         side: side === "buy" ? "BUY" : "SELL",
@@ -346,13 +454,42 @@ export function TradePanel({
       };
       const res = hasTpsl
         ? await submitAttachedOrder(parentOrder,
-            tpEnabled ? { ...parentOrder, side: exitSide, type: "STOP", stopPrice: tp, qty: "0" } : undefined,
-            slEnabled ? { ...parentOrder, side: exitSide, type: "STOP", stopPrice: sl, qty: "0" } : undefined)
+            // Take-profit is a LIMIT leg (it closes at a favorable price the
+            // market rises/falls TO, so it can rest as a normal resting
+            // order), not a STOP — sending it as { type: "STOP", stopPrice }
+            // with no price left the engine's take-profit query param
+            // (tpPrice) always empty, so the leg was silently never created:
+            // the order succeeded, the toast confirmed it, but no TP ever
+            // existed. Stop-loss stays STOP (it closes only once the market
+            // moves AGAINST the position past a trigger).
+            // qty here is intentionally the parent's requested size, not a
+            // placeholder (TRD-M2): the engine always re-sizes a TP/SL leg
+            // to the entry's actual filled quantity (see attached.Group's
+            // ProtectedQty) regardless of what's sent, but sending the real
+            // requested size instead of a "0" stand-in keeps the wire
+            // payload self-describing rather than silently-always-ignored.
+            tpEnabled ? { ...parentOrder, side: exitSide, type: "LIMIT", price: tp } : undefined,
+            slEnabled ? { ...parentOrder, side: exitSide, type: "STOP", stopPrice: sl } : undefined)
         : await orders.place(parentOrder);
       toast.success(`${side.toUpperCase()} ${orderType.toUpperCase()} placed`, {
         description: `Order ${res.orderId.slice(0, 8)} · status ${res.status} · filled ${res.filled}`,
       });
 
+      // TRD-M1: a TP/SL leg can fail to place (e.g. the shared reservation
+      // fails) while the entry itself still succeeds — the engine's response
+      // only sets takeProfitId/stopLossId for legs that actually activated,
+      // so an enabled-but-missing id here means silent, unprotected
+      // exposure the success toast above would otherwise hide entirely.
+      if (hasTpsl) {
+        const missing: string[] = [];
+        if (tpEnabled && !res.takeProfitId) missing.push("Take Profit");
+        if (slEnabled && !res.stopLossId) missing.push("Stop Loss");
+        if (missing.length > 0) {
+          toast.warning(`${missing.join(" and ")} not attached`, {
+            description: "The entry order placed, but the requested protection could not be set up. Add it manually from your open positions.",
+          });
+        }
+      }
     } catch (err) {
       toast.error("Order failed", { description: err instanceof Error ? err.message : String(err) });
     }
@@ -433,20 +570,15 @@ export function TradePanel({
     <div className="glass rounded-xl flex flex-col h-full overflow-y-auto overflow-x-hidden">
       <div className="px-3 pt-2.5">
         <Tabs value={mode} onValueChange={handleModeChange}>
-          <TabsList className="grid grid-cols-3 h-8 bg-muted/30 w-full rounded-lg p-0.5">
+          {/* Options tab HIDDEN (2026-09-17: same product decision as hiding
+              the Forex/Commodity/Stocks market tabs — don't advertise
+              unavailable markets). Trading remains disabled engine-side
+              (/order rejects OPTIONS orders outright). To restore: re-add
+              <TabsTrigger value="options" disabled ...>Options</TabsTrigger>
+              and change this grid back to grid-cols-3. */}
+          <TabsList className="grid grid-cols-2 h-8 bg-muted/30 w-full rounded-lg p-0.5">
             <TabsTrigger value="spot" className="h-7 text-xs font-semibold rounded-md">Spot</TabsTrigger>
             <TabsTrigger value="futures" className="h-7 text-xs font-semibold rounded-md">Futures</TabsTrigger>
-            {/* Options execution is hidden from this delivery (plan.md 5.1):
-                the visible option workspace generated fake contracts via
-                generateOptionChain() while order entry used a separate real
-                backend chain — two disagreeing sources of "the" option
-                chain. Disabled here (not removed) so the mode/order-entry
-                code underneath doesn't need to change; Index.tsx also never
-                activates the options layout or passes a selectedOption, so
-                this tab is unreachable in practice as well as disabled. */}
-            <TabsTrigger value="options" disabled className="h-7 text-xs font-semibold rounded-md opacity-50 cursor-not-allowed" title="Options trading is coming soon">
-              Options <span className="ml-1 text-[9px] text-muted-foreground">soon</span>
-            </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -482,9 +614,10 @@ export function TradePanel({
       {!isOptions && (
         <div className="px-3 pt-2">
           <Tabs value={orderType} onValueChange={v => setOrderType(v as OrderType)}>
-            <TabsList className="grid grid-cols-3 h-8 bg-muted/30 w-full rounded-lg p-0.5">
+            <TabsList className="grid grid-cols-2 h-8 bg-muted/30 w-full rounded-lg p-0.5">
               <TabsTrigger value="market" className="h-7 text-xs rounded-md">Market</TabsTrigger>
               <TabsTrigger value="limit" className="h-7 text-xs rounded-md">Limit</TabsTrigger>
+              {/* "More" order types (OCO, Trailing Stop, TWAP, Iceberg) hidden — not wired up yet
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -510,6 +643,7 @@ export function TradePanel({
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+              */}
             </TabsList>
           </Tabs>
         </div>
@@ -531,6 +665,7 @@ export function TradePanel({
             </div>
             <Input
               value={limitPrice}
+              onFocus={() => { editedPriceRef.current = true; }}
               onChange={e => { editedPriceRef.current = true; setLimitPrice(e.target.value); }}
               className="h-9 rounded-lg font-mono text-sm bg-muted/30 border-border px-3"
             />
@@ -675,7 +810,9 @@ export function TradePanel({
         <div>
           <div className="flex justify-between text-xs text-muted-foreground mb-1">
             <span>Size</span>
-            <span className="font-mono">{positionSize.toFixed(quantityDecimals)} {baseAsset}</span>
+            <span className="font-mono">
+              {isOptions ? `${contracts.toFixed(2)} contracts` : `${positionSize.toFixed(quantityDecimals)} ${baseAsset}`}
+            </span>
           </div>
           <div className="flex gap-1 mb-1">
             <Input
@@ -714,10 +851,16 @@ export function TradePanel({
           <div className="mt-1 text-[11px] text-muted-foreground">Min. notional {marketMetadata?.minNotional ?? "—"}</div>
         </div>
 
-        {!isOptions && (
+        {!isOptions && !isSpotSell && (
           <div className="space-y-1.5 pt-1.5 border-t border-border/50">
             <span className="text-xs font-semibold">TP/SL (optional)</span>
-            <div className="grid grid-cols-[auto_1fr_minmax(88px,0.8fr)_48px] items-center gap-2">
+            {/* Last column widened from a fixed 48px to minmax(64px,auto):
+                the percent box itself is 48px (w-12), but the +/- sign and
+                "%" label sitting either side of it need room too, so a
+                48px track was clipping the % label off the edge of the
+                panel. The price column shrank slightly (0.8fr -> 0.7fr,
+                88px -> 72px floor) to make room without widening the panel. */}
+            <div className="grid grid-cols-[auto_1fr_minmax(72px,0.7fr)_minmax(64px,auto)] items-center gap-2">
               <input
                 type="checkbox"
                 checked={tpEnabled}
@@ -728,9 +871,26 @@ export function TradePanel({
               <span className="text-xs">Take Profit</span>
               <Input disabled={!tpEnabled} value={tp} onChange={e => setTp(e.target.value)}
                 className="h-7 rounded-md font-mono text-xs text-buy px-2" />
-              <span className="text-xs text-right text-buy font-mono">+{tpPct.toFixed(1)}%</span>
+              <div className="flex items-center gap-0.5">
+                <span className="text-xs text-buy font-mono">+</span>
+                <Input
+                  disabled={!tpEnabled}
+                  value={tpPctInput}
+                  onChange={e => {
+                    setTpPctInput(e.target.value);
+                    const pct = parseFloat(e.target.value);
+                    if (Number.isFinite(pct) && price > 0) {
+                      editedTpPctRef.current = true;
+                      setTp(percentToTpPrice(pct).toFixed(2));
+                    }
+                  }}
+                  className="h-7 w-12 rounded-md font-mono text-xs text-buy px-1 text-right"
+                  aria-label="Take profit percent"
+                />
+                <span className="text-xs text-buy font-mono">%</span>
+              </div>
             </div>
-            <div className="grid grid-cols-[auto_1fr_minmax(88px,0.8fr)_48px] items-center gap-2">
+            <div className="grid grid-cols-[auto_1fr_minmax(72px,0.7fr)_minmax(64px,auto)] items-center gap-2">
               <input
                 type="checkbox"
                 checked={slEnabled}
@@ -741,7 +901,24 @@ export function TradePanel({
               <span className="text-xs">Stop Loss</span>
               <Input disabled={!slEnabled} value={sl} onChange={e => setSl(e.target.value)}
                 className="h-7 rounded-md font-mono text-xs text-sell px-2" />
-              <span className="text-xs text-right text-sell font-mono">-{Math.abs(slPct).toFixed(1)}%</span>
+              <div className="flex items-center gap-0.5">
+                <span className="text-xs text-sell font-mono">-</span>
+                <Input
+                  disabled={!slEnabled}
+                  value={slPctInput}
+                  onChange={e => {
+                    setSlPctInput(e.target.value);
+                    const pct = parseFloat(e.target.value);
+                    if (Number.isFinite(pct) && price > 0) {
+                      editedSlPctRef.current = true;
+                      setSl(percentToSlPrice(pct).toFixed(2));
+                    }
+                  }}
+                  className="h-7 w-12 rounded-md font-mono text-xs text-sell px-1 text-right"
+                  aria-label="Stop loss percent"
+                />
+                <span className="text-xs text-sell font-mono">%</span>
+              </div>
             </div>
           </div>
         )}
@@ -753,7 +930,7 @@ export function TradePanel({
             <Row label={`${optionPriceType} price`} value={`$${optionPrice.toFixed(2)}`} valueClass="text-primary" />
             {activeOption && (
               <>
-                <Row label="Bid / Ask" value={`$${activeOption.bid.toFixed(2)} / $${activeOption.ask.toFixed(2)}`} />
+                <Row label="Bid / Ask" value={`$${parseFloat(activeOption.bid).toFixed(2)} / $${parseFloat(activeOption.ask).toFixed(2)}`} />
                 <Row label="IV" value={`${activeOption.iv.toFixed(1)}%`} />
               </>
             )}
@@ -773,7 +950,7 @@ export function TradePanel({
             {isFutures && (
               <Row
                 label={<span className="flex items-center gap-1"><Shield className="h-3 w-3" />Liq. price</span>}
-                value={`$${formatPrice(liqPrice)}`}
+                value={hasLiquidationRisk ? `$${formatPrice(liqPrice)}` : "No risk at 1x"}
                 valueClass="text-warning"
               />
             )}

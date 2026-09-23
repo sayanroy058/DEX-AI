@@ -1,6 +1,6 @@
 const P2P_API_URL = import.meta.env.VITE_AUTH_API_URL ?? "http://localhost:8081";
 
-export const P2P_ASSETS = ["BIUSD"] as const;
+export const P2P_ASSETS = ["BI2XUSD"] as const;
 export const P2P_PAYMENT_METHODS = ["UPI", "Bank Transfer", "MPESN", "NEFT", "IMPS"] as const;
 export type P2PAsset = (typeof P2P_ASSETS)[number];
 export type P2PPaymentMethod = (typeof P2P_PAYMENT_METHODS)[number];
@@ -27,7 +27,15 @@ export const getP2PPrice=(asset:P2PAsset)=>request<{price:P2PPrice}>(`/p2p/price
 export const getP2PWallet=()=>request<{balance?:P2PWalletBalance;balances?:P2PWalletBalance[]}>("/p2p/wallet");
 export const getP2PProfile=()=>request<{profile:P2PProfile}>("/p2p/profile");
 export const establishP2PUsername=(username:string)=>request<{profile:P2PProfile}>("/p2p/profile",json({username}));
-export const getP2PListings=()=>request<{listings:P2PListing[]}>("/p2p/listings");
+// limit/offset are optional (P2P-L1): omitted, this returns the backend's
+// default first page instead of every listing unbounded.
+export const getP2PListings=(limit?:number,offset?:number)=>{
+	const params=new URLSearchParams();
+	if(limit!==undefined)params.set("limit",String(limit));
+	if(offset!==undefined)params.set("offset",String(offset));
+	const qs=params.toString();
+	return request<{listings:P2PListing[];total:number}>(`/p2p/listings${qs?`?${qs}`:""}`);
+};
 export const getMyP2PListings=()=>request<{listings:P2PListing[]}>("/p2p/my-listings");
 export const getP2POrders=()=>request<{orders:P2POrder[]}>("/p2p/orders");
 export const getP2POrder=(orderId:string)=>request<{order:P2POrder}>(`/p2p/order?orderId=${encodeURIComponent(orderId)}`);
@@ -38,9 +46,15 @@ export const sendP2POrderMessage=(orderId:string,body:string)=>request<{message:
 export const getP2POrderProofs=(orderId:string)=>request<{proofs:P2POrderProof[]}>(`/p2p/order/proofs?orderId=${encodeURIComponent(orderId)}`);
 export async function uploadP2POrderProof(orderId:string,file:File){const body=new FormData();body.append("orderId",orderId);body.append("proof",file);return request<{proof:P2POrderProof}>("/p2p/order/proofs",{method:"POST",body})}
 export const p2pProofURL=(proofId:string)=>`${P2P_API_URL}/p2p/order/proofs/download?proofId=${encodeURIComponent(proofId)}`;
+// P2P-L2: order status updates are pushed over SSE instead of polled.
+// EventSource sends cookies automatically for same-site requests (the
+// `credentials:"include"` used by request() has no EventSource equivalent,
+// but session auth here is the dex_session cookie, which EventSource
+// includes by default for a same-origin/same-site URL).
+export const p2pOrderStreamURL=(orderId:string)=>`${P2P_API_URL}/p2p/order/stream?orderId=${encodeURIComponent(orderId)}`;
 export const getP2POrderEvents=(orderId:string)=>request<{events:P2POrderEvent[]}>(`/p2p/order/events?orderId=${encodeURIComponent(orderId)}`);
 export const fundP2PWallet=(asset:P2PAsset,amountRaw:string)=>request<{balance:P2PWalletBalance}>("/p2p/wallet/fund",json({asset,amountRaw,idempotencyKey:idempotencyKey()}));
-export const createP2PListing=(side:P2PAdSide,amountRaw:string,minOrderFiat:string,maxOrderFiat:string,paymentMethods:P2PPaymentMethod[],username?:string)=>request<{listing:P2PListing}>("/p2p/listings",json({asset:"BIUSD",side,amountRaw,minOrderFiat,maxOrderFiat,paymentMethods,username}));
+export const createP2PListing=(side:P2PAdSide,amountRaw:string,minOrderFiat:string,maxOrderFiat:string,paymentMethods:P2PPaymentMethod[],username?:string)=>request<{listing:P2PListing}>("/p2p/listings",json({asset:"BI2XUSD",side,amountRaw,minOrderFiat,maxOrderFiat,paymentMethods,username}));
 export const takeP2PListing=(listingId:string,amountRaw:string,paymentMethod:P2PPaymentMethod)=>request<{order:P2POrder}>("/p2p/orders/create",json({listingId,amountRaw,paymentMethod,idempotencyKey:idempotencyKey()}));
 export const markP2POrderPaid=(orderId:string,ownAccountAttested=true)=>request<{order:P2POrder}>("/p2p/orders/paid",json({orderId,ownAccountAttested}));
 export const releaseP2POrder=(orderId:string)=>request<{order:P2POrder}>("/p2p/orders/release",json({orderId}));
@@ -56,46 +70,61 @@ export function parseP2PAmount(value:string,asset:P2PAsset):string{
 export function formatP2PAmount(raw:string,maximumFractionDigits=6):string{
 	const value=BigInt(raw||"0");const whole=value/1_000_000n;const fraction=(value%1_000_000n).toString().padStart(6,"0").replace(/0+$/,"").slice(0,maximumFractionDigits);return fraction?`${whole}.${fraction}`:whole.toString();
 }
-export function parseBIUSDAmount(value:string):string{
-	if(!/^\d+(?:\.\d{0,6})?$/.test(value)||Number(value)<=0)throw new Error("Enter a valid BIUSD amount with up to 6 decimal places");
-	return parseP2PAmount(value,"BIUSD");
+export function parseBI2XUSDAmount(value:string):string{
+	if(!/^\d+(?:\.\d{0,6})?$/.test(value)||Number(value)<=0)throw new Error("Enter a valid BI2XUSD amount with up to 6 decimal places");
+	return parseP2PAmount(value,"BI2XUSD");
 }
-export function formatBIUSDAmount(raw:string):string{
+export function formatBI2XUSDAmount(raw:string):string{
 	return formatP2PAmount(raw,6);
 }
-export function formatBIUSDSellCapacity(raw:string):string{
+export function formatBI2XUSDSellCapacity(raw:string):string{
 	const balance=BigInt(raw||"0");
 	return formatP2PAmount((balance-balance/101n).toString(),6);
 }
 export function effectiveP2PMaxOrderFiat(listing:Pick<P2PListing,"maxOrderFiat"|"remainingRaw"|"price">):number{
-	const remainingFiat=Number(formatBIUSDAmount(listing.remainingRaw))*Number(listing.price);
+	const remainingFiat=Number(formatBI2XUSDAmount(listing.remainingRaw))*Number(listing.price);
 	return Math.max(0,Math.min(Number(listing.maxOrderFiat),remainingFiat));
 }
-export function biusdAmountFromFiat(fiatAmount:string|number,price:string|number):string{
+export function bi2xusdAmountFromFiat(fiatAmount:string|number,price:string|number):string{
 	const fiat=Number(fiatAmount);const unitPrice=Number(price);
 	if(!Number.isFinite(fiat)||!Number.isFinite(unitPrice)||fiat<=0||unitPrice<=0)return "0";
 	return (Math.floor((fiat/unitPrice)*1_000_000)/1_000_000).toFixed(6).replace(/\.?0+$/,"");
 }
-export function grossBIUSDAmountForNet(netAmount:string|number):string{
-	const net=biusdRawOrZero(netAmount);
+// getP2PFeeRates fetches the caller's own discount-adjusted P2P fee rates
+// (P2P-M2 fix). The functions below all default their `feePct` parameter to
+// 1 (the platform base rate) so every existing call site keeps working
+// unchanged if it doesn't pass a rate — callers that show a fee-sensitive
+// figure to the user should fetch this once and pass the real rate instead
+// of relying on the default, since a discounted user's actual rate can be
+// lower than the flat 1% previously hardcoded everywhere here.
+export const getP2PFeeRates=()=>request<{buyerRate:string;sellerRate:string}>("/p2p/fee-rates");
+
+function feeRaw(amountRaw:bigint,feePct:number):bigint{
+	if(feePct<=0)return 0n;
+	return amountRaw*BigInt(Math.round(feePct*10_000))/1_000_000n;
+}
+export function grossBI2XUSDAmountForNet(netAmount:string|number,feePct=1):string{
+	const net=bi2xusdRawOrZero(netAmount);
 	if(net<=0n)return "0";
-	return formatBIUSDAmount((net+(net-1n)/99n).toString());
+	if(feePct<=0)return formatBI2XUSDAmount(net.toString());
+	const bps=BigInt(Math.round(feePct*10_000));
+	return formatBI2XUSDAmount((net*1_000_000n/(1_000_000n-bps)).toString());
 }
-export function netBIUSDAmountAfterBuyerFee(grossAmount:string|number):string{
-	const gross=biusdRawOrZero(grossAmount);
+export function netBI2XUSDAmountAfterBuyerFee(grossAmount:string|number,feePct=1):string{
+	const gross=bi2xusdRawOrZero(grossAmount);
 	if(gross<=0n)return "0";
-	return formatBIUSDAmount((gross-gross/100n).toString());
+	return formatBI2XUSDAmount((gross-feeRaw(gross,feePct)).toString());
 }
-export function biusdFeeAmount(grossAmount:string|number):string{
-	const gross=biusdRawOrZero(grossAmount);
-	return formatBIUSDAmount((gross/100n).toString());
+export function bi2xusdFeeAmount(grossAmount:string|number,feePct=1):string{
+	const gross=bi2xusdRawOrZero(grossAmount);
+	return formatBI2XUSDAmount(feeRaw(gross,feePct).toString());
 }
-export function sellerBIUSDDebitWithFee(grossAmount:string|number):string{
-	const gross=biusdRawOrZero(grossAmount);
-	return formatBIUSDAmount((gross+gross/100n).toString());
+export function sellerBI2XUSDDebitWithFee(grossAmount:string|number,feePct=1):string{
+	const gross=bi2xusdRawOrZero(grossAmount);
+	return formatBI2XUSDAmount((gross+feeRaw(gross,feePct)).toString());
 }
-function biusdRawOrZero(value:string|number):bigint{
+function bi2xusdRawOrZero(value:string|number):bigint{
 	const text=typeof value==="number"?value.toFixed(6).replace(/\.?0+$/,""):value;
-	try{return BigInt(parseBIUSDAmount(text))}catch{return 0n}
+	try{return BigInt(parseBI2XUSDAmount(text))}catch{return 0n}
 }
 export const formatINR=(value:string|number)=>new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2}).format(Number(value));

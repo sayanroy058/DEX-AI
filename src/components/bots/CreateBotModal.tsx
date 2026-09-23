@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { createBot, type BotTemplate, type CreateBotRequest, type BotMarket } from "@/lib/botsApi";
+import { registeredFuturesSymbols, registeredSpotSymbols } from "@/lib/backendMarkets";
 
 // CreateBotModal renders a template's configurable params and POSTs a new bot.
 // `symbol` and `investment` params map to the top-level CreateBotRequest fields;
@@ -21,18 +22,44 @@ export function CreateBotModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Previously a hardcoded binary (Spot -> SPOT, else -> FUTURES), which
+  // silently mis-submitted any Options-category template as FUTURES — the
+  // backend's validateMarketStrategy then rejected it outright (an
+  // "options_" strategy key requires market OPTIONS), so no Options template
+  // could ever actually be created from this modal.
+  const market: BotMarket | null = !template
+    ? null
+    : template.category === "Spot" ? "SPOT" : template.category === "Options" ? "OPTIONS" : "FUTURES";
+
+  // Live list of the exact engine-registered symbols for this template's
+  // market — replaces a free-text "Trading Pair" field (which just showed
+  // the template's static default, e.g. "BTC-USDT", a pair that was never
+  // actually listed) with a dropdown of pairs that genuinely have a live
+  // order book right now. Spot/futures only: OPTIONS templates aren't
+  // creatable through this modal (see the market mapping above).
+  const symbolOptions = useMemo(() => {
+    if (market === "SPOT") return registeredSpotSymbols().map((r) => r.symbol);
+    if (market === "FUTURES") return registeredFuturesSymbols().map((r) => r.symbol);
+    return [];
+  }, [market]);
+
   useEffect(() => {
     if (!template) return;
     const defaults: Record<string, string> = {};
-    for (const p of template.params) defaults[p.key] = p.default ?? "";
+    for (const p of template.params) {
+      defaults[p.key] = p.key === "symbol" ? symbolOptions[0] ?? "" : p.default ?? "";
+    }
     setValues(defaults);
     setName(template.title);
     setError(null);
+    // symbolOptions intentionally omitted: it's derived from `market`, which
+    // is itself derived from `template` — re-running this effect whenever
+    // `template` changes already picks up the right default for the new
+    // template's market.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template]);
 
   if (!template) return null;
-
-  const market: BotMarket = template.category === "Spot" ? "SPOT" : "FUTURES";
 
   const submit = async () => {
     setError(null);
@@ -50,10 +77,13 @@ export function CreateBotModal({
       if (!name.trim()) throw new Error("Name is required");
       if (!symbol) throw new Error("Trading pair is required");
       if (!investment) investment = "0";
+      // market is always set here: it's derived from `template`, which the
+      // early return above guarantees is non-null for the rest of this
+      // component (including this closure).
       const body: CreateBotRequest = {
         name: name.trim(),
         strategy: template.key,
-        market,
+        market: market as BotMarket,
         symbol,
         investment,
         config,
@@ -88,8 +118,26 @@ export function CreateBotModal({
 
           <div className="grid gap-3 sm:grid-cols-2">
             {template.params.map((p) => (
-              <Field key={p.key} label={p.label} help={p.help} required={p.required}>
-                {p.type === "select" && p.options ? (
+              <Field
+                key={p.key}
+                label={p.label}
+                help={p.key === "symbol" ? "Only pairs with a live order book are listed" : p.help}
+                required={p.required}
+              >
+                {p.key === "symbol" ? (
+                  <select
+                    value={values[p.key] ?? ""}
+                    onChange={(e) => setValues((v) => ({ ...v, [p.key]: e.target.value }))}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+                  >
+                    {symbolOptions.length === 0 && <option value="">No live pairs available</option>}
+                    {symbolOptions.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </select>
+                ) : p.type === "select" && p.options ? (
                   <select
                     value={values[p.key] ?? ""}
                     onChange={(e) => setValues((v) => ({ ...v, [p.key]: e.target.value }))}
@@ -120,7 +168,11 @@ export function CreateBotModal({
             <Button variant="ghost" onClick={onClose} disabled={submitting}>
               Cancel
             </Button>
-            <Button onClick={submit} disabled={submitting} className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button
+              onClick={submit}
+              disabled={submitting || symbolOptions.length === 0}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
               {submitting ? "Creating…" : "Create Bot"}
             </Button>
           </div>

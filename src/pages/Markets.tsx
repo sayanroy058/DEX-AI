@@ -1,17 +1,15 @@
 import { AppShell } from "@/components/AppShell";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { IndexedMarket, PRICE_FETCHER_BASES, useMarketIndexes } from "@/lib/useMarketIndexes";
+import { IndexedMarket, useMarketIndexes } from "@/lib/useMarketIndexes";
 import { AssetClass, formatCompact, formatPrice, MarketKind } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
 import {
-  AlertTriangle,
   Bitcoin,
   Briefcase,
   DollarSign,
   Droplet,
   Flame,
-  RefreshCw,
   Search,
   TrendingDown,
   TrendingUp,
@@ -22,30 +20,64 @@ import { Link } from "react-router-dom";
 
 type MarketIcon = ComponentType<{ className?: string }>;
 
-const ASSET_TABS: { id: AssetClass | "all"; label: string; icon: MarketIcon; kinds: (MarketKind | "all")[] }[] = [
+// comingSoon: crypto-only for the current launch (2026-09-11 product
+// decision) — see MarketList.tsx's identical flag for the full explanation
+// of what's disabled-not-deleted underneath these tabs.
+// Forex/Commodity/Stocks tabs removed and Options kind hidden (2026-09-17:
+// product decision — don't advertise unavailable markets with Soon badges,
+// same change as MarketList.tsx on the trade page). Commented out, not
+// deleted — restore these entries to bring the tabs back. The underlying
+// implementations still live (see backendMarkets.ts,
+// matching-engine/cmd/engine/markets.go's disabledMarkets, and
+// Price-Fetcher's DefaultInstruments).
+const ASSET_TABS: { id: AssetClass | "all"; label: string; icon: MarketIcon; kinds: (MarketKind | "all")[]; comingSoon?: boolean }[] = [
   { id: "all", label: "All", icon: Flame, kinds: ["all"] },
-  { id: "crypto", label: "Crypto", icon: Bitcoin, kinds: ["all", "spot", "perp", "options"] },
-  { id: "forex", label: "Forex", icon: DollarSign, kinds: ["all", "perp"] },
-  { id: "commodity", label: "Commodity", icon: Droplet, kinds: ["all", "perp"] },
-  { id: "stocks", label: "Stocks", icon: Briefcase, kinds: ["all", "perp", "options"] },
+  { id: "crypto", label: "Crypto", icon: Bitcoin, kinds: ["all", "spot", "perp"] },
+  // { id: "forex", label: "Forex", icon: DollarSign, kinds: ["all", "perp"], comingSoon: true },
+  // { id: "commodity", label: "Commodity", icon: Droplet, kinds: ["all", "perp"], comingSoon: true },
+  // { id: "stocks", label: "Stocks", icon: Briefcase, kinds: ["all", "perp", "options"], comingSoon: true },
 ];
 
 const KIND_LABEL: Record<string, string> = { all: "All", spot: "Spot", perp: "Future", options: "Options" };
 
+// Options trading is DISABLED (2026-09-11 product decision: crypto
+// spot/futures only for the current launch) — kept as a DATA-LEVEL filter
+// only (it removes options-category markets from the "All" table via
+// filteredMarkets below). The Options kind sub-tab itself is hidden by
+// dropping "options" from Crypto's kinds list above (2026-09-17), same as
+// the trade page. See matching-engine/cmd/engine/markets.go's optionsEnabled
+// for the backend-side gate.
+const COMING_SOON_KINDS = new Set<MarketKind>(["options"]);
+
 const Markets = () => {
-  const { markets, loading, error } = useMarketIndexes();
+  const { markets, loading } = useMarketIndexes();
   const [query, setQuery] = useState("");
   const [asset, setAsset] = useState<AssetClass | "all">("all");
   const [kind, setKind] = useState<MarketKind | "all">("all");
   const activeAsset = ASSET_TABS.find((item) => item.id === asset)!;
 
+  const comingSoonAssets = useMemo(
+    () => new Set(ASSET_TABS.filter((item) => item.comingSoon).map((item) => item.id)),
+    []
+  );
+
   const filtered = useMemo(() => {
-    let list = markets;
+    // Coming-soon asset classes AND kinds are excluded everywhere, including
+    // "All" — Price-Fetcher no longer prices non-crypto instruments
+    // (DefaultInstruments is empty) and options order submission is rejected
+    // engine-side, so these would otherwise show as permanently
+    // "unavailable"/tradable-looking rather than being cleanly absent.
+    // Also exclude any pair with no live index price at all — a disabled/
+    // never-listed instrument otherwise shows a permanent "—" row with an
+    // "unavailable" badge instead of being cleanly absent from the table.
+    let list = markets.filter(
+      (market) => !comingSoonAssets.has(market.asset) && !COMING_SOON_KINDS.has(market.category) && market.price !== null
+    );
     if (asset !== "all") list = list.filter((market) => market.asset === asset);
     if (kind !== "all") list = list.filter((market) => market.category === kind);
     if (query) list = list.filter((market) => market.symbol.toLowerCase().includes(query.toLowerCase()));
     return list;
-  }, [markets, query, asset, kind]);
+  }, [markets, query, asset, kind, comingSoonAssets]);
 
   // Spot, futures, and options rows can share one underlying index. Count and
   // rank each Price-Fetcher feed once so BTC volume is not triple-counted.
@@ -58,9 +90,6 @@ const Markets = () => {
   }, [markets]);
 
   const liveFeeds = uniqueFeeds.filter((market) => market.dataStatus === "live" && market.price !== null);
-  const staleCount = uniqueFeeds.filter((market) => market.dataStatus === "stale").length;
-  const unavailableCount = uniqueFeeds.filter((market) => market.dataStatus === "unavailable").length;
-  const totalVol = liveFeeds.reduce((sum, market) => sum + (market.volume24h ?? 0), 0);
   const ranked = liveFeeds.filter((market) => market.change24h !== null);
   const trending = [...ranked]
     .sort((left, right) => Math.abs(right.change24h ?? 0) - Math.abs(left.change24h ?? 0))
@@ -79,39 +108,7 @@ const Markets = () => {
       <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Markets</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Redis-backed index prices across {markets.length} instruments · {liveFeeds.length}/{PRICE_FETCHER_BASES.length} feeds live
-            {totalVol > 0 ? ` · $${formatCompact(totalVol)} reported 24h volume` : ""}
-          </p>
         </div>
-
-        {(loading || error || staleCount > 0 || unavailableCount > 0) && (
-          <div
-            className={cn(
-              "rounded-xl border px-4 py-3 text-sm flex items-start gap-3",
-              error
-                ? "border-destructive/30 bg-destructive/10 text-destructive"
-                : "border-border bg-muted/30 text-muted-foreground",
-            )}
-            role="status"
-          >
-            {loading ? (
-              <RefreshCw className="h-4 w-4 mt-0.5 animate-spin shrink-0" />
-            ) : (
-              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-            )}
-            <div>
-              <p className="font-medium text-foreground">
-                {loading ? "Loading live market data…" : error ? "Live market feed unavailable" : "Some market feeds need attention"}
-              </p>
-              {!loading && (
-                <p className="text-xs mt-0.5">
-                  {error ?? `${staleCount} stale and ${unavailableCount} unavailable. No simulated prices are being shown.`}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
 
         <div className="grid lg:grid-cols-3 gap-4">
           <ListCard title="Today's Top / Trending" items={trending} icon={Flame} loading={loading} />
@@ -128,13 +125,18 @@ const Markets = () => {
                     key={item.id}
                     onClick={() => { setAsset(item.id); setKind("all"); }}
                     className={cn(
-                      "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all",
+                      "relative px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all",
                       asset === item.id
                         ? "bg-primary/15 text-primary border border-primary/30"
                         : "text-muted-foreground hover:bg-muted/40",
                     )}
                   >
                     <item.icon className="h-3.5 w-3.5" /> {item.label}
+                    {item.comingSoon && (
+                      <span className="px-1.5 py-px rounded-full bg-warning/15 text-warning text-[9px] font-bold leading-none">
+                        Soon
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -142,27 +144,45 @@ const Markets = () => {
             <SearchBox query={query} setQuery={setQuery} className="hidden md:flex min-w-52" />
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-none">
-              {activeAsset.kinds.map((marketKind) => (
-                <button
-                  key={marketKind}
-                  onClick={() => setKind(marketKind)}
-                  className={cn(
-                    "px-2.5 py-1 rounded text-[11px] font-medium transition-colors",
-                    kind === marketKind
-                      ? "bg-primary/15 text-primary border border-primary/30"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
-                  )}
-                >
-                  {KIND_LABEL[marketKind]}
-                </button>
-              ))}
+          {!activeAsset.comingSoon && (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-none">
+                {activeAsset.kinds.map((marketKind) => (
+                  <button
+                    key={marketKind}
+                    onClick={() => setKind(marketKind)}
+                    className={cn(
+                      "px-2.5 py-1 rounded text-[11px] font-medium transition-colors",
+                      kind === marketKind
+                        ? "bg-primary/15 text-primary border border-primary/30"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
+                    )}
+                  >
+                    {KIND_LABEL[marketKind]}
+                    {marketKind !== "all" && COMING_SOON_KINDS.has(marketKind as MarketKind) && (
+                      <span className="ml-1 text-warning text-[9px] font-bold">Soon</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <SearchBox query={query} setQuery={setQuery} className="md:hidden w-full sm:w-[165px] shrink-0" />
             </div>
-            <SearchBox query={query} setQuery={setQuery} className="md:hidden w-full sm:w-[165px] shrink-0" />
-          </div>
+          )}
         </div>
 
+        {activeAsset.comingSoon || (kind !== "all" && COMING_SOON_KINDS.has(kind as MarketKind)) ? (
+          <div className="glass rounded-xl p-12 flex flex-col items-center justify-center gap-2 text-center">
+            <activeAsset.icon className="h-8 w-8 text-muted-foreground/50" />
+            <div className="text-sm font-semibold text-foreground">
+              {activeAsset.comingSoon ? activeAsset.label : KIND_LABEL[kind]} — Coming Soon
+            </div>
+            <div className="text-xs text-muted-foreground max-w-sm">
+              {activeAsset.comingSoon
+                ? `${activeAsset.label} trading isn't live on the exchange yet. Check back soon, or trade Crypto today.`
+                : `${KIND_LABEL[kind]} trading isn't live on the exchange yet. Check back soon, or trade Spot/Futures today.`}
+            </div>
+          </div>
+        ) : (
         <div className="glass rounded-xl overflow-hidden">
           <div className="overflow-x-auto scrollbar-none">
             <table className="w-full text-sm min-w-[700px]">
@@ -171,9 +191,7 @@ const Markets = () => {
                   <th className="text-left px-4 py-3">Pair</th>
                   <th className="text-right">Index Price</th>
                   <th className="text-right">24h Change</th>
-                  <th className="text-right">Feed 24h Volume</th>
-                  <th className="text-right">Open Interest</th>
-                  <th className="text-right pr-4">Funding</th>
+                  <th className="text-right pr-4">24h Volume</th>
                 </tr>
               </thead>
               <tbody>
@@ -209,17 +227,16 @@ const Markets = () => {
                         )}
                       </span>
                     </td>
-                    <td className="text-right font-mono text-muted-foreground">
+                    <td className="text-right pr-4 font-mono text-muted-foreground">
                       {market.volume24h === null ? "N/A" : `$${formatCompact(market.volume24h)}`}
                     </td>
-                    <td className="text-right font-mono text-muted-foreground">—</td>
-                    <td className="text-right pr-4 font-mono text-muted-foreground">—</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
+        )}
       </div>
     </AppShell>
   );

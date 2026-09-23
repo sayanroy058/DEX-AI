@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { submitOrder, cancelOrder, getOrders, SubmitOrderParams } from "./apiClient";
 import { wsClient, WSEvent } from "./wsClient";
 import { wallet } from "./useWallet";
+import { usePollingResource } from "./usePollingResource";
 
 export type OpenOrder = {
   id: string;
@@ -56,18 +57,48 @@ export function useOrders(account: string) {
       });
   }, [account, applySnapshot]);
 
+  // Safety-net poll: this app's WebSocket client is never actually connected
+  // at runtime (confirmed live 2026-09-14 — zero WS entries in the browser's
+  // Network tab across a full session, every reload; every other "live"
+  // panel on the trade page, e.g. positions/depth/chart, actually works via
+  // plain REST polling, not push). Without this, an order placed/cancelled
+  // from another tab or device — or any missed optimistic local update —
+  // would never self-correct: the "Live deltas from the WS stream" effect
+  // below is registering a listener on a connection that doesn't exist.
+  // 5s matches the interval already used for positions/bots elsewhere.
+  //
+  // usePollingResource (PERFORMANCE-CODE-REVIEW-FINDINGS.md frontend items
+  // #2/#3/#7/#8) replaces the hand-rolled setInterval + a separate
+  // 750ms-coalesced throttledRefetch that used to live here: triggerRefetch
+  // below IS the coalesced trigger, and the hook additionally backs off up
+  // to 60s while idle (an account with no order activity no longer re-GETs
+  // /orders every 5s forever) and pauses outright while the tab is hidden.
+  const { triggerRefetch, refetchNow } = usePollingResource({
+    baseIntervalMs: 5000,
+    maxIntervalMs: 60000,
+    coalesceMs: 750,
+    fetcher: refetch,
+    enabled: Boolean(account),
+  });
+
   // Initial load + reload when the account changes.
   useEffect(() => {
     ordersRef.current = new Map();
     publish();
-    refetch();
-  }, [account, refetch, publish]);
+    refetchNow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetchNow's identity is stable per (account-derived) enabled/baseIntervalMs, re-running per account is the intent
+  }, [account, publish]);
 
   // Live deltas from the WS stream.
   useEffect(() => {
     const unsub = wsClient.subscribe((evt: WSEvent) => {
       if (!evt.order) return;
       const o = evt.order;
+      // Account scoping: ignore events belonging to other accounts (the
+      // engine tags orders with accountId; the MM desks' churn then never
+      // reaches this hook at all). If accountId is absent (older engine),
+      // fall through — can't distinguish, so keep the old behavior.
+      if (o.accountId && o.accountId !== account) return;
       const map = ordersRef.current;
       if (TERMINAL.has(o.status)) {
         if (map.delete(o.id)) publish();
@@ -78,24 +109,34 @@ export function useOrders(account: string) {
         map.set(o.id, { ...existing, filled: o.filled, status: o.status });
       } else {
         // We learned about an order we didn't have (e.g. placed on another
-        // device/tab). We only have partial fields from the event; refetch to
-        // fill in the rest authoritatively rather than render a half-order.
-        void refetch();
+        // device/tab). We only have partial fields from the event; refetch
+        // to fill in the rest authoritatively rather than render a
+        // half-order. Coalesced so a burst still costs one request.
+        triggerRefetch();
         return;
       }
       publish();
     });
     return unsub;
-  }, [publish, refetch]);
+  }, [publish, triggerRefetch, account]);
+
+  // Subscription filtering: request the streams this account actively trades
+  // on (initial load + as orders are observed), so the hub can stop fanning
+  // out all markets' churn to this tab. Additive-only and re-sent on
+  // reconnect by wsClient itself.
+  useEffect(() => {
+    const streams = Array.from(ordersRef.current.values()).map((o) => `${o.symbol}|${o.market}`);
+    if (streams.length > 0) wsClient.wantStreams(streams);
+  }, [orders]);
 
   // A sequence gap means we dropped WS events and our local view may be stale:
-  // resync from the authoritative HTTP endpoint.
+  // resync from the authoritative HTTP endpoint (throttled like the rest).
   useEffect(() => {
     const unsub = wsClient.onGap(() => {
-      void refetch();
+      triggerRefetch();
     });
     return unsub;
-  }, [refetch]);
+  }, [triggerRefetch]);
 
   const place = useCallback(
     async (p: Omit<SubmitOrderParams, "account">) => {
@@ -129,5 +170,50 @@ export function useOrders(account: string) {
     [publish]
   );
 
-  return { orders, place, cancel, refetch };
+  // There is no backend amend/modify endpoint (only place + cancel), so a
+  // "modify" is cancel-then-resubmit: cancel the resting order for its
+  // remaining unfilled qty, then place a new order with the edited
+  // price/qty. Not atomic — the old order's book priority is lost and,
+  // between the two calls, the market could move or the remainder could
+  // fill/partially fill first (submitOrder validates qty > 0 for what's
+  // still open, but a fill racing the cancel is possible and surfaces as a
+  // normal cancel-failure to the caller). Acceptable tradeoff: this ships
+  // without needing a new engine order-book amend path.
+  const modify = useCallback(
+    // Only symbol/market/id/side are ever read below — was typed as the full
+    // OpenOrder, which forced every caller to supply filled/status values
+    // that mean nothing here (e.g. Order History rows, which don't carry an
+    // OpenOrder at all). Narrowed to what this function actually uses.
+    async (o: Pick<OpenOrder, "id" | "symbol" | "market" | "side">, next: { price?: string; qty: string }) => {
+      await cancelOrder(o.symbol, o.market, o.id);
+      if (ordersRef.current.delete(o.id)) publish();
+      const res = await submitOrder({
+        account,
+        symbol: o.symbol,
+        market: o.market,
+        side: o.side,
+        type: next.price ? "LIMIT" : "MARKET",
+        qty: next.qty,
+        price: next.price,
+      });
+      if (!TERMINAL.has(res.status)) {
+        ordersRef.current.set(res.orderId, {
+          id: res.orderId,
+          symbol: o.symbol,
+          market: o.market,
+          side: o.side,
+          price: next.price,
+          qty: next.qty,
+          filled: res.filled,
+          status: res.status,
+        });
+        publish();
+      }
+      wallet.refreshBalances().catch(() => {});
+      return res;
+    },
+    [account, publish]
+  );
+
+  return { orders, place, cancel, modify, refetch };
 }

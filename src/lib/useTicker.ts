@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getTicker } from "./apiClient";
+import { wsClient, WSTicker } from "./wsClient";
 
 // The engine's real /ticker: order-book-derived bid/ask/mid/mark, plus
 // (for FUTURES) the underlying's index price, the funding rate that would
@@ -8,6 +9,12 @@ import { getTicker } from "./apiClient";
 // client-side (fee rates, MMR). Only meaningful for symbols actually
 // registered on the backend; callers should fall back to the mock market
 // feed for anything else, same as useOrderBook/useOrders already do.
+//
+// PRIMARY SOURCE is the engine's periodic TICKER WebSocket frame (1s, all
+// symbols in one frame) via wsClient's shared ticker store — zero HTTP while
+// the socket is up, no matter how many components use this hook. The HTTP
+// /ticker endpoint remains only as the bootstrap + fallback path (initial
+// fetch, and a slow poll that pauses while the WS feed is delivering).
 
 export type Ticker = {
   bestBid: number;
@@ -43,9 +50,24 @@ function numOrNull(s: string | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-async function fetchTicker(symbol: string, market: string): Promise<void> {
-  const res = await getTicker(symbol, market);
-  cache.set(key(symbol, market), {
+// Convert a TICKER WS frame entry (strings) into this hook's numeric shape.
+function fromWSTicker(t: WSTicker): Ticker {
+  return {
+    bestBid: num(t.bestBid),
+    bestAsk: num(t.bestAsk),
+    midPrice: num(t.midPrice),
+    markPrice: num(t.markPrice),
+    indexPrice: numOrNull(t.indexPrice),
+    spread: num(t.spread),
+    fundingRatePct: numOrNull(t.fundingRatePct),
+    makerFeePct: numOrNull(t.makerFeePct),
+    takerFeePct: numOrNull(t.takerFeePct),
+    maintenanceMarginRatePct: numOrNull(t.maintenanceMarginRatePct),
+  };
+}
+
+function fromREST(res: Awaited<ReturnType<typeof getTicker>>): Ticker {
+  return {
     bestBid: num(res.bestBid),
     bestAsk: num(res.bestAsk),
     midPrice: num(res.midPrice),
@@ -56,11 +78,17 @@ async function fetchTicker(symbol: string, market: string): Promise<void> {
     makerFeePct: numOrNull(res.makerFeePct),
     takerFeePct: numOrNull(res.takerFeePct),
     maintenanceMarginRatePct: numOrNull(res.maintenanceMarginRatePct),
-    ts: Date.now(),
-  });
+  };
 }
 
-const POLL_MS = 1000;
+async function fetchTicker(symbol: string, market: string): Promise<void> {
+  const res = await getTicker(symbol, market);
+  cache.set(key(symbol, market), { ...fromREST(res), ts: Date.now() });
+}
+
+// Fallback cadence. While the WS feed is delivering, the poll does nothing —
+// the TICKER frame refreshes this data every second already.
+const FALLBACK_POLL_MS = 10_000;
 
 function fromCache(symbol: string, market: string): Ticker | null {
   const c = cache.get(key(symbol, market));
@@ -68,6 +96,12 @@ function fromCache(symbol: string, market: string): Ticker | null {
   const { ts, ...rest } = c;
   void ts;
   return rest;
+}
+
+/** True when the shared WS ticker store already has fresh data for this
+ *  symbol/market — used to suspend the HTTP fallback poll. */
+function wsHasTicker(symbol: string, market: string): boolean {
+  return wsClient.getStatus() === "open" && wsClient.getTickers().has(`${symbol}|${market}`);
 }
 
 /**
@@ -86,14 +120,30 @@ export function useTicker(symbol: string | undefined, market: string | undefined
   const keyRef = useRef(cacheKey);
   keyRef.current = cacheKey;
 
+  // WS-driven updates: fires on every 1s TICKER frame.
   useEffect(() => {
     if (!symbol || !market) {
       setTick(null);
       return;
     }
+    const applyFromStore = (store: Map<string, WSTicker>) => {
+      const t = store.get(`${symbol}|${market}`);
+      if (!t) return;
+      const converted = fromWSTicker(t);
+      cache.set(key(symbol, market), { ...converted, ts: Date.now() });
+      if (keyRef.current === key(symbol, market)) setTick(converted);
+    };
+    return wsClient.subscribeTickers(applyFromStore);
+  }, [symbol, market]);
+
+  // HTTP fallback: initial bootstrap fetch + slow poll that only runs while
+  // the WS feed is not delivering (disconnected, or engine without the
+  // TICKER broadcaster).
+  useEffect(() => {
+    if (!symbol || !market) return;
     let cancelled = false;
 
-    const poll = async () => {
+    const fetchAndApply = async () => {
       const k = key(symbol, market);
       let p = inFlight.get(k);
       if (!p) {
@@ -104,8 +154,8 @@ export function useTicker(symbol: string | undefined, market: string | undefined
         await p;
       } catch {
         // Network error or symbol not registered: keep last known value (if
-        // any), retry next tick. A 404 here just means no real ticker
-        // exists for this symbol — expected for unregistered markets.
+        // any). A 404 here just means no real ticker exists for this
+        // symbol — expected for unregistered markets.
         return;
       }
       if (cancelled || keyRef.current !== k) return;
@@ -113,8 +163,11 @@ export function useTicker(symbol: string | undefined, market: string | undefined
       if (t) setTick(t);
     };
 
-    poll();
-    const id = setInterval(poll, POLL_MS);
+    void fetchAndApply();
+    const id = setInterval(() => {
+      if (wsHasTicker(symbol, market)) return;
+      void fetchAndApply();
+    }, FALLBACK_POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(id);

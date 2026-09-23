@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog,DialogContent,DialogDescription,DialogHeader,DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { createP2PListing,formatINR,getP2PPaymentAccounts,parseBIUSDAmount,P2P_PAYMENT_METHODS,sellerBIUSDDebitWithFee,type P2PAdSide,type P2PListing,type P2PPaymentMethod } from "@/lib/p2pApi";
+import { createP2PListing,formatINR,getP2PPaymentAccounts,parseBI2XUSDAmount,P2P_PAYMENT_METHODS,sellerBI2XUSDDebitWithFee,type P2PAdSide,type P2PListing,type P2PPaymentMethod } from "@/lib/p2pApi";
 
 type Props={open:boolean;onOpenChange:(open:boolean)=>void;side:P2PAdSide;username:string;price:string;onUsernameEstablished:(username:string)=>void;onCreated:(listing:P2PListing)=>void};
 
@@ -32,15 +32,15 @@ export function PostAdsDialog({open,onOpenChange,side,username,price,onUsernameE
 			if(Number(minOrderFiat)<=0||Number(maxOrderFiat)<=0)throw new Error("Enter positive minimum and maximum order limits");
 			if(Number(minOrderFiat)>Number(maxOrderFiat))throw new Error("Minimum order limit cannot exceed maximum order limit");
 			if(Number(maxOrderFiat)>totalAdValue)throw new Error(`Maximum order limit cannot exceed ${formatINR(totalAdValue)}`);
-			const {listing}=await createP2PListing(side,parseBIUSDAmount(amount),minOrderFiat,maxOrderFiat,methods,username?undefined:name.trim());
+			const {listing}=await createP2PListing(side,parseBI2XUSDAmount(amount),minOrderFiat,maxOrderFiat,methods,username?undefined:name.trim());
 			if(!username)onUsernameEstablished(name.trim());
 			onCreated(listing);onOpenChange(false);
 		}catch(e){setError(e instanceof Error?e.message:"Could not post ad")}finally{setSubmitting(false)}
 	}
 
-	return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto"><DialogHeader><DialogTitle>Post {side==="BUY"?"Buy":"Sell"} BIUSD ad</DialogTitle><DialogDescription>Set the total amount, per-order limits, and accepted payment methods.</DialogDescription></DialogHeader><div className="space-y-5">
+	return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto"><DialogHeader><DialogTitle>Post {side==="BUY"?"Buy":"Sell"} BI2XUSD ad</DialogTitle><DialogDescription>Set the total amount, per-order limits, and accepted payment methods.</DialogDescription></DialogHeader><div className="space-y-5">
 		{username?<div className="rounded-lg border bg-muted/30 p-4 text-sm"><span className="text-muted-foreground">P2P username</span><strong className="float-right">{username}</strong></div>:<div className="space-y-2"><label className="text-sm font-medium">Choose your permanent P2P username</label><Input value={name} maxLength={24} onChange={event=>setName(event.target.value.replace(/[^A-Za-z0-9_]/g,""))} placeholder="3-24 letters, numbers, or underscores"/><p className="text-xs text-muted-foreground">This username is permanent and cannot be changed later.</p></div>}
-		<div className="space-y-2"><label className="text-sm font-medium">BIUSD amount to {side==="BUY"?"buy":"sell"}</label><div className="flex gap-2"><Input aria-label="BIUSD amount" inputMode="decimal" value={amount} onChange={event=>updateAmount(event.target.value)} onBlur={normalizeAmount}/><span className="flex items-center rounded-md bg-muted/30 px-3">BIUSD</span></div>
+		<div className="space-y-2"><label className="text-sm font-medium">BI2XUSD amount to {side==="BUY"?"buy":"sell"}</label><div className="flex gap-2"><Input aria-label="BI2XUSD amount" inputMode="decimal" value={amount} onChange={event=>updateAmount(event.target.value)} onBlur={normalizeAmount}/><span className="flex items-center rounded-md bg-muted/30 px-3">BI2XUSD</span></div>
 		{/* <p className="text-xs text-muted-foreground">Enter up to 6 decimal places.</p> */}
 		</div>
 		<div className="space-y-2"><label className="text-sm font-medium">Order limits per transaction</label><div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><div className="flex gap-2"><Input aria-label="Minimum order limit" inputMode="decimal" value={minOrderFiat} onChange={event=>updateFiat(setMinOrderFiat,event.target.value)} onBlur={()=>normalizeFiat(minOrderFiat,setMinOrderFiat)} placeholder="Minimum"/><span className="flex items-center rounded-md bg-muted/30 px-3">INR</span></div><div className="flex gap-2"><Input aria-label="Maximum order limit" inputMode="decimal" max={totalAdValue.toFixed(2)} value={maxOrderFiat} onChange={event=>updateFiat(setMaxOrderFiat,event.target.value)} onBlur={()=>{const value=Math.min(Number(maxOrderFiat)||0,totalAdValue);setMaxOrderFiat(value.toFixed(2))}} placeholder="Maximum"/><span className="flex items-center rounded-md bg-muted/30 px-3">INR</span></div></div><p className={`text-xs ${maximumLimitExceeded?"text-destructive":"text-muted-foreground"}`}>{maximumLimitExceeded?`Maximum limit cannot exceed ${formatINR(totalAdValue)}.`:`Maximum allowed for this ad: ${formatINR(totalAdValue)}.`}</p></div>
@@ -48,7 +48,7 @@ export function PostAdsDialog({open,onOpenChange,side,username,price,onUsernameE
 		</div>
 		{/* <p className="text-xs text-muted-foreground">{side==="SELL"?"Configure receiving accounts in P2P Wallet, then select the methods for this ad.":"Select the methods you can use to pay a counterparty seller."}</p> */}
 		</div>
-		{/* {side==="SELL"&&<p className="text-xs text-muted-foreground">Posting reserves {sellerBIUSDDebitWithFee(amount)} BIUSD from your P2P wallet, including the 1% seller fee. Transfer funds separately before posting.</p>} */}
+		{/* {side==="SELL"&&<p className="text-xs text-muted-foreground">Posting reserves {sellerBI2XUSDDebitWithFee(amount)} BI2XUSD from your P2P wallet, including the 1% seller fee. Transfer funds separately before posting.</p>} */}
 		{error&&<p className="text-sm text-destructive">{error}</p>}<div className="flex gap-3"><Button className="flex-1" disabled={submitting||methods.length===0||Number(amount)<=0||Number(minOrderFiat)<=0||Number(maxOrderFiat)<Number(minOrderFiat)||maximumLimitExceeded||(!username&&name.length<3)} onClick={submit}>{submitting?"Posting…":`Post ${side==="BUY"?"Buy":"Sell"} Ad`}</Button><Button variant="outline" onClick={()=>onOpenChange(false)}>Cancel</Button></div>
 	</div></DialogContent></Dialog>;
 }

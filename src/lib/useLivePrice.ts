@@ -16,18 +16,26 @@ import { backendMarketFor } from "./backendMarkets";
 // price for this symbol" should use this hook instead of useMarket(...).price
 // directly, so there's exactly one place this priority order is decided.
 //
-// Not gated to crypto: price-fetcher also carries real forex/commodity/
-// stock tickers now, and every base still in INITIAL_MARKETS (mockData.ts)
-// is one price-fetcher genuinely supports — a symbol with no real feed at
-// all simply gets an always-stale useIndexPrice response and falls through
-// to the mock, same as before.
+// Not gated to crypto in general — price-fetcher can carry other real
+// tickers too — but as of 2026-09-11 (crypto-only launch) the only bases with
+// a genuinely live feed behind them are BTC/ETH/SOL/BNB; a symbol with no
+// real feed simply gets an always-stale useIndexPrice response.
 export function useLivePrice(symbol: string): number {
   const market = useMarket(symbol);
   const index = useIndexPrice(market?.base);
-  // The external index is the authoritative displayed reference for both
-  // executable and display-only markets. The executable order book is quoted
-  // around this value, but its tick-rounded bid/ask midpoint can differ by a
-  // fraction of a tick; showing the index avoids that presentation drift.
-  if (backendMarketFor(symbol)) return index?.lastPrice ?? market?.price ?? 0;
+  if (backendMarketFor(symbol)) {
+    // Executable markets take their price EXCLUSIVELY from the matching
+    // engine's own market-summary feed (market.dataStatus === "live"), never
+    // from the external index or the static mock seed. Before this, the two
+    // branches here were identical, so an executable market silently showed
+    // the external index price (or a stale mock number) whenever the engine
+    // summary hadn't arrived yet — order entry could default to, and size a
+    // position against, a price the matching engine was never actually
+    // quoting. dataStatus starts "unavailable" (see useMarkets.ts) until the
+    // first real summary lands, so this correctly reports 0 until then.
+    return market?.dataStatus === "live" ? market.price : 0;
+  }
+  // Non-executable / display-only markets: the external index is the
+  // authoritative reference when live, falling back to the static mock seed.
   return index?.lastPrice ?? market?.price ?? 0;
 }

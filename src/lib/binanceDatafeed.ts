@@ -173,9 +173,9 @@ export function createBinanceDatafeed() {
         ticker: base,
         // Display-only: still fetches/streams Binance's real BTCUSDT spot
         // feed under the hood (see toBinanceSymbol) — the platform's own
-        // BIUSD stablecoin is shown here purely as the on-chart label,
+        // BI2XUSD stablecoin is shown here purely as the on-chart label,
         // treated as equivalent to USDT/USD for display purposes.
-        description: `${base} / BIUSD`,
+        description: `${base} / BI2XUSD`,
         type: "crypto",
         session: "24x7",
         timezone: "Etc/UTC",

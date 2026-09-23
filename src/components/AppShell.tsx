@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink as RouterNavLink, useLocation, Link } from "react-router-dom";
-import { LayoutDashboard, LineChart, Wallet, Users, Settings, Zap, Bell, Search, ArrowDownToLine, ArrowUpFromLine, User, Building2, Sparkles, Repeat, Coins, Gift, CalendarClock, Bot, CircleHelp } from "lucide-react";
+import { LayoutDashboard, LineChart, Wallet, Users, Settings, Zap, Bell, Search, ArrowDownToLine, ArrowUpFromLine, User, Building2, Sparkles, Repeat, Coins, Gift, CalendarClock, Bot, CircleHelp, Percent, TrendingUp, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -16,11 +16,13 @@ const navItems = [
   { to: "/trade", icon: LineChart, label: "Trade" },
   { to: "/trading-bots", icon: Bot, label: "Bots" },
   { to: "/markets", icon: LayoutDashboard, label: "Markets" },
-  { to: "/copy", icon: Users, label: "Copy" },
+  // { to: "/copy", icon: Users, label: "Copy" }, // Copy Trading hidden
   { to: "/prop", icon: Building2, label: "Prop Firm" },
   { to: "/p2p", icon: Repeat, label: "P2P" },
+  { to: "/prediction", icon: TrendingUp, label: "Predict" },
   { to: "/token", icon: Coins, label: "Token" },
-  { to: "/sip", icon: CalendarClock, label: "SIP/SWP" },
+  { to: "/staking", icon: Lock, label: "Staking" },
+  // { to: "/sip", icon: CalendarClock, label: "SIP/SWP" }, — hidden 2026-09-17 (product decision); route stays live in App.tsx for direct URLs
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -72,16 +74,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex-1" />
 
+        {/* Search hidden per request (2026-09-16):
         <div className="hidden xl:flex items-center gap-2 glass px-3 py-1.5 rounded-lg w-60">
           <Search className="h-3.5 w-3.5 text-muted-foreground" />
           <Input placeholder="Search markets, traders..." className="h-6 border-0 bg-transparent p-0.5 text-sm focus-visible:ring-0" />
-          {/* <kbd className="text-[10px] text-muted-foreground border border-border rounded px-1">?K</kbd> */}
+          {/* <kbd className="text-[10px] text-muted-foreground border border-border rounded px-1">?K</kbd> * /}
         </div>
+        */}
 
+        {/* Notification bell hidden per request (2026-09-16):
         <Button variant="ghost" size="icon" className="relative hidden sm:flex shrink-0">
           <Bell className="h-4 w-4" />
           <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
         </Button>
+        */}
 
         {w.connected && (
           <Popover>
@@ -143,6 +149,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <DropdownMenuItem asChild><Link to="/portfolio" className="cursor-pointer"><Wallet className="h-3.5 w-3.5 mr-2 text-primary" /> Portfolio</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link to="/refer" className="cursor-pointer"><Gift className="h-3.5 w-3.5 mr-2 text-primary" /> Refer & Earn</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link to="/affiliate" className="cursor-pointer"><Sparkles className="h-3.5 w-3.5 mr-2 text-primary" /> Affiliate</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link to="/fee-tiers" className="cursor-pointer"><Percent className="h-3.5 w-3.5 mr-2 text-primary" /> Fee Discount</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link to="/support" className="cursor-pointer"><CircleHelp className="h-3.5 w-3.5 mr-2 text-primary" /> Support</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link to="/settings" className="cursor-pointer"><Settings className="h-3.5 w-3.5 mr-2 text-primary" /> Settings</Link></DropdownMenuItem>
           </DropdownMenuContent>

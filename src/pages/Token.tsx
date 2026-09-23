@@ -16,14 +16,14 @@ import { cn } from "@/lib/utils";
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
 const SUPPLY_ALLOC = [
-  { name: "Community + Ecosystem", value: 15, color: "#00e5ff" },
-  { name: "Staking/Emission (100 years)", value: 20, color: "#a855f7" },
-  { name: "Liquidity", value: 10, color: "#10b981" },
-  { name: "Team", value: 5, color: "#6366f1" },
-  { name: "Treasury", value: 8, color: "#ef4444" },
-  { name: "Strategic Reserve", value: 35, color: "#22d3ee" },
-  { name: "Marketing", value: 5, color: "#f59e0b" },
-  { name: "Initial Burn", value: 2, color: "#fb7185" },
+  { name: "Initial Burn → BI2XUSD stablecoin", value: 6, color: "#fb7185" },
+  { name: "Team Reserve", value: 5, color: "#6366f1" },
+  { name: "Community", value: 2, color: "#00e5ff" },
+  { name: "Airdrop", value: 3, color: "#f472b6" },
+  { name: "Marketing", value: 4, color: "#f59e0b" },
+  { name: "Treasury Reserve", value: 4, color: "#ef4444" },
+  { name: "Initial Liquidity", value: 2, color: "#10b981" },
+  { name: "Staking Reward", value: 74, color: "#a855f7" },
 ];
 
 const EMISSION_YEARS = [2022,2023,2024,2025,2026,2027,2028,2029,2030];
@@ -98,8 +98,8 @@ export default function Token() {
   }, []);
 
   const change24h = 5.6;
-  const marketCap  = (dexPrice * 412_500_000);
-  const fdv        = (dexPrice * 1_000_000_000);
+  const marketCap  = (dexPrice * 130_000_000);
+  const fdv        = (dexPrice * 500_000_000);
 
   return (
     <AppShell>
@@ -108,7 +108,7 @@ export default function Token() {
         {/* ── Page title ── */}
         <div>
           <h1 className="text-2xl font-bold">Tokenomics</h1>
-          <p className="text-sm text-muted-foreground mt-1">The native DEX token and the DEXUSD stablecoin powering the ecosystem.</p>
+          <p className="text-sm text-muted-foreground mt-1">The native BI2X token and the BI2XUSD stablecoin powering the ecosystem.</p>
         </div>
 
         {/* ══════════════════════════════════════════════
@@ -119,7 +119,7 @@ export default function Token() {
             <div className="h-7 w-7 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow-primary">
               <Zap className="h-3.5 w-3.5 text-primary-foreground" strokeWidth={2.5} />
             </div>
-            <h2 className="text-lg font-bold">DEX Token</h2>
+            <h2 className="text-lg font-bold">BI2X Token</h2>
           </div>
 
           {/* Top row: price card + supply allocation */}
@@ -132,9 +132,9 @@ export default function Token() {
                   <Zap className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
                 </div>
                 <div>
-                  <div className="font-bold text-lg leading-none">DEX Token</div>
+                  <div className="font-bold text-lg leading-none">BI2X Token</div>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-muted-foreground font-mono">DEX</span>
+                    <span className="text-xs text-muted-foreground font-mono">BI2X</span>
                     <span className="text-xs text-buy font-mono">→ +{change24h}%</span>
                   </div>
                 </div>
@@ -156,17 +156,17 @@ export default function Token() {
                 </div>
                 <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
                   <div className="text-[9px] text-muted-foreground uppercase tracking-wide mb-1">Circulating</div>
-                  <div className="font-mono font-bold text-sm">412.5M</div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">41.25% of Total</div>
+                  <div className="font-mono font-bold text-sm">130M</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">26% of Total</div>
                 </div>
                 <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
                   <div className="text-[9px] text-muted-foreground uppercase tracking-wide mb-1">Total Supply</div>
-                  <div className="font-mono font-bold text-sm">1.0B</div>
+                  <div className="font-mono font-bold text-sm">500M</div>
                 </div>
                 <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
                   <div className="text-[9px] text-muted-foreground uppercase tracking-wide mb-1">Burned</div>
-                  <div className="font-mono font-bold text-sm text-cyan-400">52.4M DEX</div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">5.24% Total Supply</div>
+                  <div className="font-mono font-bold text-sm text-cyan-400">30M BI2X</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">6% Total Supply</div>
                 </div>
                 <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
                   <div className="text-[9px] text-muted-foreground uppercase tracking-wide mb-1">Holders</div>
@@ -214,7 +214,7 @@ export default function Token() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <span className="text-lg font-bold font-mono">1.0B</span>
+                  <span className="text-lg font-bold font-mono">500M</span>
                 </div>
               </div>
 
@@ -276,7 +276,7 @@ export default function Token() {
             <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
               <ShieldCheck className="h-3.5 w-3.5 text-white" />
             </div>
-            <h2 className="text-lg font-bold">DEXUSD Stablecoin</h2>
+            <h2 className="text-lg font-bold">BI2XUSD Stablecoin</h2>
           </div>
 
           {/* Three-col row */}
@@ -287,9 +287,9 @@ export default function Token() {
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-sm">$</div>
                 <div>
-                  <div className="font-bold text-lg leading-none">DEXUSD</div>
+                  <div className="font-bold text-lg leading-none">BI2XUSD</div>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] text-muted-foreground font-mono">DEXUSD</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">BI2XUSD</span>
                     <Badge variant="outline" className="text-[9px] px-1.5 py-0 text-buy border-buy/40">Pegged</Badge>
                   </div>
                 </div>
@@ -370,7 +370,7 @@ export default function Token() {
                 {[
                   { label: "BTC", pct: 60, val: "$487.4M", color: "bg-cyan-400" },
                   { label: "ETH", pct: 30, val: "$243.7M", color: "bg-indigo-500" },
-                  { label: "DEXUSD", pct: 10, val: "$81.2M", color: "bg-emerald-500" },
+                  { label: "BI2XUSD", pct: 10, val: "$81.2M", color: "bg-emerald-500" },
                 ].map(r => (
                   <div key={r.label} className="flex items-center gap-2 text-[11px]">
                     <div className={`h-2 w-2 rounded-full shrink-0 ${r.color}`} />

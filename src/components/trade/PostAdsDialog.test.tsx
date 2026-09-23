@@ -2,8 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PostAdsDialog } from "./PostAdsDialog";
 
-describe("PostAdsDialog BIUSD amount", () => {
-  it("accepts up to six BIUSD decimal places", () => {
+describe("PostAdsDialog BI2XUSD amount", () => {
+  it("accepts up to six BI2XUSD decimal places", () => {
     render(
       <PostAdsDialog
         open
@@ -16,7 +16,7 @@ describe("PostAdsDialog BIUSD amount", () => {
       />,
     );
 
-    const amount = screen.getByRole("textbox", { name: "BIUSD amount" });
+    const amount = screen.getByRole("textbox", { name: "BI2XUSD amount" });
     fireEvent.change(amount, { target: { value: "20.000001" } });
     expect(amount).toHaveValue("20.000001");
     fireEvent.change(amount, { target: { value: "20.0000001" } });
@@ -41,7 +41,7 @@ describe("PostAdsDialog BIUSD amount", () => {
       />,
     );
 
-    const amount = screen.getByRole("textbox", { name: "BIUSD amount" });
+    const amount = screen.getByRole("textbox", { name: "BI2XUSD amount" });
     fireEvent.change(amount, { target: { value: "5" } });
     fireEvent.blur(amount);
     expect(screen.getByRole("textbox", { name: "Maximum order limit" })).toHaveValue("500.00");

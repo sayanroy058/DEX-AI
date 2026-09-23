@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
 import { MarketList } from "@/components/trade/MarketList";
 import { TradingChart } from "@/components/trade/TradingChart";
@@ -10,13 +10,15 @@ import { useLivePrice } from "@/lib/useLivePrice";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { PanelGroup, Panel, PanelResizeHandle, type ImperativePanelHandle } from "react-resizable-panels";
-import { Calculator, GripVertical, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, BarChart2, BookOpen, ArrowLeftRight, List, Plus, Trash2 } from "lucide-react";
+import { Calculator, GripVertical, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, BarChart2, BookOpen, ArrowLeftRight, List, Plus, Trash2, LineChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { generateOptionChain, formatCompact, formatPrice, OptionContract } from "@/lib/mockData";
-import { backendMarketFor } from "@/lib/backendMarkets";
+import { formatPrice, MarketKind } from "@/lib/mockData";
+import { backendMarketFor, backendOptionsMarketFor } from "@/lib/backendMarkets";
 import { useOrderBook, useRecentTrades } from "@/lib/useOrderBook";
+import { OrderBookRow } from "@/components/trade/OrderBookRow";
 import { useOrders } from "@/lib/useOrders";
 import { useAccount } from "@/lib/account";
+import { getOptionChain, OptionChainEntry } from "@/lib/apiClient";
 
 // ─── Default sizes ────────────────────────────────────────────────────────────
 const DEFAULT_COL_SIZES = [14, 66, 20];
@@ -128,12 +130,29 @@ function DraggableCard({
 // ─── Right Column ─────────────────────────────────────────────────────────────
 // Fully self-contained Trade + OrderBook column with smooth collapse animation.
 
+// Shown in the chart panel while the user is browsing a coming-soon
+// MarketList tab (Forex, Commodity, Stocks, or Options) — there's no symbol
+// to chart, so the panel goes blank with an explicit message instead of
+// silently leaving the last crypto symbol's chart on screen, which would
+// look like clicking the tab did nothing.
+function ChartComingSoon() {
+  return (
+    <div className="glass h-full rounded-xl flex flex-col items-center justify-center gap-2 text-center px-6">
+      <LineChart className="h-8 w-8 text-muted-foreground/40" />
+      <span className="text-sm font-semibold text-foreground">Chart not available</span>
+      <span className="text-xs text-muted-foreground max-w-xs">
+        This market isn't live on the exchange yet. Select a Crypto pair to see its chart.
+      </span>
+    </div>
+  );
+}
+
 interface OptionWorkspaceProps {
   symbol: string;
   price: number;
-  contracts: OptionContract[];
-  selectedOption: OptionContract | null;
-  onSelectOption: (contract: OptionContract) => void;
+  contracts: OptionChainEntry[];
+  selectedOption: OptionChainEntry | null;
+  onSelectOption: (contract: OptionChainEntry) => void;
 }
 
 function OptionWorkspace({ symbol, price, contracts, selectedOption, onSelectOption }: OptionWorkspaceProps) {
@@ -167,24 +186,29 @@ function OptionChainTable({
   selectedOption,
   onSelectOption,
 }: {
-  contracts: OptionContract[];
+  contracts: OptionChainEntry[];
   underlyingPrice: number;
-  selectedOption: OptionContract | null;
-  onSelectOption: (contract: OptionContract) => void;
+  selectedOption: OptionChainEntry | null;
+  onSelectOption: (contract: OptionChainEntry) => void;
 }) {
-  const lastUpdated = contracts[0]?.updatedAt
-    ? new Date(contracts[0].updatedAt).toLocaleTimeString("en-US", { hour12: false })
-    : "--:--:--";
-  const expiries = Array.from(new Set(contracts.map(contract => contract.expiry)));
+  const [lastUpdated, setLastUpdated] = useState(() => new Date().toLocaleTimeString("en-US", { hour12: false }));
+  useEffect(() => {
+    setLastUpdated(new Date().toLocaleTimeString("en-US", { hour12: false }));
+  }, [contracts]);
+  // Expiry is an RFC3339 timestamp from the backend chain — group/sort by
+  // it directly, display the date portion (e.g. "2025-01-15").
+  const expiries = Array.from(new Set(contracts.map(contract => contract.expiry))).sort();
   const rows = expiries.flatMap(expiry => {
-    const byStrike = new Map<number, { call?: OptionContract; put?: OptionContract }>();
+    const byStrike = new Map<number, { call?: OptionChainEntry; put?: OptionChainEntry }>();
 
     contracts
       .filter(contract => contract.expiry === expiry)
       .forEach(contract => {
-        const pair = byStrike.get(contract.strike) ?? {};
-        pair[contract.type] = contract;
-        byStrike.set(contract.strike, pair);
+        const strikeNum = parseFloat(contract.strike);
+        const pair = byStrike.get(strikeNum) ?? {};
+        if (contract.optionType === "CALL") pair.call = contract;
+        else pair.put = contract;
+        byStrike.set(strikeNum, pair);
       });
 
     return Array.from(byStrike.entries())
@@ -197,14 +221,11 @@ function OptionChainTable({
     return underlyingPrice >= row.strike && underlyingPrice < next.strike;
   });
 
-  const contractButtonClass = (contract?: OptionContract) => cn(
+  const contractKey = (contract?: OptionChainEntry) => contract && `${contract.symbol}`;
+  const contractButtonClass = (contract?: OptionChainEntry) => cn(
     "grid grid-cols-[0.85fr_0.8fr_0.85fr_0.95fr_0.85fr] gap-2 rounded-md px-2 py-1.5 text-left transition-colors",
     contract ? "hover:bg-muted/40" : "pointer-events-none opacity-30",
-    contract && selectedOption?.id === contract.id && "bg-primary/15 ring-1 ring-primary/40"
-  );
-  const changeClass = (contract?: OptionContract) => cn(
-    "text-right font-mono text-[10px]",
-    !contract ? "text-muted-foreground" : contract.change24h >= 0 ? "text-buy" : "text-sell"
+    contract && selectedOption?.symbol === contract.symbol && "bg-primary/15 ring-1 ring-primary/40"
   );
 
   return (
@@ -221,6 +242,11 @@ function OptionChainTable({
       </div>
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden text-[10px]">
+        {contracts.length === 0 ? (
+          <div className="flex h-full items-center justify-center px-4 py-10 text-center text-xs text-muted-foreground">
+            No live option contracts for this underlying yet.
+          </div>
+        ) : (
         <div>
           <div className="grid grid-cols-[minmax(0,1fr)_82px_minmax(0,1fr)] items-center border-b border-border/50 bg-muted/20 px-3 py-2 text-xs font-bold uppercase">
             <span className="text-buy">Calls</span>
@@ -229,19 +255,19 @@ function OptionChainTable({
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)_82px_minmax(0,1fr)] gap-2 border-b border-border/50 px-3 py-1.5 text-[9px] uppercase text-muted-foreground">
             <div className="grid grid-cols-[0.85fr_0.8fr_0.85fr_0.95fr_0.85fr] gap-2">
-              <span className="text-right">Open</span>
               <span className="text-right">Delta</span>
+              <span className="text-right">IV</span>
               <span className="text-right">Bid</span>
-              <span className="text-right">Mark</span>
+              <span className="text-right">Mid</span>
               <span className="text-right">Ask</span>
             </div>
             <span className="text-center">Exp</span>
             <div className="grid grid-cols-[0.85fr_0.95fr_0.85fr_0.8fr_0.85fr] gap-2">
               <span className="text-right">Ask</span>
-              <span className="text-right">Mark</span>
+              <span className="text-right">Mid</span>
               <span className="text-right">Bid</span>
+              <span className="text-right">IV</span>
               <span className="text-right">Delta</span>
-              <span className="text-right">Open</span>
             </div>
           </div>
 
@@ -259,18 +285,16 @@ function OptionChainTable({
                     onClick={() => call && onSelectOption(call)}
                     className={contractButtonClass(call)}
                   >
-                    <span className="text-right font-mono text-muted-foreground">{call ? formatCompact(call.openInterest) : "--"}</span>
                     <span className="text-right font-mono text-muted-foreground">{call ? call.delta.toFixed(2) : "--"}</span>
-                    <span className="text-right font-mono text-buy">{call ? call.bid.toFixed(2) : "--"}</span>
-                    <span className="text-right font-mono text-primary">{call ? call.mark.toFixed(2) : "--"}</span>
-                    <span className="text-right font-mono text-sell">{call ? call.ask.toFixed(2) : "--"}</span>
-                    <span className="col-span-2 text-[9px] text-muted-foreground">IV {call ? call.iv.toFixed(1) : "--"}%</span>
-                    <span className={cn("col-span-3", changeClass(call))}>{call ? `${call.change24h >= 0 ? "+" : ""}${call.change24h.toFixed(2)}%` : "--"}</span>
+                    <span className="text-right font-mono text-muted-foreground">{call ? `${call.iv.toFixed(1)}%` : "--"}</span>
+                    <span className="text-right font-mono text-buy">{call ? parseFloat(call.bid).toFixed(2) : "--"}</span>
+                    <span className="text-right font-mono text-primary">{call ? parseFloat(call.mid).toFixed(2) : "--"}</span>
+                    <span className="text-right font-mono text-sell">{call ? parseFloat(call.ask).toFixed(2) : "--"}</span>
                   </button>
 
                   <div className="flex flex-col items-center justify-center rounded-md bg-muted/35 px-2 text-center">
                     <span className="font-mono text-sm font-bold">{formatPrice(row.strike)}</span>
-                    <span className="text-[10px] text-muted-foreground">{row.expiry}</span>
+                    <span className="text-[10px] text-muted-foreground">{row.expiry.slice(0, 10)}</span>
                   </div>
 
                   <button
@@ -279,13 +303,11 @@ function OptionChainTable({
                     onClick={() => put && onSelectOption(put)}
                     className={contractButtonClass(put)}
                   >
-                    <span className="text-right font-mono text-sell">{put ? put.ask.toFixed(2) : "--"}</span>
-                    <span className="text-right font-mono text-primary">{put ? put.mark.toFixed(2) : "--"}</span>
-                    <span className="text-right font-mono text-buy">{put ? put.bid.toFixed(2) : "--"}</span>
+                    <span className="text-right font-mono text-sell">{put ? parseFloat(put.ask).toFixed(2) : "--"}</span>
+                    <span className="text-right font-mono text-primary">{put ? parseFloat(put.mid).toFixed(2) : "--"}</span>
+                    <span className="text-right font-mono text-buy">{put ? parseFloat(put.bid).toFixed(2) : "--"}</span>
+                    <span className="text-right font-mono text-muted-foreground">{put ? `${put.iv.toFixed(1)}%` : "--"}</span>
                     <span className="text-right font-mono text-muted-foreground">{put ? put.delta.toFixed(2) : "--"}</span>
-                    <span className="text-right font-mono text-muted-foreground">{put ? formatCompact(put.openInterest) : "--"}</span>
-                    <span className="col-span-2 text-[9px] text-muted-foreground">IV {put ? put.iv.toFixed(1) : "--"}%</span>
-                    <span className={cn("col-span-3", changeClass(put))}>{put ? `${put.change24h >= 0 ? "+" : ""}${put.change24h.toFixed(2)}%` : "--"}</span>
                   </button>
                 </div>
                 {index === priceLineIndex && (
@@ -300,6 +322,7 @@ function OptionChainTable({
             );
           })}
         </div>
+        )}
       </div>
     </div>
   );
@@ -587,16 +610,35 @@ function ResultRow({ label, value, valueClass }: { label: string; value: string;
 interface RightColumnProps {
   symbol: string;
   price: number;
-  selectedOption?: OptionContract | null;
+  selectedOption?: OptionChainEntry | null;
+  // Controlled trade mode, kept in sync with the market list's Spot/Future
+  // sub-tab — see Index()'s tradeMode state.
+  tradeMode: MarketMode;
   onTradeModeChange?: (mode: MarketMode) => void;
   orders: ReturnType<typeof useOrders>;
+  optionLayoutActive?: boolean;
+  // True while the user is browsing a coming-soon MarketList tab (Forex,
+  // Commodity, Stocks, or Options) — there's nothing tradable selected, so
+  // the trade panel is disabled rather than silently still offering to
+  // trade whatever crypto symbol was last active.
+  disabled?: boolean;
 }
 
-function RightColumn({ symbol, price, selectedOption, onTradeModeChange, orders }: RightColumnProps) {
+function RightColumn({ symbol, price, selectedOption, tradeMode, onTradeModeChange, orders, optionLayoutActive, disabled }: RightColumnProps) {
   const [obOpen, setObOpen] = useState(true);
   const [tab, setTab] = useState<"book" | "trades">("book");
   const orderBookPanelRef = useRef<ImperativePanelHandle>(null);
-  const backendMarket = backendMarketFor(symbol);
+  // In options mode the order book/trades are for the SELECTED CONTRACT
+  // (its own OPTIONS-market symbol), not the underlying spot/futures pair —
+  // backendMarketFor("BTC-PERP") would resolve fine but shows the wrong
+  // market's book entirely. Fall through to the selected contract's own
+  // instrument symbol so the book reflects what the user is actually
+  // trading; with nothing selected yet there's simply nothing to show.
+  const backendMarket = disabled
+    ? null
+    : optionLayoutActive
+      ? (selectedOption ? { symbol: selectedOption.symbol, market: "OPTIONS" } : null)
+      : backendMarketFor(symbol);
 
   const toggleOrderBook = useCallback(() => {
     const panel = orderBookPanelRef.current;
@@ -628,16 +670,24 @@ function RightColumn({ symbol, price, selectedOption, onTradeModeChange, orders 
 
       {/* ── Trade Panel ── always present, expands when OB collapses ── */}
       <Panel defaultSize={60} minSize={32}>
-        <div className="glass h-full min-h-0 rounded-xl flex flex-col">
-          <div className="flex-1 overflow-y-auto min-h-0">
-            <TradePanel
-              symbol={symbol}
-              price={price}
-              selectedOption={selectedOption}
-              onModeChange={onTradeModeChange}
-              orders={orders}
-            />
-          </div>
+        <div className="glass h-full min-h-0 rounded-xl flex flex-col relative">
+          {disabled ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-2 px-6 text-center">
+              <span className="text-sm font-semibold text-foreground">Trading not available</span>
+              <span className="text-xs text-muted-foreground">This market isn't live on the exchange yet.</span>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto min-h-0">
+              <TradePanel
+                symbol={symbol}
+                price={price}
+                selectedOption={selectedOption}
+                mode={tradeMode}
+                onModeChange={onTradeModeChange}
+                orders={orders}
+              />
+            </div>
+          )}
         </div>
       </Panel>
 
@@ -718,8 +768,14 @@ function RightColumn({ symbol, price, selectedOption, onTradeModeChange, orders 
         >
           {!backendMarket ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-1 py-10 text-center text-xs text-muted-foreground">
-              <span className="text-sm font-semibold text-foreground">Trading not available</span>
-              <span>This market isn't live on the exchange yet.</span>
+              <span className="text-sm font-semibold text-foreground">
+                {optionLayoutActive ? "Select a contract" : "Trading not available"}
+              </span>
+              <span>
+                {optionLayoutActive
+                  ? "Pick a strike from the option chain to see its order book."
+                  : "This market isn't live on the exchange yet."}
+              </span>
             </div>
           ) : tab === "book" ? (
             <div className="flex-1 flex flex-col text-[10px] font-mono overflow-hidden min-h-0">
@@ -732,18 +788,16 @@ function RightColumn({ symbol, price, selectedOption, onTradeModeChange, orders 
 
               {/* Asks — rendered bottom-up */}
               <div className="flex-1 flex flex-col-reverse overflow-hidden min-h-0">
-                {book.asks.slice(0, 10).map((a, i) => {
-                  const depthPct = (a.total / maxAskTotal) * 100;
-                  return (
-                    <div key={i} className="relative grid grid-cols-3 gap-1 px-2 flex-1 items-center hover:bg-muted/20 cursor-pointer">
-                      <div className="absolute inset-y-0 right-0 pointer-events-none"
-                        style={{ width: `${depthPct}%`, background: "linear-gradient(to left, hsl(var(--sell)/0.45), hsl(var(--sell)/0.05))" }} />
-                      <span className="relative text-sell">{formatPrice(a.price)}</span>
-                      <span className="relative text-right">{a.size.toFixed(3)}</span>
-                      <span className="relative text-right text-muted-foreground">{a.total.toFixed(2)}</span>
-                    </div>
-                  );
-                })}
+                {book.asks.slice(0, 10).map((a) => (
+                  <OrderBookRow
+                    key={a.price}
+                    price={a.price}
+                    size={a.size}
+                    total={a.total}
+                    depthPct={(a.total / maxAskTotal) * 100}
+                    side="sell"
+                  />
+                ))}
               </div>
 
               {/* Spread row */}
@@ -754,18 +808,16 @@ function RightColumn({ symbol, price, selectedOption, onTradeModeChange, orders 
 
               {/* Bids */}
               <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-                {book.bids.slice(0, 10).map((b, i) => {
-                  const depthPct = (b.total / maxBidTotal) * 100;
-                  return (
-                    <div key={i} className="relative grid grid-cols-3 gap-1 px-2 flex-1 items-center hover:bg-muted/20 cursor-pointer">
-                      <div className="absolute inset-y-0 right-0 pointer-events-none"
-                        style={{ width: `${depthPct}%`, background: "linear-gradient(to left, hsl(var(--buy)/0.45), hsl(var(--buy)/0.05))" }} />
-                      <span className="relative text-buy">{formatPrice(b.price)}</span>
-                      <span className="relative text-right">{b.size.toFixed(3)}</span>
-                      <span className="relative text-right text-muted-foreground">{b.total.toFixed(2)}</span>
-                    </div>
-                  );
-                })}
+                {book.bids.slice(0, 10).map((b) => (
+                  <OrderBookRow
+                    key={b.price}
+                    price={b.price}
+                    size={b.size}
+                    total={b.total}
+                    depthPct={(b.total / maxBidTotal) * 100}
+                    side="buy"
+                  />
+                ))}
               </div>
             </div>
           ) : (
@@ -798,8 +850,18 @@ function RightColumn({ symbol, price, selectedOption, onTradeModeChange, orders 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 const Index = () => {
-  const [symbol, setSymbol] = useState("BTC-BIUSD");
+  // BI2X-BI2XUSD, not BTC-BI2XUSD (removed 2026-09-13) — the trade page opens
+  // to SPOT by default (see tradeMode below), so the default symbol must be
+  // one of the surviving SPOT markets.
+  const [symbol, setSymbol] = useState("BI2X-BI2XUSD");
   const [collapsed, setCollapsed] = useState(false);
+  // True while the user is browsing a coming-soon tab/kind in MarketList
+  // (Forex, Commodity, Stocks, or Options) — independent of `symbol`, since
+  // there's nothing to select there and symbol never changes. Blanks the
+  // chart and disables the trade panel so browsing one of these tabs
+  // visibly does something instead of silently leaving the last crypto
+  // symbol's chart/panel exactly as they were.
+  const [browsingComingSoon, setBrowsingComingSoon] = useState(false);
   const account = useAccount();
   const orders = useOrders(account);
   const market = useMarket(symbol);
@@ -812,24 +874,76 @@ const Index = () => {
   // while the order entry panel below it defaulted to a stale mock value.
   const price = useLivePrice(symbol);
   const isMobile = useIsMobile();
-  // Options execution is hidden from this delivery (plan.md 5.1): the
-  // option workspace previously rendered here called generateOptionChain()
-  // (fabricated contracts) while the real order-entry panel called the
-  // backend's actual option chain — two disagreeing sources for "the"
-  // option chain. optionLayoutActive is now hardcoded false so neither the
-  // mock chain nor the OptionWorkspace UI can activate; the underlying
-  // market-category/tradeMode plumbing is left in place, unused, so this is
-  // a one-line, easily-revertible gate rather than a structural rewrite,
-  // per plan.md 5.1 item 3 ("preserve the existing code without extending
-  // it; revisit with a dedicated options specification").
+  // Options were previously hidden (plan.md 5.1) because the visible option
+  // workspace called generateOptionChain() (fabricated contracts) while the
+  // real order-entry panel called the backend's actual option chain — two
+  // disagreeing sources for "the" option chain. Both sides now read the
+  // same source: the backend's real /option-chain, fetched below and
+  // threaded through to both OptionWorkspace and TradePanel. The layout
+  // only activates for markets the backend actually has an options chain
+  // for (baseAsset resolves via backendOptionsMarketFor) — e.g. BTC-OPT —
+  // not the other options rows in mockData that have no backend chain.
   const isOptionsMarket = market?.category === "options";
+  const baseAsset = market?.base ?? symbol.split("-")[0] ?? "";
+  const backendOptions = backendOptionsMarketFor(baseAsset);
   const [tradeMode, setTradeMode] = useState<MarketMode>("spot");
-  const optionLayoutActive = false;
-  const optionContracts = useMemo(
-    () => optionLayoutActive ? generateOptionChain(symbol, price) : [],
-    [optionLayoutActive, symbol, price]
-  );
-  const [selectedOption, setSelectedOption] = useState<OptionContract | null>(null);
+  // MarketList's Spot/Future sub-tab (MarketKind: "spot"|"perp"|"options") and
+  // TradePanel's Spot/Futures/Options tab (MarketMode: "spot"|"futures"|
+  // "options") name the futures case differently ("perp" vs "futures") but
+  // otherwise mean the same thing — these two keep tradeMode as the single
+  // source of truth so picking either one switches both, and the page loads
+  // on Spot by default (tradeMode's initial value above) rather than
+  // whatever MarketList's own default used to be.
+  const kindForTradeMode = (m: MarketMode): MarketKind | "fav" => (m === "futures" ? "perp" : m);
+  const tradeModeForKind = (k: MarketKind | "fav"): MarketMode => (k === "perp" ? "futures" : k === "fav" ? "spot" : k);
+  const handleKindChange = (k: MarketKind | "fav") => setTradeMode(tradeModeForKind(k));
+  // Fixed 2026-09-15: switching market TYPE via TradePanel's own Spot/
+  // Futures tabs (as opposed to picking a row in the left MarketList) used
+  // to update tradeMode WITHOUT ever touching `symbol` — e.g. opening BI2X
+  // SPOT ("BI2X-BI2XUSD") from the left panel, then clicking "Futures" on
+  // the right panel, left `symbol` at the stale SPOT string. backendMarkets'
+  // REGISTERED table keys spot/futures separately even for the same base
+  // asset ("BI2X-BI2XUSD" -> SPOT vs "BI2X-PERP" -> FUTURES), so the panel
+  // then showed Futures-only controls (leverage, margin mode) while actually
+  // wired to the SPOT market/metadata underneath -- a submitted order in
+  // that state would have gone to the engine as a SPOT order despite every
+  // visible control being futures-specific. handleTradeModeChange keeps
+  // `symbol` in sync with whichever mode the user just chose, for the SAME
+  // base asset, following the same "<BASE>-PERP" / "<BASE>-BI2XUSD" display
+  // convention used everywhere else (see backendMarkets.ts's REGISTERED
+  // table and this file's own baseAsset derivation above). Passed to
+  // TradePanel as onModeChange in place of setTradeMode directly.
+  const handleTradeModeChange = (m: MarketMode) => {
+    setTradeMode(m);
+    if (m === "futures") {
+      setSymbol(`${baseAsset}-PERP`);
+    } else if (m === "spot") {
+      // Not every base asset has a SPOT market (see backendMarkets.ts:
+      // ETH/AVAX/LINK/SOL/DOGE/TAO/ADA/XRP are FUTURES-ONLY) -- only BI2X
+      // and (formerly) BTC ever had one. Falling back to the existing
+      // symbol rather than guessing a SPOT pair that doesn't exist avoids
+      // silently landing on a dead/unregistered market.
+      setSymbol(baseAsset === "BI2X" ? "BI2X-BI2XUSD" : symbol);
+    }
+  };
+  const optionLayoutActive = isOptionsMarket && !!backendOptions;
+  const [optionContracts, setOptionContracts] = useState<OptionChainEntry[]>([]);
+  useEffect(() => {
+    if (!optionLayoutActive || !backendOptions) {
+      setOptionContracts([]);
+      return;
+    }
+    let cancelled = false;
+    const load = () => {
+      getOptionChain(backendOptions.symbol)
+        .then((res) => { if (!cancelled) setOptionContracts(res.chain); })
+        .catch(() => { if (!cancelled) setOptionContracts([]); });
+    };
+    load();
+    const interval = setInterval(load, 10_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [optionLayoutActive, backendOptions?.symbol]);
+  const [selectedOption, setSelectedOption] = useState<OptionChainEntry | null>(null);
 
   const [slots, setSlots] = useState<[PanelId, PanelId, PanelId]>(["marketList", "chart", "positions"]);
   const leftPanelSizeRef = useRef(DEFAULT_COL_SIZES[0]);
@@ -859,9 +973,14 @@ const Index = () => {
     }
 
     setSelectedOption(current => {
+      const calls = optionContracts.filter(c => c.optionType === "CALL");
       const next = current
-        ? optionContracts.find(contract => contract.id === current.id)
-        : optionContracts.find(contract => contract.type === "call" && Math.abs(contract.strike - price) === Math.min(...optionContracts.filter(c => c.type === "call").map(c => Math.abs(c.strike - price))));
+        ? optionContracts.find(contract => contract.symbol === current.symbol)
+        : calls.length > 0
+          ? calls.reduce((closest, c) =>
+              Math.abs(parseFloat(c.strike) - price) < Math.abs(parseFloat(closest.strike) - price) ? c : closest
+            )
+          : undefined;
       return next ?? optionContracts[0] ?? null;
     });
   }, [optionLayoutActive, optionContracts, price]);
@@ -938,8 +1057,19 @@ const Index = () => {
   function renderContent(id: PanelId) {
     switch (id) {
       case "marketList":
-        return <MarketList activeSymbol={symbol} onSelect={setSymbol} collapsed={collapsed} onToggleCollapse={() => setCollapsed(c => !c)} />;
+        return (
+          <MarketList
+            activeSymbol={symbol}
+            onSelect={setSymbol}
+            collapsed={collapsed}
+            onToggleCollapse={() => setCollapsed(c => !c)}
+            onComingSoonChange={setBrowsingComingSoon}
+            kind={kindForTradeMode(tradeMode)}
+            onKindChange={handleKindChange}
+          />
+        );
       case "chart":
+        if (browsingComingSoon) return <ChartComingSoon />;
         return optionLayoutActive ? (
           <OptionWorkspace
             symbol={symbol}
@@ -1012,7 +1142,12 @@ const Index = () => {
               <PanelResizeHandle className="h-1.5 flex items-center justify-center group cursor-row-resize hidden lg:flex">
                 <div className="h-0.5 w-8 bg-border/50 rounded group-hover:bg-primary/50 group-active:bg-primary transition-colors" />
               </PanelResizeHandle>
-              <Panel ref={posPanelRef} defaultSize={DEFAULT_CENTER_SIZES[1]} minSize={MINIMIZED_POSITIONS_SIZE} className="hidden lg:block">
+              {/* Was "hidden lg:block" — that silently removed the entire
+                  Positions/Orders/History panel below the lg breakpoint
+                  (<1024px), with no other way to reach it on desktop. Always
+                  render it now; only the mobile PanelGroup branch below is
+                  skipped in favor of the bottom tab bar. */}
+              <Panel ref={posPanelRef} defaultSize={DEFAULT_CENTER_SIZES[1]} minSize={MINIMIZED_POSITIONS_SIZE}>
                 <DraggableCard
                   id={slots[2]}
                   title={PANEL_TITLES[slots[2]]}
@@ -1036,8 +1171,11 @@ const Index = () => {
               symbol={symbol}
               price={price}
               selectedOption={selectedOption}
-              onTradeModeChange={setTradeMode}
+              tradeMode={tradeMode}
+              onTradeModeChange={handleTradeModeChange}
               orders={orders}
+              optionLayoutActive={optionLayoutActive}
+              disabled={browsingComingSoon}
             />
           </Panel>
 
@@ -1051,12 +1189,22 @@ const Index = () => {
             <div className="flex-1 min-h-0 overflow-hidden">
               {mobileTab === "markets" && (
                 <div className="h-full glass rounded-xl overflow-hidden">
-                  <MarketList activeSymbol={symbol} onSelect={(s) => { setSymbol(s); setMobileTab("chart"); }} collapsed={false} onToggleCollapse={() => {}} />
+                  <MarketList
+                    activeSymbol={symbol}
+                    onSelect={(s) => { setSymbol(s); setMobileTab("chart"); }}
+                    collapsed={false}
+                    onToggleCollapse={() => {}}
+                    onComingSoonChange={setBrowsingComingSoon}
+                    kind={kindForTradeMode(tradeMode)}
+                    onKindChange={handleKindChange}
+                  />
                 </div>
               )}
               {mobileTab === "chart" && (
                 <div className="h-full glass rounded-xl overflow-hidden">
-                  {optionLayoutActive ? (
+                  {browsingComingSoon ? (
+                    <ChartComingSoon />
+                  ) : optionLayoutActive ? (
                     <OptionWorkspace
                       symbol={symbol}
                       price={price}
@@ -1075,8 +1223,11 @@ const Index = () => {
                     symbol={symbol}
                     price={price}
                     selectedOption={selectedOption}
-                    onTradeModeChange={setTradeMode}
+                    tradeMode={tradeMode}
+                    onTradeModeChange={handleTradeModeChange}
                     orders={orders}
+                    optionLayoutActive={optionLayoutActive}
+                    disabled={browsingComingSoon}
                   />
                 </div>
               )}

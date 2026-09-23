@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   ArrowUpDown,
@@ -19,11 +19,11 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { swapAssets } from "@/lib/authApi";
+import { getSwapPoolMax, swapAssets } from "@/lib/authApi";
 import { wallet, useWallet } from "@/lib/useWallet";
 import { cn } from "@/lib/utils";
 
-type TokenSymbol = "USDC" | "USDT" | "BIUSD";
+type TokenSymbol = "USDC" | "USDT" | "BI2XUSD";
 
 interface Token {
   symbol: TokenSymbol;
@@ -33,21 +33,21 @@ interface Token {
   icon: string;
 }
 
-// BIUSD is the platform's internal stable quote currency (pegged 1:1 to
+// BI2XUSD is the platform's internal stable quote currency (pegged 1:1 to
 // USDT, no on-chain contract of its own) — every market trades against it.
-// This swap lets a user move deposit-intake USDC/USDT into tradable BIUSD
+// This swap lets a user move deposit-intake USDC/USDT into tradable BI2XUSD
 // manually; real on-chain deposits already convert automatically (see
 // Dex-Backend's chain.Listener), this covers balances credited before that
 // migration or credited directly as USDC/USDT.
 //
 // Direction rules (mirroring the backend's swapDestinations allowlist):
-//   - USDT → BIUSD and USDC → BIUSD: allowed, no fee.
-//   - BIUSD → USDT and BIUSD → USDC: allowed, 1% conversion fee.
-//   - Direct USDT ↔ USDC is NOT offered (route through BIUSD instead).
+//   - USDT → BI2XUSD and USDC → BI2XUSD: allowed, no fee.
+//   - BI2XUSD → USDT and BI2XUSD → USDC: allowed, 1% conversion fee.
+//   - Direct USDT ↔ USDC is NOT offered (route through BI2XUSD instead).
 const TOKENS: Record<TokenSymbol, Token> = {
   USDC: { symbol: "USDC", name: "USD Coin", color: "#2775CA", textColor: "#fff", icon: "$" },
   USDT: { symbol: "USDT", name: "Tether", color: "#26A17B", textColor: "#fff", icon: "₮" },
-  BIUSD: { symbol: "BIUSD", name: "BitDx USD", color: "#7C5CFC", textColor: "#fff", icon: "B" },
+  BI2XUSD: { symbol: "BI2XUSD", name: "BitDx USD", color: "#7C5CFC", textColor: "#fff", icon: "B" },
 };
 const TOKEN_LIST = Object.values(TOKENS);
 
@@ -55,20 +55,20 @@ const TOKEN_LIST = Object.values(TOKENS);
 // factor between any pair.
 const SWAP_DECIMALS = 6;
 
-// Fee (in basis points of the source amount) charged on a swap OUT of BIUSD.
-// Swaps INTO BIUSD are free.
-const SWAP_FEE_BPS_OUT_OF_BIUSD = 100; // 1%
+// Fee (in basis points of the source amount) charged on a swap OUT of BI2XUSD.
+// Swaps INTO BI2XUSD are free.
+const SWAP_FEE_BPS_OUT_OF_BI2XUSD = 100; // 1%
 
 // Destinations allowed for each source asset — must match the backend's
 // swapDestinations map in Dex-Backend's /wallet/swap handler.
 const SWAP_DESTINATIONS: Record<TokenSymbol, TokenSymbol[]> = {
-  USDT: ["BIUSD"],
-  USDC: ["BIUSD"],
-  BIUSD: ["USDT", "USDC"],
+  USDT: ["BI2XUSD"],
+  USDC: ["BI2XUSD"],
+  BI2XUSD: ["USDT", "USDC"],
 };
 
 function swapFeeBps(to: TokenSymbol): number {
-  return to === "BIUSD" ? 0 : SWAP_FEE_BPS_OUT_OF_BIUSD;
+  return to === "BI2XUSD" ? 0 : SWAP_FEE_BPS_OUT_OF_BI2XUSD;
 }
 
 // creditedFor computes the exact destination amount the backend will credit:
@@ -167,7 +167,7 @@ export function SwapDialog({
   onOpenChange: (value: boolean) => void;
 }) {
   const [fromSymbol, setFromSymbol] = useState<TokenSymbol>("USDC");
-  const [toSymbol, setToSymbol] = useState<TokenSymbol>("BIUSD");
+  const [toSymbol, setToSymbol] = useState<TokenSymbol>("BI2XUSD");
   const [amount, setAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { balances } = useWallet();
@@ -181,7 +181,37 @@ export function SwapDialog({
   const creditedAmount = creditedFor(amount, feeBps);
   const outputAmount = creditedAmount ?? 0;
   const fromBalance = balances.find((b) => b.asset === fromToken.symbol)?.available ?? 0;
-  const insufficient = creditedAmount !== null && creditedAmount <= 0 ? true : numericAmount > fromBalance;
+
+  // Swap liquidity pool cap: only the BI2XUSD -> USDT/USDC direction is
+  // capped (see Dex-Backend's swappable/reserve split — USDT/USDC -> BI2XUSD
+  // has no pool ceiling, it's what FEEDS the pool). null while unknown
+  // (not yet fetched, or this direction has no cap) so the UI never shows a
+  // false "0 available" before the real figure loads.
+  const isSwappingOutOfBi2xusd = fromSymbol === "BI2XUSD";
+  const [poolCap, setPoolCap] = useState<number | null>(null);
+  useEffect(() => {
+    if (!open || !isSwappingOutOfBi2xusd) {
+      setPoolCap(null);
+      return;
+    }
+    let cancelled = false;
+    getSwapPoolMax(toSymbol)
+      .then((res) => {
+        if (!cancelled) setPoolCap(Number.parseFloat(res.maxSwappable) || 0);
+      })
+      .catch(() => {
+        if (!cancelled) setPoolCap(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, isSwappingOutOfBi2xusd, toSymbol]);
+
+  const exceedsPool = isSwappingOutOfBi2xusd && poolCap !== null && outputAmount > poolCap;
+  const insufficient =
+    creditedAmount !== null && creditedAmount <= 0
+      ? true
+      : numericAmount > fromBalance || exceedsPool;
   const canSwap = creditedAmount !== null && creditedAmount > 0 && !insufficient && !submitting;
 
   // Allowed choices per side, restricted to the backend's directional pair
@@ -200,7 +230,7 @@ export function SwapDialog({
 
   // Picking a "From" token that has no legal route to the current "To" snaps
   // "To" to the first allowed destination (there is always exactly one for
-  // USDT/USDC; BIUSD keeps the current pick when it stays legal).
+  // USDT/USDC; BI2XUSD keeps the current pick when it stays legal).
   const handleFromChange = (symbol: TokenSymbol) => {
     setFromSymbol(symbol);
     if (!SWAP_DESTINATIONS[symbol].includes(toSymbol)) {
@@ -223,6 +253,18 @@ export function SwapDialog({
   };
 
   const handleMax = () => {
+    if (isSwappingOutOfBi2xusd && poolCap !== null) {
+      // The pool cap limits the OUTPUT (post-fee) amount, but the input
+      // field holds the source (BI2XUSD) amount pre-fee — invert
+      // creditedFor's fee math to find the largest source amount whose
+      // credited output still fits the pool: source = output / (1 - feeBps/10000).
+      // Floored (not rounded) so the resulting credited amount, after the
+      // backend's own floor-based fee calc, never exceeds poolCap by a
+      // fraction-of-a-unit rounding difference.
+      const maxSourceForPool = feeBps > 0 ? poolCap / (1 - feeBps / 10000) : poolCap;
+      setAmount(amountForInput(Math.min(fromBalance, maxSourceForPool)));
+      return;
+    }
     setAmount(amountForInput(fromBalance));
   };
 
@@ -232,7 +274,11 @@ export function SwapDialog({
       return;
     }
     if (insufficient) {
-      toast.error(`Insufficient ${fromToken.symbol} balance`);
+      toast.error(
+        exceedsPool && numericAmount <= fromBalance
+          ? `Exceeds current swap liquidity — max swappable now is ${formatAmount(poolCap ?? 0)} ${toToken.symbol}`
+          : `Insufficient ${fromToken.symbol} balance`,
+      );
       return;
     }
 
@@ -261,7 +307,7 @@ export function SwapDialog({
             Swap
           </DialogTitle>
           <DialogDescription className="sr-only">
-            Swap USDT or USDC into BIUSD with no fee, or BIUSD back into USDT or USDC with a 1% conversion fee.
+            Swap USDT or USDC into BI2XUSD with no fee, or BI2XUSD back into USDT or USDC with a 1% conversion fee.
           </DialogDescription>
         </DialogHeader>
 
@@ -287,6 +333,21 @@ export function SwapDialog({
                 </span>
               </button>
             </div>
+
+            {isSwappingOutOfBi2xusd && (
+              <div className="mb-3 -mt-1 text-xs text-muted-foreground">
+                {poolCap === null ? (
+                  "Checking swap liquidity…"
+                ) : (
+                  <>
+                    Max swappable now:{" "}
+                    <span className={cn("font-mono", exceedsPool && "text-sell")}>
+                      {formatAmount(poolCap)} {toToken.symbol}
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
 
             <div className="flex items-center gap-3">
               <TokenSelect value={fromSymbol} options={fromOptions} onChange={handleFromChange} />
@@ -319,7 +380,9 @@ export function SwapDialog({
 
             {insufficient && (
               <p className="mt-3 text-xs text-sell">
-                Amount exceeds your available {fromToken.symbol} balance.
+                {exceedsPool && numericAmount <= fromBalance
+                  ? `Amount exceeds the current swap liquidity — max swappable now is ${formatAmount(poolCap ?? 0)} ${toToken.symbol}.`
+                  : `Amount exceeds your available ${fromToken.symbol} balance.`}
               </p>
             )}
           </section>
@@ -341,7 +404,14 @@ export function SwapDialog({
               To
             </div>
             <div className="flex items-center gap-3">
-              <TokenSelect value={toSymbol} options={toOptions} onChange={handleToChange} />
+              {toOptions.length > 1 ? (
+                <TokenSelect value={toSymbol} options={toOptions} onChange={handleToChange} />
+              ) : (
+                <span className="flex h-12 w-auto shrink-0 min-w-[128px] items-center gap-2 rounded-xl border border-border bg-muted/30 px-3">
+                  <TokenAvatar token={toToken} size={26} />
+                  <span className="font-bold">{toToken.symbol}</span>
+                </span>
+              )}
               <div className="min-w-0 flex-1 truncate text-right font-mono text-2xl font-bold">
                 <span className={outputAmount > 0 ? "text-foreground" : "text-muted-foreground/40"}>
                   {outputAmount > 0 ? formatAmount(outputAmount) : "0"}
@@ -386,6 +456,8 @@ export function SwapDialog({
           >
             {!numericAmount ? (
               "Enter Amount"
+            ) : exceedsPool && numericAmount <= fromBalance ? (
+              "Exceeds Swap Liquidity"
             ) : insufficient ? (
               "Insufficient Balance"
             ) : submitting ? (

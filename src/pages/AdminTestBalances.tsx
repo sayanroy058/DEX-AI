@@ -12,7 +12,14 @@ import {
   type AdminUser, type AdjustBalanceDirection, type AdjustBalanceResult,
 } from "@/lib/adminApi";
 
-const ASSETS = ["BTC", "ETH", "SOL", "BNB", "BIUSD", "USDC", "USDT", "BI"];
+// ETH, SOL, and BNB removed (2026-09-12): their user_balances columns were
+// dropped along with the SPOT markets they backed (ETH/SOL are FUTURES-only
+// now, settled in BI2XUSD; BNB has no market at all) — see Dex-Backend's
+// user_balances migration. BI2X added for the same reason it's a real
+// tradable asset (BI2X-BI2XUSD spot/futures). BI (the platform's own native
+// token, distinct from BI2X) removed (2026-09-13): never wired into any
+// matching-engine market, same reasoning as ETH/SOL/BNB.
+const ASSETS = ["BTC", "BI2X", "BI2XUSD", "USDC", "USDT"];
 
 // user_balances stores every asset as a raw integer scaled by 1e6 (see
 // balanceRawScale in AdminServer.toRawUnits, and the same convention in

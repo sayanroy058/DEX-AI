@@ -15,12 +15,13 @@ import {
   cancelP2PAppeal,
   cancelP2POrder,
   formatINR,
-  formatBIUSDAmount,
+  formatBI2XUSDAmount,
   getP2POrder,
   getP2POrderEvents,
   getP2POrderMessages,
   getP2POrderProofs,
   markP2POrderPaid,
+  p2pOrderStreamURL,
   p2pProofURL,
   releaseP2POrder,
   sendP2POrderMessage,
@@ -69,7 +70,37 @@ export default function P2POrderDetail() {
     }
   }, [orderId, userId]);
 
-  useEffect(() => { void load(); const poll = window.setInterval(() => void load(), 5000); return () => window.clearInterval(poll); }, [load]);
+  // P2P-L2: the order's own status now arrives pushed over SSE instead of
+  // being re-fetched on a timer. Messages/proofs/events have no push
+  // mechanism of their own, so they still refresh on an interval — kept at
+  // 15s (was folded into the same 5s poll as the order) since chat/proof
+  // updates are far less time-sensitive than "did my counterparty pay yet".
+  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const poll = window.setInterval(() => {
+      if (!userId || !orderId) return;
+      Promise.all([getP2POrderMessages(orderId), getP2POrderProofs(orderId), getP2POrderEvents(orderId)])
+        .then(([messageResult, proofResult, eventResult]) => {
+          setMessages(messageResult.messages);
+          setProofs(proofResult.proofs);
+          setEvents(eventResult.events);
+        })
+        .catch(() => { /* transient poll failure — next tick or the SSE-driven order update will recover */ });
+    }, 15000);
+    return () => window.clearInterval(poll);
+  }, [orderId, userId]);
+  useEffect(() => {
+    if (!orderId || !userId) return;
+    const source = new EventSource(p2pOrderStreamURL(orderId));
+    source.onmessage = (event) => {
+      try {
+        setOrder(JSON.parse(event.data) as P2POrder);
+      } catch { /* malformed push — ignore, next real update will correct it */ }
+    };
+    // EventSource retries automatically on a dropped connection; no
+    // reconnect logic needed here beyond letting the browser do it.
+    return () => source.close();
+  }, [orderId, userId]);
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
 
   const buyer = order?.buyerId === userId;
@@ -105,12 +136,12 @@ export default function P2POrderDetail() {
       <div className="space-y-6">
         <Card className="border-border/50 bg-card/30 p-6"><div className="mb-5 flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary"/><h2 className="font-semibold">Payment and order details</h2></div>
           {buyer && <div className="mb-5 rounded-lg border bg-muted/20 p-4"><Detail label="Transfer via" value={order.paymentMethod}/><Detail label="Account name" value={order.paymentAccountName}/><Detail label="Payment identifier" value={order.paymentAccountIdentifier}/>{order.paymentBankName && <Detail label="Bank name" value={order.paymentBankName}/>} {order.paymentIfscCode && <Detail label="IFSC" value={order.paymentIfscCode}/>} {order.paymentInstructions && <Detail label="Instructions" value={order.paymentInstructions}/>}</div>}
-          <div className="grid gap-x-8 sm:grid-cols-2"><Detail label="Fiat amount" value={formatINR(order.grossAmount)}/><Detail label="Price" value={`${formatINR(order.price)} / BIUSD`}/><Detail label="Trade quantity" value={`${formatBIUSDAmount(order.amountRaw)} BIUSD`}/><Detail label="Your 1% fee" value={`${formatBIUSDAmount(buyer ? order.buyerFeeRaw : order.sellerFeeRaw)} BIUSD`}/><Detail label={buyer ? "You receive" : "BIUSD escrowed"} value={`${formatBIUSDAmount(buyer ? order.buyerCreditRaw : order.sellerDebitRaw)} BIUSD`}/><Detail label="Payment deadline" value={new Date(order.expiresAt).toLocaleString()}/></div>
+          <div className="grid gap-x-8 sm:grid-cols-2"><Detail label="Fiat amount" value={formatINR(order.grossAmount)}/><Detail label="Price" value={`${formatINR(order.price)} / BI2XUSD`}/><Detail label="Trade quantity" value={`${formatBI2XUSDAmount(order.amountRaw)} BI2XUSD`}/><Detail label="Your 1% fee" value={`${formatBI2XUSDAmount(buyer ? order.buyerFeeRaw : order.sellerFeeRaw)} BI2XUSD`}/><Detail label={buyer ? "You receive" : "BI2XUSD escrowed"} value={`${formatBI2XUSDAmount(buyer ? order.buyerCreditRaw : order.sellerDebitRaw)} BI2XUSD`}/><Detail label="Payment deadline" value={new Date(order.expiresAt).toLocaleString()}/></div>
         </Card>
 
         <Card className="border-border/50 bg-card/30 p-6"><div className="mb-4 flex items-center gap-2"><FileText className="h-5 w-5 text-primary"/><h2 className="font-semibold">Payment proof</h2></div><div className="flex flex-wrap gap-2">{proofs.map(proof => <Button key={proof.id} variant="outline" size="sm" onClick={() => window.open(p2pProofURL(proof.id), "_blank", "noopener,noreferrer")}>{proof.fileName}</Button>)}{proofs.length === 0 && <p className="text-sm text-muted-foreground">No payment proof uploaded.</p>}</div>{buyer && order.status === "pending_payment" && proofs.length < 3 && <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"><Upload className="h-4 w-4"/>Upload proof<Input className="hidden" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={event => { void upload(event.target.files?.[0]); event.currentTarget.value = ""; }}/></label>}</Card>
 
-        <div className="flex flex-wrap gap-3">{buyer && order.status === "pending_payment" && <><Button disabled={proofs.length === 0 || acting} onClick={() => setConfirmPaidOpen(true)}>I have paid</Button><Button variant="outline" disabled={acting} onClick={() => setCancelOpen(true)}>Cancel order</Button></>}{seller && order.status === "payment_made" && <Button disabled={acting} onClick={() => setReleaseOpen(true)}>Confirm receipt and release BIUSD</Button>}{order.status === "payment_made" && <Button variant="outline" disabled={!appealReady || acting} onClick={() => setAppealOpen(true)}>{appealReady ? "Open appeal" : `Appeal after ${appealRemaining}`}</Button>}{order.status === "appeal" && order.appealedBy === userId && <Button variant="outline" disabled={acting} onClick={() => void perform(() => cancelP2PAppeal(order.id))}>Cancel appeal</Button>}</div>
+        <div className="flex flex-wrap gap-3">{buyer && order.status === "pending_payment" && <><Button disabled={proofs.length === 0 || acting} onClick={() => setConfirmPaidOpen(true)}>I have paid</Button><Button variant="outline" disabled={acting} onClick={() => setCancelOpen(true)}>Cancel order</Button></>}{seller && order.status === "payment_made" && <Button disabled={acting} onClick={() => setReleaseOpen(true)}>Confirm receipt and release BI2XUSD</Button>}{order.status === "payment_made" && <Button variant="outline" disabled={!appealReady || acting} onClick={() => setAppealOpen(true)}>{appealReady ? "Open appeal" : `Appeal after ${appealRemaining}`}</Button>}{order.status === "appeal" && order.appealedBy === userId && <Button variant="outline" disabled={acting} onClick={() => void perform(() => cancelP2PAppeal(order.id))}>Cancel appeal</Button>}</div>
 
         <Card className="border-border/50 bg-card/20 p-6"><h2 className="mb-4 font-semibold">Order activity</h2><div className="space-y-3">{events.map(event => <div key={event.id} className="flex justify-between gap-4 border-b pb-2 text-sm last:border-0"><span>{event.kind.replaceAll("_", " ")}</span><span className="text-xs text-muted-foreground">{new Date(event.createdAt).toLocaleString()}</span></div>)}</div></Card>
       </div>
@@ -119,7 +150,7 @@ export default function P2POrderDetail() {
     </div>}
 
     <Dialog open={confirmPaidOpen} onOpenChange={setConfirmPaidOpen}><DialogContent><DialogHeader><DialogTitle>Payment confirmation</DialogTitle><DialogDescription>Confirm only after the payment has successfully left your account.</DialogDescription></DialogHeader><label className="flex items-start gap-3 rounded-lg border p-4 text-sm"><Checkbox checked={ownAccount} onCheckedChange={value => setOwnAccount(value === true)}/><span>I made this transfer using my own payment account under the name shown by my payment provider.</span></label><Button disabled={!ownAccount || proofs.length === 0 || acting} onClick={() => void perform(() => markP2POrderPaid(orderId, ownAccount), () => setConfirmPaidOpen(false))}>Confirm payment</Button></DialogContent></Dialog>
-    <Dialog open={releaseOpen} onOpenChange={setReleaseOpen}><DialogContent><DialogHeader><DialogTitle>Release BIUSD?</DialogTitle><DialogDescription>Check your bank or payment account directly. A screenshot or chat message alone is not proof that money was received.</DialogDescription></DialogHeader><Button disabled={acting} onClick={() => void perform(() => releaseP2POrder(orderId), () => setReleaseOpen(false))}>I received the payment — release BIUSD</Button></DialogContent></Dialog>
+    <Dialog open={releaseOpen} onOpenChange={setReleaseOpen}><DialogContent><DialogHeader><DialogTitle>Release BI2XUSD?</DialogTitle><DialogDescription>Check your bank or payment account directly. A screenshot or chat message alone is not proof that money was received.</DialogDescription></DialogHeader><Button disabled={acting} onClick={() => void perform(() => releaseP2POrder(orderId), () => setReleaseOpen(false))}>I received the payment — release BI2XUSD</Button></DialogContent></Dialog>
     <Dialog open={cancelOpen} onOpenChange={setCancelOpen}><DialogContent><DialogHeader><DialogTitle>Cancellation reason</DialogTitle><DialogDescription>You can cancel only before marking the payment as completed.</DialogDescription></DialogHeader><Select value={cancelReason} onValueChange={setCancelReason}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{cancelReasons.map(reason => <SelectItem key={reason} value={reason}>{reason}</SelectItem>)}</SelectContent></Select><Button variant="destructive" disabled={acting} onClick={() => void perform(() => cancelP2POrder(orderId, cancelReason), () => setCancelOpen(false))}>Cancel order</Button></DialogContent></Dialog>
     <Dialog open={appealOpen} onOpenChange={setAppealOpen}><DialogContent><DialogHeader><DialogTitle>Open an appeal</DialogTitle><DialogDescription>Explain the issue clearly. Escrow will remain locked until the appeal is cancelled or resolved by an administrator.</DialogDescription></DialogHeader><Textarea value={appealReason} maxLength={500} onChange={event => setAppealReason(event.target.value)} placeholder="Describe the payment or release problem"/><Button disabled={appealReason.trim().length < 3 || acting} onClick={() => void perform(() => appealP2POrder(orderId, appealReason), () => setAppealOpen(false))}>Submit appeal</Button></DialogContent></Dialog>
   </main></AppShell>;
@@ -127,4 +158,4 @@ export default function P2POrderDetail() {
 
 function Detail({label,value}:{label:string;value:string}){return <div className="flex justify-between gap-4 border-b py-3 text-sm last:border-0"><span className="text-muted-foreground">{label}</span><span className="break-all text-right font-medium">{value}</span></div>}
 function countdown(value:string|undefined,now:number){if(!value)return "00:00";const seconds=Math.max(0,Math.ceil((new Date(value).getTime()-now)/1000));return `${Math.floor(seconds/60).toString().padStart(2,"0")}:${(seconds%60).toString().padStart(2,"0")}`}
-function headline(order:P2POrder|null,buyer:boolean,remaining:string){if(!order)return "P2P Order";if(order.status==="pending_payment")return buyer?`Pay the seller within ${remaining}`:"Waiting for buyer payment";if(order.status==="payment_made")return buyer?"Waiting for seller release":"Verify payment and release BIUSD";if(order.status==="appeal")return "Order under appeal";if(order.status==="completed")return "Order completed";return "Order cancelled"}
+function headline(order:P2POrder|null,buyer:boolean,remaining:string){if(!order)return "P2P Order";if(order.status==="pending_payment")return buyer?`Pay the seller within ${remaining}`:"Waiting for buyer payment";if(order.status==="payment_made")return buyer?"Waiting for seller release":"Verify payment and release BI2XUSD";if(order.status==="appeal")return "Order under appeal";if(order.status==="completed")return "Order completed";return "Order cancelled"}

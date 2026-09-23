@@ -1,20 +1,27 @@
 import { AppShell } from "@/components/AppShell";
 import { useMarkets } from "@/lib/useMarkets";
 import { formatPrice } from "@/lib/mockData";
-import { Wallet, TrendingUp, PieChart, ArrowDownToLine, ArrowUpFromLine, History, DollarSign, BarChart3, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Wallet, TrendingUp, PieChart, ArrowDownToLine, ArrowUpFromLine, History, DollarSign, BarChart3, Clock, CheckCircle2, XCircle, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMemo, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TransferDialog } from "@/components/wallet/TransferDialog";
 import { wallet, useWallet } from "@/lib/useWallet";
+import { useAccount } from "@/lib/account";
+import { getPositions, FuturesPositionDTO } from "@/lib/apiClient";
+import { frontendSymbolFor } from "@/lib/backendMarkets";
+import { resolveMarkPrice } from "@/components/trade/PositionsPanel";
+import { useFuturesTickers } from "@/lib/useFuturesTickers";
+import { wsClient, WSEvent } from "@/lib/wsClient";
 
-const HOLDINGS = [
-  { symbol: "BTC-PERP", side: "long", size: 0.142, entry: 66120, leverage: 10 },
-  { symbol: "ETH-PERP", side: "short", size: 2.4, entry: 3580, leverage: 5 },
-  { symbol: "SOL-PERP", side: "long", size: 18.5, entry: 162.4, leverage: 20 },
-  { symbol: "HYPE-PERP", side: "long", size: 200, entry: 27.5, leverage: 8 },
-];
-
+// Everything below this line used to be the whole page's data model:
+// fabricated positions, a fabricated asset-value breakdown, fabricated
+// frozen-fund buckets, and fabricated transaction rows. None of it
+// corresponded to anything in this account. It's being replaced piece by
+// piece below with real data (spot holdings from useWallet, futures
+// positions from getPositions) — Asset Breakdown, Frozen Amount and
+// Transaction History are still mock and not part of this change; a real
+// deposit/withdraw ledger would need its own backend endpoint.
 const ASSET_BREAKDOWN = [
   { asset: "DEXUSD", value: 12006, pct: 42, color: "hsl(145 65% 52%)" },
   { asset: "BTC", value: 9524, pct: 38, color: "hsl(38 90% 55%)" },
@@ -45,40 +52,110 @@ const TRANSACTIONS = [
 const Portfolio = () => {
   const markets = useMarkets();
   const walletState = useWallet();
+  const account = useAccount();
+  const futuresTickers = useFuturesTickers();
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferMode, setTransferMode] = useState<"deposit" | "withdraw">("deposit");
+  const [futuresPositions, setFuturesPositions] = useState<FuturesPositionDTO[]>([]);
 
   const openTransfer = (m: "deposit" | "withdraw") => { setTransferMode(m); setTransferOpen(true); };
 
-  const positions = useMemo(() => HOLDINGS.map(h => {
-    const m = markets.find(mk => mk.symbol === h.symbol);
-    const mark = m?.price ?? h.entry;
-    const dir = h.side === "long" ? 1 : -1;
-    const pnl = (mark - h.entry) * h.size * dir;
-    const pnlPct = ((mark - h.entry) / h.entry) * 100 * dir * h.leverage;
-    const value = mark * h.size;
-    return { ...h, mark, pnl, pnlPct, value };
-  }), [markets]);
+  // Real open futures positions (moved here from the trade page's Positions
+  // panel, which still shows the same data while you're actively trading a
+  // symbol — this is the account-wide view). Same fetch-then-poll-then-WS
+  // pattern as PositionsPanel.tsx: an initial load, a 5s safety-net poll,
+  // and a throttled refetch on this account's own fills so a position
+  // updates within about a second of a fill instead of waiting for the poll.
+  useEffect(() => {
+    if (!account) {
+      setFuturesPositions([]);
+      return;
+    }
+    let cancelled = false;
+    const fetchPositions = () => {
+      getPositions(account)
+        .then((res) => { if (!cancelled) setFuturesPositions(res.futures ?? []); })
+        .catch(() => { if (!cancelled) setFuturesPositions([]); });
+    };
+    fetchPositions();
+    const interval = setInterval(fetchPositions, 5000);
+    let refetchTimer: ReturnType<typeof setTimeout> | null = null;
+    let refetchPending = false;
+    const throttledRefetch = () => {
+      if (refetchTimer) {
+        refetchPending = true;
+        return;
+      }
+      fetchPositions();
+      refetchTimer = setTimeout(() => {
+        refetchTimer = null;
+        if (refetchPending) {
+          refetchPending = false;
+          throttledRefetch();
+        }
+      }, 750);
+    };
+    const unsubWs = wsClient.subscribe((evt: WSEvent) => {
+      const ownFill =
+        (evt.type === "ORDER_FILLED" || evt.type === "ORDER_PARTIALLY_FILLED") &&
+        evt.market === "FUTURES" &&
+        (!evt.order?.accountId || evt.order.accountId === account);
+      if (ownFill) throttledRefetch();
+    });
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      if (refetchTimer) clearTimeout(refetchTimer);
+      unsubWs();
+    };
+  }, [account]);
 
-  const totalValue = positions.reduce((s, p) => s + p.value, 0);
+  const positions = useMemo(() => futuresPositions.map(p => {
+    const size = parseFloat(p.size);
+    const entry = parseFloat(p.entryPrice);
+    const displaySymbol = frontendSymbolFor(p.symbol, "FUTURES");
+    const ticker = futuresTickers[p.symbol];
+    const mockMarketPrice = markets.find(mk => mk.symbol === displaySymbol)?.price;
+    const mark = resolveMarkPrice(ticker?.markPrice, p.markPrice, mockMarketPrice);
+    const side = p.side === "BUY" ? "long" as const : "short" as const;
+    const leverage = p.leverage || 1;
+    const dir = side === "long" ? 1 : -1;
+    const pnl = (mark - entry) * size * dir;
+    const pnlPct = entry !== 0 ? ((mark - entry) / entry) * 100 * dir * leverage : 0;
+    const value = mark * size;
+    return { symbol: displaySymbol, side, size, entry, mark, leverage, pnl, pnlPct, value };
+  }), [futuresPositions, markets, futuresTickers]);
+
+  // Real spot holdings — every non-zero asset balance, valued at the
+  // corresponding SPOT market's current price (BI2XUSD itself is cash, not
+  // a "holding" with a market to price it against).
+  const spotHoldings = useMemo(() => {
+    return walletState.balances
+      .filter((b) => b.asset !== "BI2XUSD" && b.amount > 0)
+      .map((b) => {
+        const displaySymbol = `${b.asset}-BI2XUSD`;
+        const price = markets.find((mk) => mk.symbol === displaySymbol)?.price ?? 0;
+        return { ...b, price, value: b.amount * price };
+      });
+  }, [walletState.balances, markets]);
+
+  const totalValue = positions.reduce((s, p) => s + p.value, 0) + spotHoldings.reduce((s, h) => s + h.value, 0);
   const totalPnl = positions.reduce((s, p) => s + p.pnl, 0);
   const totalFrozen = FROZEN_AMOUNT.reduce((sum, item) => sum + item.value, 0);
   const dbBalances = useMemo(() => {
     const amountFor = (asset: string) => walletState.balances.find((balance) => balance.asset === asset)?.available ?? 0;
-    // BIUSD is the tradable balance every market actually settles in; USDC/
+    // BI2XUSD is the tradable balance every market actually settles in; USDC/
     // USDT are shown too since a real deposit briefly exists in one of
-    // those before the chain listener converts it to BIUSD (see useWallet.ts).
-    const biusd = amountFor("BIUSD");
+    // those before the chain listener converts it to BI2XUSD (see useWallet.ts).
+    const bi2xusd = amountFor("BI2XUSD");
     const usdc = amountFor("USDC");
     const usdt = amountFor("USDT");
-    const bi = amountFor("BI");
 
     return {
-      totalFunds: biusd + usdc + usdt + bi,
-      BIUSD: biusd,
+      totalFunds: bi2xusd + usdc + usdt,
+      BI2XUSD: bi2xusd,
       USDC: usdc,
       USDT: usdt,
-      BI: bi,
     };
   }, [walletState.balances]);
 
@@ -106,12 +183,11 @@ const Portfolio = () => {
         </div>
 
         {/* Key stat cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-          <StatCard label="Total Funds" value={formatTokenAmount(dbBalances.totalFunds)} sub="BIUSD + USDC + USDT + BI" icon={DollarSign} highlight />
-          <StatCard label="BIUSD" value={formatTokenAmount(dbBalances.BIUSD)} sub="Tradable Balance" icon={Wallet} />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          <StatCard label="Total Funds" value={formatTokenAmount(dbBalances.totalFunds)} sub="BI2XUSD + USDC + USDT" icon={DollarSign} highlight />
+          <StatCard label="BI2XUSD" value={formatTokenAmount(dbBalances.BI2XUSD)} sub="Tradable Balance" icon={Wallet} />
           <StatCard label="USDC" value={formatTokenAmount(dbBalances.USDC)} sub="Available Balance" icon={Wallet} />
           <StatCard label="USDT" value={formatTokenAmount(dbBalances.USDT)} sub="Available Balance" icon={Wallet} />
-          <StatCard label="BI" value={formatTokenAmount(dbBalances.BI)} sub="Available Balance" icon={Wallet} />
         </div>
 
         {/* Frozen amount allocation */}
@@ -162,12 +238,15 @@ const Portfolio = () => {
           </div>
         </div>
 
-        {/* Open Positions */}
+        {/* Open Positions (futures) */}
         <div className="glass rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between">
             <h3 className="font-semibold flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Open Positions</h3>
             <span className="text-xs text-muted-foreground">{positions.length} active</span>
           </div>
+          {positions.length === 0 ? (
+            <div className="p-6 text-center text-xs text-muted-foreground">No open futures positions.</div>
+          ) : (
           <div className="overflow-x-auto scrollbar-none">
             <table className="w-full text-sm min-w-[700px]">
               <thead className="text-[11px] text-muted-foreground uppercase">
@@ -201,6 +280,47 @@ const Portfolio = () => {
               </tbody>
             </table>
           </div>
+          )}
+        </div>
+
+        {/* Spot Holdings — moved here from the trade page's Positions panel
+            "Holdings" tab, since a spot balance is account-wide, not tied to
+            whichever symbol you happen to be trading. */}
+        <div className="glass rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between">
+            <h3 className="font-semibold flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Spot Holdings</h3>
+            <span className="text-xs text-muted-foreground">{spotHoldings.length} assets</span>
+          </div>
+          {spotHoldings.length === 0 ? (
+            <div className="p-6 text-center text-xs text-muted-foreground">No spot holdings yet. Buy a spot asset to see it here.</div>
+          ) : (
+          <div className="overflow-x-auto scrollbar-none">
+            <table className="w-full text-sm min-w-[600px]">
+              <thead className="text-[11px] text-muted-foreground uppercase">
+                <tr className="border-b border-border/50">
+                  <th className="text-left px-4 py-2">Asset</th>
+                  <th className="text-right">Total</th>
+                  <th className="text-right">Available</th>
+                  <th className="text-right">Order-Reserved</th>
+                  <th className="text-right">Price</th>
+                  <th className="text-right pr-4">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {spotHoldings.map((h) => (
+                  <tr key={h.asset} className="border-b border-border/30 hover:bg-muted/20">
+                    <td className="px-4 py-3 font-semibold">{h.asset}</td>
+                    <td className="text-right font-mono">{h.amount.toFixed(4)}</td>
+                    <td className="text-right font-mono text-buy">{h.available.toFixed(4)}</td>
+                    <td className="text-right font-mono text-muted-foreground">{h.tradingLocked.toFixed(4)}</td>
+                    <td className="text-right font-mono text-muted-foreground">{h.price > 0 ? formatPrice(h.price) : "—"}</td>
+                    <td className="text-right pr-4 font-mono font-bold">${h.value.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          )}
         </div>
 
         {/* Transaction History */}
@@ -325,10 +445,18 @@ function EquityChart({ pnl }: { pnl: number }) {
       <div ref={containerRef} className="h-48 relative">
         <canvas ref={canvasRef} className="absolute inset-0" />
       </div>
+      {/* Win Rate / Avg. Trade need a full realized-trade-history aggregation
+          this page doesn't have (see getPnlHistory on the trade page for the
+          per-trade realized log) — shown as "—" rather than a fabricated
+          number. Unrealized PnL is real: the same total as the Open
+          Positions table above. */}
       <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
-        <div className="glass rounded-lg p-2 text-center"><div className="text-muted-foreground text-[10px]">All-time PnL</div><div className="font-bold text-buy mt-0.5">+$12,840</div></div>
-        <div className="glass rounded-lg p-2 text-center"><div className="text-muted-foreground text-[10px]">Win Rate</div><div className="font-bold mt-0.5">62%</div></div>
-        <div className="glass rounded-lg p-2 text-center"><div className="text-muted-foreground text-[10px]">Avg. Trade</div><div className="font-bold text-buy mt-0.5">+$214</div></div>
+        <div className="glass rounded-lg p-2 text-center">
+          <div className="text-muted-foreground text-[10px]">Unrealized PnL</div>
+          <div className={cn("font-bold mt-0.5", pnl >= 0 ? "text-buy" : "text-sell")}>{pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}</div>
+        </div>
+        <div className="glass rounded-lg p-2 text-center"><div className="text-muted-foreground text-[10px]">Win Rate</div><div className="font-bold mt-0.5 text-muted-foreground">—</div></div>
+        <div className="glass rounded-lg p-2 text-center"><div className="text-muted-foreground text-[10px]">Avg. Trade</div><div className="font-bold mt-0.5 text-muted-foreground">—</div></div>
       </div>
     </div>
   );

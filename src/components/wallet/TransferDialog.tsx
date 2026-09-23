@@ -4,22 +4,23 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { wallet, useWallet, WALLETS, shortAddress, getTreasuryAddress, getConnectedProvider } from "@/lib/useWallet";
+import { wallet, useWallet, WALLETS, shortAddress, getConnectedProvider } from "@/lib/useWallet";
 import { requestWithdrawal } from "@/lib/authApi";
 import { depositUsdc, isDexVaultConfigured } from "@/lib/contracts/dexVault";
+import { DEPOSIT_ASSETS, chainsFor, isDepositAllowed, isDepositLive } from "@/lib/depositAssets";
 import { ArrowDownToLine, ArrowUpFromLine, Wallet as WalletIcon } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { parseUnits, type Address } from "viem";
 
-const NETWORKS = ["Avalanche Fuji", "Ethereum", "Arbitrum", "Base", "BNB Chain", "Solana"];
 const WITHDRAW_DECIMALS: Record<string, number> = { USDC: 6 };
-const DEFAULT_DEPOSIT_CHAIN = "Avalanche Fuji";
+// USDC on AVAX is the only (asset, chain) pair with a working contract/
+// listener today (see depositAssets.ts's isDepositLive) — default both
+// selectors to it, so the dialog opens ready to submit rather than on a
+// combination that immediately errors.
+const DEFAULT_DEPOSIT_ASSET = "USDC";
+const DEFAULT_DEPOSIT_CHAIN = "AVAX";
 const SNOWTRACE_TX_URL = "https://testnet.snowtrace.io/tx/";
-
-function assetChainSymbol(asset: string) {
-  return asset === "USDT" || asset === "USDC" ? "0x0" : "0x0";
-}
 
 export function TransferDialog({
   open,
@@ -32,7 +33,7 @@ export function TransferDialog({
 }) {
   const w = useWallet();
   const [mode, setMode] = useState<"deposit" | "withdraw">(defaultMode);
-  const [asset, setAsset] = useState("USDC");
+  const [asset, setAsset] = useState(DEFAULT_DEPOSIT_ASSET);
   const [network, setNetwork] = useState(DEFAULT_DEPOSIT_CHAIN);
   const [amount, setAmount] = useState("");
   const [destination, setDestination] = useState("");
@@ -40,7 +41,20 @@ export function TransferDialog({
 
   const balance = w.balances.find((b) => b.asset === asset)?.available ?? 0;
   const fee = 0;
-  const treasuryAddress = getTreasuryAddress();
+
+  // Deposits are restricted to a fixed (asset, chain) allowlist — BI2XUSD and
+  // BI2X only on Avalanche (they're the platform's own assets, not real
+  // tokens on any other chain); USDT/USDC across the chains they actually
+  // circulate on. See depositAssets.ts. Withdrawals stay USDC-on-Avalanche
+  // only for now (the only real on-chain path that exists at all today).
+  const networksForAsset = mode === "deposit" ? chainsFor(asset) : ["AVAX"];
+  const setAssetForDeposit = (next: string) => {
+    setAsset(next);
+    // Switching asset may invalidate the current network — snap to the
+    // first allowed one rather than leaving an invalid pair selected.
+    const allowed = chainsFor(next);
+    if (!allowed.includes(network as (typeof allowed)[number])) setNetwork(allowed[0] ?? "");
+  };
 
   const handleSubmit = async () => {
     const amt = parseFloat(amount);
@@ -50,7 +64,7 @@ export function TransferDialog({
     setSubmitting(true);
     try {
       if (mode === "withdraw") {
-        if (asset !== "USDC" || network !== "Avalanche Fuji") return toast.error("Only USDC withdrawals on Avalanche Fuji are supported right now");
+        if (asset !== "USDC" || network !== "AVAX") return toast.error("Only USDC withdrawals on Avalanche are supported right now");
         if (amt > balance) return toast.error("Insufficient balance");
 
         const amountRaw = parseUnits(amount, WITHDRAW_DECIMALS[asset]).toString();
@@ -59,7 +73,14 @@ export function TransferDialog({
         toast.success(result.status === "confirmed" ? "Withdrawal completed" : "Withdrawal processing", {
           description: result.txHash ? `Tx ${shortAddress(result.txHash)}` : `Request ${result.id.slice(0, 8)} is ${result.status}`,
         });
-      } else if (asset === "USDC" && network === "Avalanche Fuji") {
+      } else if (!isDepositAllowed(asset, network)) {
+        // Shouldn't be reachable through the UI (the network selector only
+        // ever offers chainsFor(asset)), but guard the actual submit path
+        // too in case state gets out of sync.
+        return toast.error(`${asset} cannot be deposited on ${network}`);
+      } else if (isDepositLive(asset, network)) {
+        // The one real combination: USDC on Avalanche, via the deployed
+        // DexVault contract (see depositAssets.ts's isDepositLive).
         if (!isDexVaultConfigured()) return toast.error("DexVault contract is not configured yet");
         const provider = getConnectedProvider();
         if (!provider) return toast.error("Connect a wallet first");
@@ -75,18 +96,14 @@ export function TransferDialog({
           },
         });
       } else {
-        if (!treasuryAddress) return toast.error("Treasury address is not configured");
-
-        await wallet.sendTransfer({
-          from: w.address,
-          to: treasuryAddress,
-          value: "0x0",
-          data: "0x",
-        });
-
-        wallet.deposit(asset, amt);
-        toast.success("Deposit confirmed in wallet", {
-          description: `${amt} ${asset} sent to treasury on ${network}`,
+        // Allowed by the product allowlist, but no contract/listener exists
+        // for this exact (asset, chain) pair yet — including BI2XUSD/BI2X/
+        // USDT on Avalanche itself, since DexVault only has a depositToken
+        // path for USDC today (see isDepositLive's doc comment). Say so
+        // rather than pretending to submit a deposit nothing on the backend
+        // will ever see or credit.
+        return toast.error(`${asset} deposits on ${network} are coming soon`, {
+          description: "This combination is on the roadmap but isn't live yet — use USDC on Avalanche for now.",
         });
       }
 
@@ -116,7 +133,23 @@ export function TransferDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={mode} onValueChange={(v) => setMode(v as "deposit" | "withdraw") }>
+        <Tabs
+          value={mode}
+          onValueChange={(v) => {
+            const nextMode = v as "deposit" | "withdraw";
+            setMode(nextMode);
+            // Withdrawals only ever offer USDC on Avalanche today — reset to
+            // that so a deposit-side pick like BI2XUSD/BI2X doesn't leave the
+            // withdraw tab's asset selector on a value not in its own list.
+            if (nextMode === "withdraw") {
+              setAsset("USDC");
+              setNetwork("AVAX");
+            } else {
+              setAsset(DEFAULT_DEPOSIT_ASSET);
+              setNetwork(DEFAULT_DEPOSIT_CHAIN);
+            }
+          }}
+        >
           <TabsList className="grid grid-cols-2 w-full bg-muted/30">
             <TabsTrigger value="deposit" className="text-xs">
               <ArrowDownToLine className="h-3 w-3 mr-1.5" /> Deposit
@@ -132,25 +165,24 @@ export function TransferDialog({
                 <label className="text-[10px] text-muted-foreground">Asset</label>
                 <Select
                   value={asset}
-                  onValueChange={setAsset}
-                  disabled={mode === "deposit" && network === "Avalanche Fuji"}
+                  onValueChange={mode === "deposit" ? setAssetForDeposit : setAsset}
                 >
                   <SelectTrigger className="h-9 bg-muted/30"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {mode === "deposit" && network === "Avalanche Fuji" ? (
-                      <SelectItem value="USDC">USDC</SelectItem>
-                    ) : mode === "withdraw" ? (
-                      // BIUSD has no on-chain contract (it's the platform's
-                      // internal 1:1-pegged trading currency, see
-                      // useWallet.ts) — nothing to withdraw it as. Only
-                      // assets with a real withdrawal path (currently USDC)
-                      // belong here, so picking one never dead-ends in the
-                      // submit-time "only USDC withdrawals" error.
-                      w.balances.filter((b) => b.asset === "USDC").map((b) => (
-                        <SelectItem key={b.asset} value={b.asset}>{b.asset}</SelectItem>
-                      ))
+                    {mode === "deposit" ? (
+                      // Deposits are restricted to the platform's fixed
+                      // asset allowlist (see depositAssets.ts), not just
+                      // whatever the user already holds a balance in.
+                      DEPOSIT_ASSETS.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)
                     ) : (
-                      w.balances.map((b) => (
+                      // BI2XUSD/BI2X have no on-chain withdrawal path (BI2XUSD
+                      // is the platform's internal 1:1-pegged trading
+                      // currency; BI2X only trades on this exchange — see
+                      // useWallet.ts). Only assets with a real withdrawal
+                      // path (currently USDC) belong here, so picking one
+                      // never dead-ends in the submit-time "only USDC
+                      // withdrawals" error.
+                      w.balances.filter((b) => b.asset === "USDC").map((b) => (
                         <SelectItem key={b.asset} value={b.asset}>{b.asset}</SelectItem>
                       ))
                     )}
@@ -159,10 +191,10 @@ export function TransferDialog({
               </div>
               <div>
                 <label className="text-[10px] text-muted-foreground">Network</label>
-                <Select value={network} onValueChange={setNetwork}>
+                <Select value={network} onValueChange={setNetwork} disabled={mode === "withdraw"}>
                   <SelectTrigger className="h-9 bg-muted/30"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {NETWORKS.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                    {networksForAsset.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -191,16 +223,10 @@ export function TransferDialog({
             </div>
 
             <TabsContent value="deposit" className="m-0 space-y-2">
-              {/* <div className="glass rounded-lg p-3 text-[11px] space-y-1">
-                <div className="text-muted-foreground">
-                  {network === "Avalanche Fuji" ? "Deposit via DexVault contract" : "Deposit via wallet confirmation"}
-                </div>
-                <div className="font-mono text-xs break-all">Treasury address: {treasuryAddress}</div>
-              </div> */}
               <p className="text-[10px] text-muted-foreground">
-                {network === "Avalanche Fuji"
+                {isDepositLive(asset, network)
                   ? "Your wallet will ask to approve USDC, then confirm the deposit. Funds are forwarded to treasury on-chain."
-                  : `Your connected wallet will ask for confirmation before sending ${asset} to the treasury.`}
+                  : `${asset} deposits on ${network} are coming soon — not live yet. Use USDC on Avalanche for now.`}
               </p>
             </TabsContent>
 

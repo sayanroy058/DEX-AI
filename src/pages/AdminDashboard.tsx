@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, BarChart3, Clock, Database, Landmark, Loader2, Users, Wallet, type LucideIcon } from "lucide-react";
+import { Activity, BarChart3, Clock, Database, Landmark, Loader2, OctagonAlert, PlayCircle, Users, Wallet, type LucideIcon } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getAdminDashboard, type AdminSummary } from "@/lib/adminApi";
+import {
+  getAdminDashboard, listHaltedSymbols, resumeSymbol,
+  type AdminSummary, type HaltedSymbol,
+} from "@/lib/adminApi";
 import { cn } from "@/lib/utils";
 
 export default function AdminDashboard() {
@@ -48,13 +51,15 @@ export default function AdminDashboard() {
 
         {error && <div className="rounded-lg border border-sell/30 bg-sell/10 px-3 py-2 text-sm text-sell">{error}</div>}
 
+        <HaltBanner />
+
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
           <Stat label="Total Users" value={formatNumber(data?.totalUsers)} icon={Users} />
           <Stat label="Active 24h" value={formatNumber(data?.activeUsers24h)} icon={Activity} tone="buy" />
           <Stat label="Open Sessions" value={formatNumber(data?.openSessions)} icon={Clock} />
           <Stat label="Ledger Entries" value={formatNumber(data?.totalLedgerEntries)} icon={Database} />
           <Stat label="Pending Withdrawals" value={formatNumber(data?.pendingWithdrawals)} icon={Wallet} tone={data?.pendingWithdrawals ? "sell" : undefined} />
-          <Stat label="P2P Fee Wallet" value={`${formatBIUSDRaw(data?.p2pFeeWalletRaw)} BIUSD`} icon={Wallet} tone="buy" />
+          <Stat label="P2P Fee Wallet" value={`${formatBI2XUSDRaw(data?.p2pFeeWalletRaw)} BI2XUSD`} icon={Wallet} tone="buy" />
         </div>
 
         <div className="grid lg:grid-cols-3 gap-5">
@@ -171,6 +176,95 @@ export default function AdminDashboard() {
   );
 }
 
+/** Shows any market the matching engine has stopped accepting orders on, and
+ *  offers a one-click resume.
+ *
+ *  A halt is an outage, not a per-user error: when settlement fails, the engine
+ *  halts the whole symbol and EVERY account trading it starts getting
+ *  "symbol X/Y is halted" on every order. Before this existed there was no way
+ *  to see that state at all, and clearing it required a manual request carrying
+ *  the engine's shared secret — which a browser can't hold — so an admin had no
+ *  way to recover a halted market from the UI. Renders nothing when all markets
+ *  are trading normally, so it stays out of the way until it matters. */
+function HaltBanner() {
+  const [halted, setHalted] = useState<HaltedSymbol[]>([]);
+  const [busy, setBusy] = useState("");
+  const [err, setErr] = useState("");
+
+  const load = () =>
+    listHaltedSymbols()
+      .then((r) => setHalted(r.halted ?? []))
+      // A failure here must not replace the dashboard's own error slot — a
+      // halt check that can't run is not itself an outage worth shouting about.
+      .catch(() => {});
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 10000);
+    return () => clearInterval(t);
+  }, []);
+
+  const resume = async (h: HaltedSymbol) => {
+    const key = `${h.symbol}:${h.market}`;
+    setBusy(key);
+    setErr("");
+    try {
+      await resumeSymbol(h.symbol, h.market);
+      setHalted((prev) => prev.filter((x) => `${x.symbol}:${x.market}` !== key));
+    } catch (e: any) {
+      setErr(e?.message || `Could not resume ${h.symbol}.`);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  if (halted.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-sell/40 bg-sell/10 p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <OctagonAlert className="h-5 w-5 text-sell shrink-0" />
+        <div>
+          <div className="font-semibold text-sell">
+            {halted.length === 1 ? "1 market is halted" : `${halted.length} markets are halted`}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Orders are being rejected for every account on {halted.length === 1 ? "this market" : "these markets"} until it is resumed.
+          </div>
+        </div>
+      </div>
+
+      {err && <div className="text-xs text-sell">{err}</div>}
+
+      <div className="space-y-2">
+        {halted.map((h) => {
+          const key = `${h.symbol}:${h.market}`;
+          return (
+            <div key={key} className="flex items-center justify-between gap-3 rounded-lg bg-background/40 px-3 py-2">
+              <div className="min-w-0">
+                <div className="font-mono text-sm font-semibold truncate">
+                  {h.symbol} <span className="text-muted-foreground">{h.market}</span>
+                </div>
+                {(h.reason || h.note) && (
+                  <div className="text-[11px] text-muted-foreground truncate">
+                    {[h.reason, h.note].filter(Boolean).join(" — ")}
+                  </div>
+                )}
+              </div>
+              <Button size="sm" disabled={busy === key} onClick={() => resume(h)}>
+                {busy === key
+                  ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  : <PlayCircle className="h-3.5 w-3.5 mr-1" />}
+                Resume
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Stat({ label, value, icon: Icon, tone }: { label: string; value: string; icon: LucideIcon; tone?: "buy" | "sell" }) {
   return (
     <div className="glass rounded-xl p-4">
@@ -217,7 +311,7 @@ function formatCompactRaw(value?: string) {
   return n.toLocaleString();
 }
 
-function formatBIUSDRaw(value?: string) {
+function formatBI2XUSDRaw(value?: string) {
   const raw = BigInt(value || "0");
   const whole = raw / 1_000_000n;
   const cents = (raw % 1_000_000n) / 10_000n;

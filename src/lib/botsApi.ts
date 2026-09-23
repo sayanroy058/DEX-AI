@@ -4,7 +4,7 @@
 
 const BOTS_API_URL = import.meta.env.VITE_BOTS_API_URL ?? "http://localhost:8082";
 
-export type BotMarket = "SPOT" | "FUTURES";
+export type BotMarket = "SPOT" | "FUTURES" | "OPTIONS";
 export type BotStatus = "draft" | "running" | "paused" | "stopped" | "error";
 
 export type TemplateParam = {
@@ -21,7 +21,7 @@ export type BotTemplate = {
   key: string;
   title: string;
   desc: string;
-  category: "Spot" | "Futures";
+  category: "Spot" | "Futures" | "Options";
   available: boolean;
   params: TemplateParam[];
 };

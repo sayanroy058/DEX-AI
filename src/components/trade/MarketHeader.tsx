@@ -30,13 +30,27 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
   if (!market) return null;
 
   const executable = !!backendMarket;
-  // For executable crypto markets the Price-Fetcher index is authoritative,
-  // including the headline price/stats. This keeps the large displayed price,
-  // Mark and Index identical instead of mixing an empty engine midpoint with
-  // a valid external reference.
+  // Changed 2026-09-16: the headline price used to prefer the external
+  // Price-Fetcher index over the engine's own price for every crypto market,
+  // executable or not. For an EXECUTABLE market (BI2X-BI2XUSD, a real order
+  // book users actually trade against — see backendMarkets.ts), that meant
+  // the biggest, most prominent number on the page could legitimately
+  // disagree with the price shown in the order entry panel and the left-side
+  // market list (both of which already use the engine's own live price via
+  // useLivePrice/useMarkets — see those hooks) by several cents, purely
+  // because it came from a different upstream feed. A user could reasonably
+  // place an order expecting to trade near the header's number and get
+  // filled at a visibly different one. Fixed by preferring the engine's live
+  // price here too, for executable markets specifically, so the header now
+  // matches the order panel and market list exactly (same underlying data,
+  // not just close). Non-executable markets (forex/commodity/stocks with no
+  // real backend order book) are UNCHANGED — they have no engine price to
+  // show at all, so the external index remains the only real number
+  // available for them and is still used as before.
   const externalIndex = index?.fresh && index.lastPrice > 0 ? index.lastPrice : 0;
-  const displayedPrice = externalIndex || livePrice;
-  const liveChange = externalIndex ? (index?.changePercent ?? market.change24h) : market.change24h;
+  const engineLive = executable && market.dataStatus === "live" && livePrice > 0;
+  const displayedPrice = engineLive ? livePrice : externalIndex || livePrice;
+  const liveChange = !engineLive && externalIndex ? (index?.changePercent ?? market.change24h) : market.change24h;
   const positive = liveChange >= 0;
 
   // Mark/index/funding: real when the symbol is backend-registered and the
@@ -107,9 +121,9 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
         <Button
           variant="outline"
           size="sm"
-          onClick={() => navigate("/ai-agent")}
-          className="h-8 text-xs glass border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
-          title="Open AI Agent"
+          disabled
+          className="h-8 text-xs glass border-border/40 text-muted-foreground opacity-60 cursor-not-allowed"
+          title="AI Agent (coming soon)"
         >
           <Sparkles className="h-3.5 w-3.5 mr-1.5" />
           AI Agent

@@ -148,7 +148,7 @@ export default function AdminMarketMakerPnl() {
                             </span>
                           </td>
                           <td className="px-3 py-2.5 text-right font-mono text-xs text-muted-foreground">
-                            {fmt(d.baseAmount, 4)} {d.base} / {fmt(d.quoteAmount)} {d.quoteAsset ?? "BIUSD"}
+                            {fmt(d.baseAmount, 4)} {d.base} / {fmt(d.quoteAmount)} {d.quoteAsset ?? "BI2XUSD"}
                           </td>
                           <td className={`px-3 py-2.5 text-right font-mono ${realized >= 0 ? "text-buy" : "text-sell"}`}>
                             {realized >= 0 ? "+" : ""}{fmt(String(realized))}

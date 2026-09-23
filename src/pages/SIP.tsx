@@ -58,8 +58,11 @@ function projectionDurationLabel(months: number) {
   return `${years} Year${years === 1 ? "" : "s"}${remainingMonths ? ` ${remainingMonths} Month${remainingMonths === 1 ? "" : "s"}` : ""}`;
 }
 
-function projectionTick(month: number, totalMonths: number) {
-  if (totalMonths <= 36) return month;
+function projectionTick(month: number, totalMonths: number): string {
+  // Was `return month` on the short-projection branch — inferred this
+  // function's return type as `string | number`, which Recharts'
+  // XAxis tickFormatter (string-only) rejected.
+  if (totalMonths <= 36) return String(month);
   const years = month / 12;
   return `${Number.isInteger(years) ? years : years.toFixed(1)}Y`;
 }
