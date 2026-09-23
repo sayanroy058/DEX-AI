@@ -66,7 +66,7 @@ type GapListener = (stream: string) => void;
 export type WSStatus = "connecting" | "open" | "closed";
 type StatusListener = (status: WSStatus) => void;
 
-const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:8080/ws";
+const WS_URL = import.meta.env.VITE_WS_URL ?? "wss://api.bitdx.me/engine/ws";
 const MAX_RECONNECT_DELAY = 30_000;
 const BASE_RECONNECT_DELAY = 1_000;
 
