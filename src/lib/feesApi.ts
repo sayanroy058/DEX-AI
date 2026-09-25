@@ -38,6 +38,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const getFeeTiers = () => request<{ tiers: FeeTier[] }>("/fees/tiers");
+
+// GET /bi2x/price — BI2X's current live BI2XUSD price, the same feed the
+// fee-tier purchase flow prices against (see bi2xprice.Reader on the
+// backend). Public, no auth required.
+export const getBI2XPrice = () => request<{ priceUsd: string }>("/bi2x/price");
 export const getMyFeeSubscription = () => request<MySubscription>("/fees/my-subscription");
 export const subscribeFeeTier = (tier: number) =>
   request<SubscribeResult>("/fees/subscribe", {

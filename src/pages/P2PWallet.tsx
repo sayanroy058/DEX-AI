@@ -13,26 +13,29 @@ import {
   getP2PPaymentAccounts,
   getP2PWallet,
   parseBI2XUSDAmount,
+  P2P_ASSETS,
   P2P_PAYMENT_METHODS,
   saveP2PPaymentAccount,
+  type P2PAsset,
   type P2PPaymentAccount,
   type P2PPaymentMethod,
   type P2PWalletBalance,
 } from "@/lib/p2pApi";
 import { useWallet, wallet } from "@/lib/useWallet";
 
-const emptyBalance: P2PWalletBalance = {
-  asset: "BI2XUSD",
+const emptyBalances: P2PWalletBalance[] = P2P_ASSETS.map((asset) => ({
+  asset,
   availableRaw: "0",
   reservedRaw: "0",
   totalRaw: "0",
-};
+}));
 
 const isBankPaymentMethod = (method: P2PPaymentMethod) => method === "Bank Transfer" || method === "NEFT" || method === "IMPS";
 
 export default function P2PWallet() {
   const { userId, balances } = useWallet();
-  const [p2pBalance, setP2PBalance] = useState<P2PWalletBalance>(emptyBalance);
+  const [p2pBalances, setP2PBalances] = useState<P2PWalletBalance[]>(emptyBalances);
+  const [transferAsset, setTransferAsset] = useState<P2PAsset>("BI2XUSD");
   const [amount, setAmount] = useState("0");
   const [loadError, setLoadError] = useState("");
   const [transferError, setTransferError] = useState("");
@@ -50,8 +53,12 @@ export default function P2PWallet() {
   const [savingAccount, setSavingAccount] = useState(false);
 
   const regularAvailable = useMemo(
-    () => balances.find((balance) => balance.asset === "BI2XUSD")?.available ?? 0,
-    [balances],
+    () => balances.find((balance) => balance.asset === transferAsset)?.available ?? 0,
+    [balances, transferAsset],
+  );
+  const p2pBalance = useMemo(
+    () => p2pBalances.find((balance) => balance.asset === transferAsset) ?? emptyBalances[0],
+    [p2pBalances, transferAsset],
   );
   const needsBankDetails = isBankPaymentMethod(method);
   const validIFSC = /^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode);
@@ -60,7 +67,7 @@ export default function P2PWallet() {
     if (!userId) return;
     try {
       const [response, paymentAccounts] = await Promise.all([getP2PWallet(), getP2PPaymentAccounts()]);
-      setP2PBalance(response.balance ?? response.balances?.[0] ?? emptyBalance);
+      setP2PBalances(response.balances ?? (response.balance ? [response.balance] : emptyBalances));
       setAccounts(paymentAccounts.accounts);
       setLoadError("");
     } catch (cause) {
@@ -78,9 +85,9 @@ export default function P2PWallet() {
       setLoading(true);
       setTransferError("");
       setTransferSuccess("");
-      const response = await fundP2PWallet("BI2XUSD", parseBI2XUSDAmount(amount));
-      setP2PBalance(response.balance);
-      setTransferSuccess(`${displayedAmount} BI2XUSD transferred to your P2P wallet.`);
+      const response = await fundP2PWallet(transferAsset, parseBI2XUSDAmount(amount));
+      setP2PBalances((prev) => prev.map((balance) => (balance.asset === transferAsset ? response.balance : balance)));
+      setTransferSuccess(`${displayedAmount} ${transferAsset} transferred to your P2P wallet.`);
       setAmount("0");
       try {
         await wallet.refreshBalances();
@@ -88,7 +95,7 @@ export default function P2PWallet() {
         setTransferError("Transfer succeeded, but the Balance Wallet display could not be refreshed yet.");
       }
     } catch (cause) {
-      setTransferError(cause instanceof Error ? cause.message : "Could not transfer BI2XUSD");
+      setTransferError(cause instanceof Error ? cause.message : `Could not transfer ${transferAsset}`);
     } finally {
       setLoading(false);
     }
@@ -122,18 +129,24 @@ export default function P2PWallet() {
             <ArrowLeft className="h-4 w-4" /> Back to Marketplace
           </Link>
           <h1 className="mt-4 text-3xl font-bold">P2P Wallet</h1>
-          <p className="text-muted-foreground">Move BI2XUSD from your Balance Wallet before using it for P2P selling.</p>
+          <p className="text-muted-foreground">Move BI2XUSD, USDT, or USDC from your Balance Wallet before using it for P2P selling.</p>
         </div>
 
         {!userId ? (
           <Card className="p-8 text-center text-muted-foreground">Connect and authenticate a wallet to view your P2P wallet.</Card>
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Kpi label="Balance Wallet" value={`${Number(regularAvailable.toFixed(6))} BI2XUSD`} />
-              <Kpi label="P2P Wallet Balance" value={`${formatBI2XUSDAmount(p2pBalance.totalRaw)} BI2XUSD`} />
-              <Kpi label="Available for Sale" value={`${formatBI2XUSDSellCapacity(p2pBalance.availableRaw)} BI2XUSD`} />
-              <Kpi label="Reserved in Ads" value={`${formatBI2XUSDAmount(p2pBalance.reservedRaw)} BI2XUSD`} />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {p2pBalances.map((balance) => (
+                <Card key={balance.asset} className="border-border/50 bg-card/30 p-5">
+                  <p className="text-sm font-semibold">{balance.asset}</p>
+                  <div className="mt-3 space-y-1.5 text-sm">
+                    <div className="flex justify-between"><span className="text-muted-foreground">P2P Wallet</span><span>{formatBI2XUSDAmount(balance.totalRaw)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Available for Sale</span><span>{formatBI2XUSDSellCapacity(balance.availableRaw)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Reserved in Ads</span><span>{formatBI2XUSDAmount(balance.reservedRaw)}</span></div>
+                  </div>
+                </Card>
+              ))}
             </div>
 
             {loadError && <p className="text-sm text-destructive">{loadError}</p>}
@@ -148,7 +161,14 @@ export default function P2PWallet() {
               </div>
               <div className="max-w-xl space-y-4">
                 <div>
-                  <label className="mb-2 block text-sm font-medium">BI2XUSD amount</label>
+                  <label className="mb-2 block text-sm font-medium">Asset</label>
+                  <Select value={transferAsset} onValueChange={(value) => setTransferAsset(value as P2PAsset)}>
+                    <SelectTrigger className="max-w-40"><SelectValue /></SelectTrigger>
+                    <SelectContent>{P2P_ASSETS.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium">{transferAsset} amount</label>
                   <div className="relative">
                     <Input
                       inputMode="decimal"
@@ -157,9 +177,9 @@ export default function P2PWallet() {
                       onBlur={() => setAmount(String(Number(amount) || 0))}
                       className="pr-20"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold">BI2XUSD</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold">{transferAsset}</span>
                   </div>
-                  <p className="mt-2 text-xs text-muted-foreground">Available in Balance Wallet: {Number(regularAvailable.toFixed(6))} BI2XUSD</p>
+                  <p className="mt-2 text-xs text-muted-foreground">Available in Balance Wallet: {Number(regularAvailable.toFixed(6))} {transferAsset}</p>
                 </div>
                 {transferError && <p className="text-sm text-destructive">{transferError}</p>}
                 {transferSuccess && <p className="text-sm text-buy">{transferSuccess}</p>}
@@ -195,8 +215,4 @@ export default function P2PWallet() {
       </main>
     </AppShell>
   );
-}
-
-function Kpi({ label, value }: { label: string; value: string }) {
-  return <Card className="border-border/50 bg-card/30 p-5"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-2 text-lg font-semibold">{value}</p></Card>;
 }

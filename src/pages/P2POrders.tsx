@@ -23,17 +23,17 @@ const statusLabel: Record<P2POrder["status"], string> = {
 function settlementLabel(order: P2POrder, bought: boolean) {
   if (order.status === "completed") {
     return bought
-      ? `Received ${formatBI2XUSDAmount(order.buyerCreditRaw)} BI2XUSD`
-      : `Released ${formatBI2XUSDAmount(order.buyerCreditRaw)} BI2XUSD`;
+      ? `Received ${formatBI2XUSDAmount(order.buyerCreditRaw)} ${order.asset}`
+      : `Released ${formatBI2XUSDAmount(order.buyerCreditRaw)} ${order.asset}`;
   }
   if (order.status === "cancelled") {
     return bought
-      ? "No BI2XUSD received"
-      : `Refunded ${formatBI2XUSDAmount(order.sellerDebitRaw)} BI2XUSD`;
+      ? `No ${order.asset} received`
+      : `Refunded ${formatBI2XUSDAmount(order.sellerDebitRaw)} ${order.asset}`;
   }
   return bought
-    ? `Pending ${formatBI2XUSDAmount(order.buyerCreditRaw)} BI2XUSD`
-    : `Escrowed ${formatBI2XUSDAmount(order.sellerDebitRaw)} BI2XUSD`;
+    ? `Pending ${formatBI2XUSDAmount(order.buyerCreditRaw)} ${order.asset}`
+    : `Escrowed ${formatBI2XUSDAmount(order.sellerDebitRaw)} ${order.asset}`;
 }
 
 export default function P2POrders() {
@@ -60,21 +60,21 @@ export default function P2POrders() {
   }, [load]);
 
   return <AppShell><main className="mx-auto min-h-screen max-w-7xl space-y-6 p-6">
-    <div><Link to="/p2p" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"><ArrowLeft className="h-4 w-4"/>Back to P2P</Link><h1 className="mt-4 text-3xl font-bold">My P2P orders</h1><p className="text-muted-foreground">Buyers pay externally; BI2XUSD escrow, fees, release, and refunds are handled inside the system.</p></div>
+    <div><Link to="/p2p" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"><ArrowLeft className="h-4 w-4"/>Back to P2P</Link><h1 className="mt-4 text-3xl font-bold">My P2P orders</h1><p className="text-muted-foreground">Buyers pay externally; escrow, fees, release, and refunds are handled inside the system.</p></div>
     {!userId ? <Card className="p-8 text-center text-muted-foreground">Connect and authenticate a wallet to view your orders.</Card> : <>
       {error && <Card className="p-4 text-destructive">{error}</Card>}
       <Card className="overflow-hidden"><div className="overflow-x-auto"><table className="w-full min-w-[1180px] text-sm">
-        <thead className="border-b bg-muted/30 text-left text-xs uppercase text-muted-foreground"><tr><th className="p-4">Order</th><th className="p-4">Side</th><th className="p-4">Amount</th><th className="p-4">Payment</th><th className="p-4">Fiat</th><th className="p-4">Fee (1%)</th><th className="p-4">BI2XUSD settlement</th><th className="p-4">Status</th><th className="p-4 text-right">Action</th></tr></thead>
+        <thead className="border-b bg-muted/30 text-left text-xs uppercase text-muted-foreground"><tr><th className="p-4">Order</th><th className="p-4">Side</th><th className="p-4">Amount</th><th className="p-4">Payment</th><th className="p-4">Fiat</th><th className="p-4">Fee (1%)</th><th className="p-4">Settlement</th><th className="p-4">Status</th><th className="p-4 text-right">Action</th></tr></thead>
         <tbody>{loading ? <tr><td colSpan={9} className="p-8 text-center">Loading…</td></tr> : orders.length === 0 ? <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">No P2P orders found.</td></tr> : orders.map(order => {
           const bought = order.buyerId === userId;
           const pending = order.status === "pending_payment";
           return <tr className="border-b last:border-0" key={order.id}>
             <td className="p-4"><Link to={`/p2p/orders/${order.id}`} className="font-mono text-xs text-primary hover:underline">{order.id}</Link><p className="text-xs text-muted-foreground">{new Date(order.createdAt).toLocaleString()}</p></td>
-            <td className="p-4 font-semibold">{bought ? "BUY" : "SELL"}</td>
-            <td className="p-4">{formatBI2XUSDAmount(order.amountRaw)} BI2XUSD</td>
+            <td className="p-4 font-semibold">{bought ? "BUY" : "SELL"} {order.asset}</td>
+            <td className="p-4">{formatBI2XUSDAmount(order.amountRaw)} {order.asset}</td>
             <td className="p-4">{order.paymentMethod}</td>
             <td className="p-4">{formatINR(order.grossAmount)}</td>
-            <td className="p-4">{formatBI2XUSDAmount(bought ? order.buyerFeeRaw : order.sellerFeeRaw)} BI2XUSD</td>
+            <td className="p-4">{formatBI2XUSDAmount(bought ? order.buyerFeeRaw : order.sellerFeeRaw)} {order.asset}</td>
             <td className="p-4">{settlementLabel(order, bought)}</td>
             <td className="p-4"><span className={order.status === "completed" ? "text-green-600" : order.status === "cancelled" ? "text-destructive" : "text-amber-500"}>{statusLabel[order.status]}</span>{pending && <p className="text-xs text-muted-foreground">Pay before {new Date(order.expiresAt).toLocaleString()}</p>}{order.cancellationReason && <p className="text-xs text-muted-foreground">{order.cancellationReason}</p>}</td>
             <td className="p-4 text-right"><Button asChild size="sm" variant="outline"><Link to={`/p2p/orders/${order.id}`}>Open order</Link></Button></td>

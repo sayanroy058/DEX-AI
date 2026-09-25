@@ -1,6 +1,6 @@
 const P2P_API_URL = import.meta.env.VITE_AUTH_API_URL ?? "http://localhost:8081";
 
-export const P2P_ASSETS = ["BI2XUSD"] as const;
+export const P2P_ASSETS = ["BI2XUSD", "USDT", "USDC"] as const;
 export const P2P_PAYMENT_METHODS = ["UPI", "Bank Transfer", "MPESN", "NEFT", "IMPS"] as const;
 export type P2PAsset = (typeof P2P_ASSETS)[number];
 export type P2PPaymentMethod = (typeof P2P_PAYMENT_METHODS)[number];
@@ -29,8 +29,9 @@ export const getP2PProfile=()=>request<{profile:P2PProfile}>("/p2p/profile");
 export const establishP2PUsername=(username:string)=>request<{profile:P2PProfile}>("/p2p/profile",json({username}));
 // limit/offset are optional (P2P-L1): omitted, this returns the backend's
 // default first page instead of every listing unbounded.
-export const getP2PListings=(limit?:number,offset?:number)=>{
+export const getP2PListings=(asset?:P2PAsset,limit?:number,offset?:number)=>{
 	const params=new URLSearchParams();
+	if(asset!==undefined)params.set("asset",asset);
 	if(limit!==undefined)params.set("limit",String(limit));
 	if(offset!==undefined)params.set("offset",String(offset));
 	const qs=params.toString();
@@ -54,7 +55,7 @@ export const p2pProofURL=(proofId:string)=>`${P2P_API_URL}/p2p/order/proofs/down
 export const p2pOrderStreamURL=(orderId:string)=>`${P2P_API_URL}/p2p/order/stream?orderId=${encodeURIComponent(orderId)}`;
 export const getP2POrderEvents=(orderId:string)=>request<{events:P2POrderEvent[]}>(`/p2p/order/events?orderId=${encodeURIComponent(orderId)}`);
 export const fundP2PWallet=(asset:P2PAsset,amountRaw:string)=>request<{balance:P2PWalletBalance}>("/p2p/wallet/fund",json({asset,amountRaw,idempotencyKey:idempotencyKey()}));
-export const createP2PListing=(side:P2PAdSide,amountRaw:string,minOrderFiat:string,maxOrderFiat:string,paymentMethods:P2PPaymentMethod[],username?:string)=>request<{listing:P2PListing}>("/p2p/listings",json({asset:"BI2XUSD",side,amountRaw,minOrderFiat,maxOrderFiat,paymentMethods,username}));
+export const createP2PListing=(asset:P2PAsset,side:P2PAdSide,amountRaw:string,minOrderFiat:string,maxOrderFiat:string,paymentMethods:P2PPaymentMethod[],username?:string)=>request<{listing:P2PListing}>("/p2p/listings",json({asset,side,amountRaw,minOrderFiat,maxOrderFiat,paymentMethods,username}));
 export const takeP2PListing=(listingId:string,amountRaw:string,paymentMethod:P2PPaymentMethod)=>request<{order:P2POrder}>("/p2p/orders/create",json({listingId,amountRaw,paymentMethod,idempotencyKey:idempotencyKey()}));
 export const markP2POrderPaid=(orderId:string,ownAccountAttested=true)=>request<{order:P2POrder}>("/p2p/orders/paid",json({orderId,ownAccountAttested}));
 export const releaseP2POrder=(orderId:string)=>request<{order:P2POrder}>("/p2p/orders/release",json({orderId}));

@@ -12,6 +12,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend,
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { getBI2XPrice } from "@/lib/feesApi";
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
@@ -87,19 +88,41 @@ function CopyAddress({ addr }: { addr: string }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+// How often to re-poll the live price while the page is open — frequent
+// enough to feel "live" without hammering the backend's own upstream feed
+// call on every tick.
+const PRICE_POLL_MS = 10_000;
+
 export default function Token() {
-  const [dexPrice, setDexPrice] = useState(3.42);
+  const [dexPrice, setDexPrice] = useState<number | null>(null);
+  const [priceError, setPriceError] = useState(false);
 
   useEffect(() => {
-    const id = setInterval(() => {
-      setDexPrice(p => parseFloat((p * (1 + (Math.random() - 0.49) * 0.003)).toFixed(4)));
-    }, 1800);
-    return () => clearInterval(id);
+    let cancelled = false;
+    const fetchPrice = () => {
+      getBI2XPrice()
+        .then((res) => {
+          if (cancelled) return;
+          setDexPrice(Number(res.priceUsd));
+          setPriceError(false);
+        })
+        .catch(() => {
+          // Leave the last-known price on screen rather than blanking it —
+          // a transient feed hiccup shouldn't make the page look broken.
+          if (!cancelled) setPriceError(true);
+        });
+    };
+    fetchPrice();
+    const id = setInterval(fetchPrice, PRICE_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, []);
 
   const change24h = 5.6;
-  const marketCap  = (dexPrice * 130_000_000);
-  const fdv        = (dexPrice * 500_000_000);
+  const marketCap  = dexPrice != null ? dexPrice * 130_000_000 : null;
+  const fdv        = dexPrice != null ? dexPrice * 500_000_000 : null;
 
   return (
     <AppShell>
@@ -141,18 +164,24 @@ export default function Token() {
               </div>
 
               <div className="text-2xl sm:text-4xl font-bold gradient-text font-mono mb-0.5">
-                ${dexPrice.toFixed(2)}
+                {dexPrice != null ? `$${dexPrice.toFixed(4)}` : "—"}
               </div>
-              <div className="text-[11px] text-muted-foreground mb-4">Real-time price · USD</div>
+              <div className="text-[11px] text-muted-foreground mb-4">
+                {priceError && dexPrice == null
+                  ? "Live price unavailable"
+                  : priceError
+                    ? "Real-time price · USD (last known — feed temporarily unavailable)"
+                    : "Real-time price · USD"}
+              </div>
 
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
                   <div className="text-[9px] text-muted-foreground uppercase tracking-wide mb-1">Market Cap</div>
-                  <div className="font-mono font-bold text-sm">${(marketCap / 1e9).toFixed(2)}B</div>
+                  <div className="font-mono font-bold text-sm">{marketCap != null ? `$${(marketCap / 1e9).toFixed(2)}B` : "—"}</div>
                 </div>
                 <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
                   <div className="text-[9px] text-muted-foreground uppercase tracking-wide mb-1">FDV</div>
-                  <div className="font-mono font-bold text-sm">${(fdv / 1e9).toFixed(2)}B</div>
+                  <div className="font-mono font-bold text-sm">{fdv != null ? `$${(fdv / 1e9).toFixed(2)}B` : "—"}</div>
                 </div>
                 <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
                   <div className="text-[9px] text-muted-foreground uppercase tracking-wide mb-1">Circulating</div>
@@ -176,10 +205,15 @@ export default function Token() {
               </div>
 
               <div className="flex items-center gap-2 pt-3 border-t border-border/50">
-                <CopyAddress addr="0x9f3s...A219" />
-                <button className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
-                  Etherscan <ExternalLink className="h-2.5 w-2.5" />
-                </button>
+                <CopyAddress addr="0x3669c824A12db3C90528B1D1659a0bc913739071" />
+                <a
+                  href="https://snowtrace.io/token/0x3669c824A12db3C90528B1D1659a0bc913739071?type=erc20&chainid=43114"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+                >
+                  Snowtrace <ExternalLink className="h-2.5 w-2.5" />
+                </a>
               </div>
             </div>
 

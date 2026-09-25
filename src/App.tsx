@@ -55,10 +55,13 @@ const AdminFeeRevenue = lazy(() => import("./pages/AdminFeeRevenue.tsx"));
 const AdminTestBalances = lazy(() => import("./pages/AdminTestBalances.tsx"));
 const AdminP2PAppeals = lazy(() => import("./pages/AdminP2PAppeals.tsx"));
 const AdminBI2XTokenDetails = lazy(() => import("./pages/AdminBI2XTokenDetails.tsx"));
+const PartnerLogin = lazy(() => import("./pages/PartnerLogin.tsx"));
+const PartnerProfit = lazy(() => import("./pages/PartnerProfit.tsx"));
 // AdminProtectedRoute is a small layout/guard component, not a page — kept
 // eager since every /admin/* route needs it immediately and it adds
 // negligible weight to the main bundle.
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
+import { PartnerProtectedRoute } from "@/components/partner/PartnerProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -176,6 +179,10 @@ const App = () => (
             <Route path="/admin/p2p-appeals" element={<AdminP2PAppeals />} />
             <Route path="/admin/bi2x-token" element={<AdminBI2XTokenDetails />} />
             <Route path="/admin/profile" element={<AdminProfile />} />
+          </Route>
+          <Route path="/partner/login" element={<PartnerLogin />} />
+          <Route element={<PartnerProtectedRoute />}>
+            <Route path="/partner/profit" element={<PartnerProfit />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { ArrowRight,ClipboardList,Clock,Filter,Lock,Search,Shield,TrendingUp,Users,Wallet } from "lucide-react";
 import { useWallet } from "@/lib/useWallet";
-import { effectiveP2PMaxOrderFiat,formatINR,formatBI2XUSDAmount,getP2PFeeRates,getP2PListings,getP2PPrice,grossBI2XUSDAmountForNet,netBI2XUSDAmountAfterBuyerFee,parseBI2XUSDAmount,P2P_PAYMENT_METHODS,sellerBI2XUSDDebitWithFee,takeP2PListing,bi2xusdAmountFromFiat,bi2xusdFeeAmount,type P2PListing,type P2POrder,type P2PPaymentMethod } from "@/lib/p2pApi";
+import { effectiveP2PMaxOrderFiat,formatINR,formatBI2XUSDAmount,getP2PFeeRates,getP2PListings,getP2PPrice,grossBI2XUSDAmountForNet,netBI2XUSDAmountAfterBuyerFee,parseBI2XUSDAmount,P2P_ASSETS,P2P_PAYMENT_METHODS,sellerBI2XUSDDebitWithFee,takeP2PListing,bi2xusdAmountFromFiat,bi2xusdFeeAmount,type P2PAsset,type P2PListing,type P2POrder,type P2PPaymentMethod } from "@/lib/p2pApi";
 
 const message=(error:unknown)=>error instanceof Error?error.message:"Something went wrong";
 const validBI2XUSDInput=(value:string)=>/^\d*(?:\.\d{0,6})?$/.test(value);
@@ -17,6 +17,7 @@ const validFiatInput=(value:string)=>/^\d*(?:\.\d{0,2})?$/.test(value);
 
 export default function P2P(){
 	const {userId}=useWallet();
+	const [asset,setAsset]=useState<P2PAsset>("BI2XUSD");
 	const [action,setAction]=useState<"BUY"|"SELL">("BUY");
 	const [price,setPrice]=useState("");
 	const [priceDate,setPriceDate]=useState("");
@@ -48,7 +49,7 @@ export default function P2P(){
 	// the server, so a market with more than 100 active ads for one side
 	// would need real infinite-scroll/paging here to see the rest — accepted
 	// for now since P2P volume is nowhere near that, revisit if it grows.
-	const load=useCallback(async()=>{try{setLoading(true);setError("");const [{price:today},{listings:ads}]=await Promise.all([getP2PPrice("BI2XUSD"),getP2PListings(100,0)]);setPrice(today.price);setPriceDate(today.priceDate);setListings(ads)}catch(e){setError(message(e))}finally{setLoading(false)}},[]);
+	const load=useCallback(async()=>{try{setLoading(true);setError("");const [{price:today},{listings:ads}]=await Promise.all([getP2PPrice(asset),getP2PListings(asset,100,0)]);setPrice(today.price);setPriceDate(today.priceDate);setListings(ads)}catch(e){setError(message(e))}finally{setLoading(false)}},[asset]);
 	useEffect(()=>{void load()},[load]);
 	const wantedSide=action==="BUY"?"SELL":"BUY";
 	const visible=useMemo(()=>listings.filter(ad=>{const requested=Number(amount||0);const fiat=requested*Number(ad.price);return ad.side===wantedSide&&(payment==="All"||ad.paymentMethods.includes(payment as P2PPaymentMethod))&&(!requested||(Number(formatBI2XUSDAmount(ad.remainingRaw))>=requested&&fiat>=Number(ad.minOrderFiat)&&fiat<=effectiveP2PMaxOrderFiat(ad)))}),[listings,wantedSide,payment,amount]);
@@ -58,19 +59,19 @@ export default function P2P(){
 	const match=visible.find(ad=>{const requested=Number(quickBI2XUSD);const remaining=Number(formatBI2XUSDAmount(ad.remainingRaw));const fiat=requested*Number(ad.price);const remainingAfter=remaining-requested;return ad.creatorId!==userId&&requested>0&&requested<=remaining&&fiat>=Number(ad.minOrderFiat)&&fiat<=effectiveP2PMaxOrderFiat(ad)&&(remainingAfter<=0||remainingAfter*Number(ad.price)>=Number(ad.minOrderFiat))});
 
 	return <AppShell><div className="min-h-screen bg-gradient-to-b from-background via-background/95 to-background p-6"><div className="mx-auto max-w-7xl">
-		<div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between"><div><h1 className="mb-2 text-4xl font-bold tracking-tight">{action==="BUY"?"Buy":"Sell"} BI2XUSD</h1><p className="text-muted-foreground">Trade BI2XUSD securely with authenticated P2P users in your local currency.</p></div><div className="flex flex-wrap items-center gap-2"><Button asChild variant="ghost" className="h-10 gap-2 text-primary"><Link to="/p2p/orders"><ClipboardList className="h-4 w-4"/>Orders</Link></Button><Button asChild variant="ghost"><Link to="/p2p/advertiser">My Ads</Link></Button><Button asChild variant="ghost"><Link to="/p2p/wallet"><Wallet className="mr-2 h-4 w-4"/>P2P Wallet</Link></Button></div></div>
-		<div className="grid grid-cols-1 gap-6 lg:grid-cols-3"><div className="space-y-6 lg:col-span-2"><div className="flex gap-3"><Button onClick={()=>setAction("BUY")} className={`h-11 min-w-36 px-10 font-semibold ${action==="BUY"?"bg-buy text-buy-foreground":"bg-muted text-muted-foreground"}`}>Buy BI2XUSD</Button><Button onClick={()=>setAction("SELL")} variant={action==="SELL"?"default":"outline"} className={`h-11 min-w-36 px-10 font-semibold ${action==="SELL"?"bg-red-500 text-white":"border border-border"}`}>Sell BI2XUSD</Button></div>
-			<Card className="border-border/50 bg-card/30 p-6 backdrop-blur-sm"><div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div><label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Minimum available</label><Input className="mt-2 bg-background/50" placeholder="0 BI2XUSD" value={amount} onChange={event=>setAmount(event.target.value)}/></div><div><label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Payment method</label><Select value={payment} onValueChange={setPayment}><SelectTrigger className="mt-2 bg-background/50"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="All">All</SelectItem>{P2P_PAYMENT_METHODS.map(item=><SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div></div></Card>
+		<div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between"><div><h1 className="mb-2 text-4xl font-bold tracking-tight">{action==="BUY"?"Buy":"Sell"} {asset}</h1><p className="text-muted-foreground">Trade {asset} securely with authenticated P2P users in your local currency.</p></div><div className="flex flex-wrap items-center gap-2"><Button asChild variant="ghost" className="h-10 gap-2 text-primary"><Link to="/p2p/orders"><ClipboardList className="h-4 w-4"/>Orders</Link></Button><Button asChild variant="ghost"><Link to="/p2p/advertiser">My Ads</Link></Button><Button asChild variant="ghost"><Link to="/p2p/wallet"><Wallet className="mr-2 h-4 w-4"/>P2P Wallet</Link></Button></div></div>
+		<div className="grid grid-cols-1 gap-6 lg:grid-cols-3"><div className="space-y-6 lg:col-span-2"><div className="flex flex-wrap items-center gap-3"><div className="flex gap-3"><Button onClick={()=>setAction("BUY")} className={`h-11 min-w-36 px-10 font-semibold ${action==="BUY"?"bg-buy text-buy-foreground":"bg-muted text-muted-foreground"}`}>Buy {asset}</Button><Button onClick={()=>setAction("SELL")} variant={action==="SELL"?"default":"outline"} className={`h-11 min-w-36 px-10 font-semibold ${action==="SELL"?"bg-red-500 text-white":"border border-border"}`}>Sell {asset}</Button></div><Select value={asset} onValueChange={value=>setAsset(value as P2PAsset)}><SelectTrigger className="h-11 w-32 bg-background/50"><SelectValue/></SelectTrigger><SelectContent>{P2P_ASSETS.map(item=><SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div>
+			<Card className="border-border/50 bg-card/30 p-6 backdrop-blur-sm"><div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div><label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Minimum available</label><Input className="mt-2 bg-background/50" placeholder={`0 ${asset}`} value={amount} onChange={event=>setAmount(event.target.value)}/></div><div><label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Payment method</label><Select value={payment} onValueChange={setPayment}><SelectTrigger className="mt-2 bg-background/50"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="All">All</SelectItem>{P2P_PAYMENT_METHODS.map(item=><SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div></div></Card>
 			<div className="flex items-center gap-2"><Badge variant="secondary"><Users className="mr-1 h-3 w-3"/>P2P advertisers</Badge><Button variant="ghost" size="sm"><Filter className="mr-1 h-4 w-4"/>Filter</Button></div>
-			<Card className="overflow-hidden border-border/50 bg-card/20"><div className="overflow-x-auto"><table className="w-full min-w-[820px] text-sm"><thead><tr className="border-b bg-muted/20"><th className="px-4 py-3 text-left">Advertiser</th><th className="px-4 py-3 text-center">Available / Limits</th><th className="px-4 py-3 text-center">Payment Methods</th><th className="px-4 py-3 text-center">Option</th></tr></thead><tbody>{loading?<tr><td colSpan={4} className="p-8 text-center text-muted-foreground">Loading database listings…</td></tr>:visible.length===0?<tr><td colSpan={4} className="p-8 text-center text-muted-foreground">No matching BI2XUSD ads found.</td></tr>:visible.map(ad=>{const own=userId===ad.creatorId;return <tr key={ad.id} className="border-b last:border-0"><td className="px-4 py-4"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-primary text-xs font-bold text-primary-foreground">{ad.username.slice(0,2).toUpperCase()}</div><div><div className="flex items-center gap-2 font-semibold">{ad.username}<Shield className="h-3 w-3 text-primary"/></div><div className="text-xs text-muted-foreground">{ad.ratedOrders30d>0?`${ad.completedOrders30d} trades · ${Number(ad.completionRate30d).toFixed(2)}% completion`:"New advertiser"}</div></div></div></td><td className="px-4 py-4 text-center"><div className="font-semibold">{formatBI2XUSDAmount(ad.remainingRaw)} BI2XUSD</div><div className="mt-1 text-xs text-muted-foreground">Limits {formatINR(ad.minOrderFiat)} – {formatINR(effectiveP2PMaxOrderFiat(ad))}</div></td><td className="px-4 py-4 text-center"><div className="flex flex-wrap justify-center gap-1">{ad.paymentMethods.map(method=><Badge key={method} variant="secondary">{method}</Badge>)}</div></td><td className="px-4 py-4 text-center">{own?<Badge variant="outline">Your ad</Badge>:<Button size="sm" onClick={()=>open(ad)} className={ad.side==="SELL"?"bg-buy text-buy-foreground":"bg-red-500 text-white"}>{ad.side==="SELL"?"BUY BI2XUSD":"SELL BI2XUSD"}</Button>}</td></tr>})}</tbody></table></div></Card>{error&&<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-		</div><div className="space-y-6"><Card className="border-border/50 bg-card/30 p-6"><span className="text-sm font-medium text-muted-foreground">Today’s Price</span><div className="mt-4 flex items-baseline gap-2"><span className="text-3xl font-bold">{price?formatINR(price):"Unavailable"}</span><span className="text-sm text-muted-foreground">/BI2XUSD</span></div><p className="pt-2 text-xs text-muted-foreground">Database price for {priceDate||"today"}</p></Card>
+			<Card className="overflow-hidden border-border/50 bg-card/20"><div className="overflow-x-auto"><table className="w-full min-w-[820px] text-sm"><thead><tr className="border-b bg-muted/20"><th className="px-4 py-3 text-left">Advertiser</th><th className="px-4 py-3 text-center">Available / Limits</th><th className="px-4 py-3 text-center">Payment Methods</th><th className="px-4 py-3 text-center">Option</th></tr></thead><tbody>{loading?<tr><td colSpan={4} className="p-8 text-center text-muted-foreground">Loading database listings…</td></tr>:visible.length===0?<tr><td colSpan={4} className="p-8 text-center text-muted-foreground">No matching {asset} ads found.</td></tr>:visible.map(ad=>{const own=userId===ad.creatorId;return <tr key={ad.id} className="border-b last:border-0"><td className="px-4 py-4"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-primary text-xs font-bold text-primary-foreground">{ad.username.slice(0,2).toUpperCase()}</div><div><div className="flex items-center gap-2 font-semibold">{ad.username}<Shield className="h-3 w-3 text-primary"/></div><div className="text-xs text-muted-foreground">{ad.ratedOrders30d>0?`${ad.completedOrders30d} trades · ${Number(ad.completionRate30d).toFixed(2)}% completion`:"New advertiser"}</div></div></div></td><td className="px-4 py-4 text-center"><div className="font-semibold">{formatBI2XUSDAmount(ad.remainingRaw)} {ad.asset}</div><div className="mt-1 text-xs text-muted-foreground">Limits {formatINR(ad.minOrderFiat)} – {formatINR(effectiveP2PMaxOrderFiat(ad))}</div></td><td className="px-4 py-4 text-center"><div className="flex flex-wrap justify-center gap-1">{ad.paymentMethods.map(method=><Badge key={method} variant="secondary">{method}</Badge>)}</div></td><td className="px-4 py-4 text-center">{own?<Badge variant="outline">Your ad</Badge>:<Button size="sm" onClick={()=>open(ad)} className={ad.side==="SELL"?"bg-buy text-buy-foreground":"bg-red-500 text-white"}>{ad.side==="SELL"?`BUY ${ad.asset}`:`SELL ${ad.asset}`}</Button>}</td></tr>})}</tbody></table></div></Card>{error&&<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+		</div><div className="space-y-6"><Card className="border-border/50 bg-card/30 p-6"><span className="text-sm font-medium text-muted-foreground">Today’s Price</span><div className="mt-4 flex items-baseline gap-2"><span className="text-3xl font-bold">{price?formatINR(price):"Unavailable"}</span><span className="text-sm text-muted-foreground">/{asset}</span></div><p className="pt-2 text-xs text-muted-foreground">Database price for {priceDate||"today"}</p></Card>
 			<Card className="border-border/50 bg-card/30 p-6">
 				<h3 className="mb-4 flex items-center gap-2 font-semibold"><TrendingUp className="h-4 w-4 text-primary"/>Quick Trade</h3>
 				<div className="space-y-3">
-					<div className="relative"><Input aria-label="Quick trade BI2XUSD amount" inputMode="decimal" className="pr-20" value={quickBI2XUSD} onChange={event=>updateQuickBI2XUSD(event.target.value)} placeholder="0"/><span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold">BI2XUSD</span></div>
+					<div className="relative"><Input aria-label={`Quick trade ${asset} amount`} inputMode="decimal" className="pr-20" value={quickBI2XUSD} onChange={event=>updateQuickBI2XUSD(event.target.value)} placeholder="0"/><span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold">{asset}</span></div>
 					<div className="relative"><Input aria-label="Quick trade INR amount" inputMode="decimal" className="pr-20" value={quickINR} onChange={event=>updateQuickINR(event.target.value)} placeholder="0"/><span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold">INR</span></div>
 				</div>
-				<div className="my-4 rounded-lg bg-muted/20 p-3 text-sm"><div className="flex justify-between"><span className="text-muted-foreground">Available across ads</span><span>{Number(total.toFixed(6))} BI2XUSD</span></div></div>
+				<div className="my-4 rounded-lg bg-muted/20 p-3 text-sm"><div className="flex justify-between"><span className="text-muted-foreground">Available across ads</span><span>{Number(total.toFixed(6))} {asset}</span></div></div>
 				<Button disabled={!match} onClick={()=>match&&open(match,quickBI2XUSD)} className={`w-full ${action==="BUY"?"bg-buy text-buy-foreground":"bg-red-500 text-white"}`}>{action==="BUY"?"Proceed to Buy":"Proceed to Sell"}<ArrowRight className="ml-2 h-4 w-4"/></Button>
 			</Card>
 			{/* <Card className="border-border/50 bg-card/30 p-6"><h3 className="mb-4 font-semibold">Trust & Safety</h3><div className="space-y-3"><Safety icon={Lock} title="Escrow Protection" text="Seller BI2XUSD is held until release"/><Safety icon={Shield} title="Authenticated Users" text="Every ad has a permanent P2P username"/><Safety icon={Clock} title="Controlled Release" text="BI2XUSD moves only after payment confirmation"/></div></Card> */}
@@ -152,19 +153,19 @@ type TradeDialogViewProps={
 function TradeDialogView({ad,quantity,fiatInput,receiveInput,payment,setPayment,order,error,acting,userId,onTake,onClose,gross,effectiveMaximum,fee,feePct,viewerAction,valid,validationMessage,updateFiatInvestment,updateNetBI2XUSD,updateGrossBI2XUSD,normalizeFiatInvestment,normalizeNetBI2XUSD,normalizeGrossBI2XUSD}:TradeDialogViewProps){
 	return <Dialog open={!!ad} onOpenChange={open=>!open&&onClose()}>
 		<DialogContent className="max-w-lg">
-			<DialogHeader><DialogTitle>{order?"Order created":`${viewerAction} BI2XUSD ${ad?.side==="SELL"?"from":"to"} ${ad?.username??""}`}</DialogTitle></DialogHeader>
+			<DialogHeader><DialogTitle>{order?"Order created":`${viewerAction} ${ad?.asset??""} ${ad?.side==="SELL"?"from":"to"} ${ad?.username??""}`}</DialogTitle></DialogHeader>
 			{ad&&(order?<div className="space-y-4">
-				<div className="rounded-xl border border-buy/30 bg-buy/10 p-5 text-center"><p className="text-lg font-bold text-buy">{formatBI2XUSDAmount(order.sellerDebitRaw)} BI2XUSD held in escrow</p></div>
+				<div className="rounded-xl border border-buy/30 bg-buy/10 p-5 text-center"><p className="text-lg font-bold text-buy">{formatBI2XUSDAmount(order.sellerDebitRaw)} {order.asset} held in escrow</p></div>
 				<Row label="Payment method" value={order.paymentMethod}/>
 				<Row label="External payment" value={formatINR(order.grossAmount)}/>
-				<Row label={`${order.buyerId===userId?"Buyer":"Seller"} fee (1%)`} value={`${formatBI2XUSDAmount(order.buyerId===userId?order.buyerFeeRaw:order.sellerFeeRaw)} BI2XUSD`}/>
-				<Row label={order.buyerId===userId?"You receive":"BI2XUSD escrowed"} value={`${formatBI2XUSDAmount(order.buyerId===userId?order.buyerCreditRaw:order.sellerDebitRaw)} BI2XUSD`}/>
+				<Row label={`${order.buyerId===userId?"Buyer":"Seller"} fee (1%)`} value={`${formatBI2XUSDAmount(order.buyerId===userId?order.buyerFeeRaw:order.sellerFeeRaw)} ${order.asset}`}/>
+				<Row label={order.buyerId===userId?"You receive":`${order.asset} escrowed`} value={`${formatBI2XUSDAmount(order.buyerId===userId?order.buyerCreditRaw:order.sellerDebitRaw)} ${order.asset}`}/>
 				<Button asChild className="w-full"><Link to={`/p2p/orders/${order.id}`}>Open order</Link></Button>
 			</div>:<div className="space-y-5">
 				<div className="rounded-xl border bg-muted/30 p-4 text-sm">
 					<Row label="Advertiser" value={ad.username}/>
-					<Row label="Price" value={`${formatINR(ad.price)} / BI2XUSD`}/>
-					<Row label="Available" value={`${formatBI2XUSDAmount(ad.remainingRaw)} BI2XUSD`}/>
+					<Row label="Price" value={`${formatINR(ad.price)} / ${ad.asset}`}/>
+					<Row label="Available" value={`${formatBI2XUSDAmount(ad.remainingRaw)} ${ad.asset}`}/>
 					<Row label="Order limit" value={`${formatINR(ad.minOrderFiat)} – ${formatINR(effectiveMaximum)}`}/>
 				</div>
 				{viewerAction==="Buy"?<div className="space-y-4">
@@ -174,9 +175,9 @@ function TradeDialogView({ad,quantity,fiatInput,receiveInput,payment,setPayment,
 					</div>
 					<div>
 						<label className="mb-2 block text-xs font-semibold uppercase text-muted-foreground">You receive</label>
-						<div className="flex gap-2"><Input aria-label="You receive in BI2XUSD" inputMode="decimal" value={receiveInput} onChange={event=>updateNetBI2XUSD(event.target.value)} onBlur={normalizeNetBI2XUSD}/><span className="flex min-w-20 items-center justify-center rounded-md bg-muted/30 px-3">BI2XUSD</span></div>
+						<div className="flex gap-2"><Input aria-label={`You receive in ${ad.asset}`} inputMode="decimal" value={receiveInput} onChange={event=>updateNetBI2XUSD(event.target.value)} onBlur={normalizeNetBI2XUSD}/><span className="flex min-w-20 items-center justify-center rounded-md bg-muted/30 px-3">{ad.asset}</span></div>
 					</div>
-					{/* <p className="text-xs text-muted-foreground">BI2XUSD received is shown after the 1% buyer fee. Order value must be within {formatINR(ad.minOrderFiat)} – {formatINR(effectiveMaximum)}.</p> */}
+					{/* <p className="text-xs text-muted-foreground">{ad.asset} received is shown after the 1% buyer fee. Order value must be within {formatINR(ad.minOrderFiat)} – {formatINR(effectiveMaximum)}.</p> */}
 				</div>:<div className="space-y-4">
 					<div>
 						<label className="mb-2 block text-xs font-semibold uppercase text-muted-foreground">You receive</label>
@@ -184,9 +185,9 @@ function TradeDialogView({ad,quantity,fiatInput,receiveInput,payment,setPayment,
 					</div>
 					<div>
 						<label className="mb-2 block text-xs font-semibold uppercase text-muted-foreground">You sell</label>
-						<div className="flex gap-2"><Input aria-label="You sell in BI2XUSD" inputMode="decimal" value={quantity} onChange={event=>updateGrossBI2XUSD(event.target.value)} onBlur={normalizeGrossBI2XUSD}/><span className="flex min-w-20 items-center justify-center rounded-md bg-muted/30 px-3">BI2XUSD</span></div>
+						<div className="flex gap-2"><Input aria-label={`You sell in ${ad.asset}`} inputMode="decimal" value={quantity} onChange={event=>updateGrossBI2XUSD(event.target.value)} onBlur={normalizeGrossBI2XUSD}/><span className="flex min-w-20 items-center justify-center rounded-md bg-muted/30 px-3">{ad.asset}</span></div>
 					</div>
-					<p className="text-xs text-muted-foreground">The 1% seller fee is added to the BI2XUSD escrow. Order value must be within {formatINR(ad.minOrderFiat)} – {formatINR(effectiveMaximum)}.</p>
+					<p className="text-xs text-muted-foreground">The 1% seller fee is added to the {ad.asset} escrow. Order value must be within {formatINR(ad.minOrderFiat)} – {formatINR(effectiveMaximum)}.</p>
 				</div>}
 				{validationMessage&&<p className="text-sm text-destructive">{validationMessage}</p>}
 				<div>
@@ -195,11 +196,11 @@ function TradeDialogView({ad,quantity,fiatInput,receiveInput,payment,setPayment,
 				</div>
 				<div className="rounded-xl border p-4 text-sm">
 					<Row label={viewerAction==="Buy"?"You pay externally":"You receive externally"} value={formatINR(gross)}/>
-					<Row label={`${viewerAction} fee (${feePct}%)`} value={`${fee} BI2XUSD`}/>
-					<Row label={viewerAction==="Buy"?"You receive":"Total BI2XUSD escrowed"} value={`${viewerAction==="Buy"?netBI2XUSDAmountAfterBuyerFee(quantity,feePct):sellerBI2XUSDDebitWithFee(quantity,feePct)} BI2XUSD`}/>
+					<Row label={`${viewerAction} fee (${feePct}%)`} value={`${fee} ${ad.asset}`}/>
+					<Row label={viewerAction==="Buy"?"You receive":`Total ${ad.asset} escrowed`} value={`${viewerAction==="Buy"?netBI2XUSDAmountAfterBuyerFee(quantity,feePct):sellerBI2XUSDDebitWithFee(quantity,feePct)} ${ad.asset}`}/>
 				</div>
 				{error&&<p className="text-sm text-destructive">{error}</p>}
-				<Button className={`w-full ${viewerAction==="Buy"?"bg-buy text-buy-foreground":"bg-red-500 text-white"}`} disabled={!valid||acting} onClick={onTake}>{acting?"Creating order…":viewerAction==="Buy"?`Buy ${netBI2XUSDAmountAfterBuyerFee(quantity,feePct)} BI2XUSD`:`Sell ${quantity || "0"} BI2XUSD`}</Button>
+				<Button className={`w-full ${viewerAction==="Buy"?"bg-buy text-buy-foreground":"bg-red-500 text-white"}`} disabled={!valid||acting} onClick={onTake}>{acting?"Creating order…":viewerAction==="Buy"?`Buy ${netBI2XUSDAmountAfterBuyerFee(quantity,feePct)} ${ad.asset}`:`Sell ${quantity || "0"} ${ad.asset}`}</Button>
 			</div>)}
 		</DialogContent>
 	</Dialog>;

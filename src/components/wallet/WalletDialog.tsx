@@ -16,7 +16,7 @@ const ICONS: Record<WalletId, { src: string; alt: string }> = {
   walletconnect: { src: "/wallet-icons/walletconnect.svg?v=1", alt: "WalletConnect logo" },
 };
 
-const SUPPORTED_WALLETS: WalletId[] = ["metamask", "trust", "binance", "coinbase", "bitget", "walletconnect"];
+const SUPPORTED_WALLETS: WalletId[] = ["metamask", "binance", "coinbase", "bitget", "walletconnect"];
 
 export function WalletDialog({ open, onOpenChange, onConnected }: { open: boolean; onOpenChange: (v: boolean) => void; onConnected?: () => void }) {
   const w = useWallet();

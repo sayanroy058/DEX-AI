@@ -97,8 +97,9 @@ export default function AdminFeeRevenue() {
                 <DollarSign className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Total Profit</div>
                 <div className="text-3xl font-bold gradient-text">{formatBI2XUSDRaw(data.totalRaw)} BI2XUSD</div>
-                <div className="text-xs text-muted-foreground">Total fee revenue, all categories, {rangeHint}</div>
+                <div className="text-xs text-muted-foreground">All categories combined, {rangeHint}</div>
               </div>
             </div>
 

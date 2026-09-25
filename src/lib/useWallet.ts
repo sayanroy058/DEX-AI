@@ -13,9 +13,14 @@ export type WalletInfo = {
   popular?: boolean;
 };
 
+// "trust" has no dedicated row here by design — Trust Wallet is reached via
+// the generic "WalletConnect" entry below instead (deep link on mobile via
+// WALLET_DEEPLINK_SCHEMES, or QR on desktop). The WalletId itself, its
+// deep-link scheme, and matchProvider's injected-provider detection are
+// kept so restoring an existing session or an in-app-browser connection
+// still works — only the standalone selector button is gone.
 export const WALLETS: WalletInfo[] = [
   { id: "metamask", name: "MetaMask", tag: "Most popular", desc: "Connect via the MetaMask browser extension", popular: true },
-  { id: "trust", name: "Trust Wallet", tag: "Popular", desc: "Connect via the Trust Wallet app", popular: true },
   { id: "binance", name: "Binance Wallet", tag: "Popular", desc: "Connect via the Binance Wallet browser extension", popular: true },
   { id: "coinbase", name: "Coinbase Wallet", tag: "Easy", desc: "Connect via the Coinbase Wallet extension", popular: true },
   { id: "bitget", name: "Bitget Wallet", tag: "Easy", desc: "Connect via the Bitget Wallet app", popular: true },

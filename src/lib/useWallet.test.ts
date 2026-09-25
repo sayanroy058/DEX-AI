@@ -213,8 +213,8 @@ describe("wallet state", () => {
     expect(metaMask.request).not.toHaveBeenCalledWith({ method: "eth_accounts", params: undefined });
   });
 
-  it("exposes only supported wallets in the modal list", () => {
-    expect(WALLETS.map((wallet) => wallet.id)).toEqual(["metamask", "trust", "binance", "coinbase", "bitget", "walletconnect"]);
+  it("exposes only supported wallets in the modal list, with no dedicated Trust Wallet row", () => {
+    expect(WALLETS.map((wallet) => wallet.id)).toEqual(["metamask", "binance", "coinbase", "bitget", "walletconnect"]);
   });
 
   it("connects via WalletConnect and goes through the shared attach/auth path", async () => {
