@@ -13,9 +13,10 @@ const ICONS: Record<WalletId, { src: string; alt: string }> = {
   binance: { src: "/wallet-icons/binance.svg?v=2", alt: "Binance Wallet logo" },
   coinbase: { src: "https://images.icon-icons.com/2407/PNG/512/coinbase_icon_146203.png", alt: "Coinbase Wallet logo" },
   bitget: { src: "/wallet-icons/bitget.svg?v=2", alt: "Bitget Wallet logo" },
+  walletconnect: { src: "/wallet-icons/walletconnect.svg?v=1", alt: "WalletConnect logo" },
 };
 
-const SUPPORTED_WALLETS: WalletId[] = ["metamask", "trust", "binance", "coinbase", "bitget"];
+const SUPPORTED_WALLETS: WalletId[] = ["metamask", "trust", "binance", "coinbase", "bitget", "walletconnect"];
 
 export function WalletDialog({ open, onOpenChange, onConnected }: { open: boolean; onOpenChange: (v: boolean) => void; onConnected?: () => void }) {
   const w = useWallet();

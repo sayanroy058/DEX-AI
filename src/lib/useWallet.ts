@@ -1,8 +1,9 @@
 import { useSyncExternalStore } from "react";
+import { EthereumProvider } from "@walletconnect/ethereum-provider";
 import { getNonce, getWalletBalances, login as apiLogin, logout as apiLogout, me } from "@/lib/authApi";
 import { setWsAuthToken } from "@/lib/wsAuthToken";
 
-export type WalletId = "metamask" | "trust" | "binance" | "coinbase" | "bitget";
+export type WalletId = "metamask" | "trust" | "binance" | "coinbase" | "bitget" | "walletconnect";
 
 export type WalletInfo = {
   id: WalletId;
@@ -14,11 +15,31 @@ export type WalletInfo = {
 
 export const WALLETS: WalletInfo[] = [
   { id: "metamask", name: "MetaMask", tag: "Most popular", desc: "Connect via the MetaMask browser extension", popular: true },
-  { id: "trust", name: "Trust Wallet", tag: "Popular", desc: "Connect via the Trust Wallet browser extension", popular: true },
+  { id: "trust", name: "Trust Wallet", tag: "Popular", desc: "Connect via the Trust Wallet app", popular: true },
   { id: "binance", name: "Binance Wallet", tag: "Popular", desc: "Connect via the Binance Wallet browser extension", popular: true },
   { id: "coinbase", name: "Coinbase Wallet", tag: "Easy", desc: "Connect via the Coinbase Wallet extension", popular: true },
-  { id: "bitget", name: "Bitget Wallet", tag: "Easy", desc: "Connect via the Bitget Wallet extension", popular: true },
+  { id: "bitget", name: "Bitget Wallet", tag: "Easy", desc: "Connect via the Bitget Wallet app", popular: true },
+  { id: "walletconnect", name: "WalletConnect", tag: "Any wallet", desc: "Scan a QR code (desktop) or connect from any mobile wallet", popular: false },
 ];
+
+// Wallets without a browser extension injecting window.ethereum on mobile
+// (i.e. every entry here except "walletconnect" itself) get a direct deep
+// link into their own app, built from a WalletConnect pairing URI, instead
+// of falling back to the generic WalletConnect QR modal — this matches the
+// "tap Trust Wallet, it opens Trust Wallet" UX rather than "tap Trust
+// Wallet, get a QR code to scan with some other device."
+const WALLET_DEEPLINK_SCHEMES: Partial<Record<WalletId, (wcUri: string) => string>> = {
+  trust: (uri) => `https://link.trustwallet.com/wc?uri=${encodeURIComponent(uri)}`,
+  bitget: (uri) => `https://bkcode.vip/wc?uri=${encodeURIComponent(uri)}`,
+  binance: (uri) => `bnc://app.binance.com/mp/app?appId=wc&uri=${encodeURIComponent(uri)}`,
+  coinbase: (uri) => `https://go.cb-w.com/wc?uri=${encodeURIComponent(uri)}`,
+  metamask: (uri) => `https://metamask.app.link/wc?uri=${encodeURIComponent(uri)}`,
+};
+
+function isMobileDevice() {
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
 
 // locked = tradingLocked + withdrawalLocked, kept for existing callers that
 // only care about the combined figure. tradingLocked/withdrawalLocked are
@@ -139,6 +160,84 @@ async function syncBalancesWithBackend() {
   return balances;
 }
 
+// Balance polling: before this, `available` only ever updated when a
+// specific action (place/cancel order, swap, transfer) explicitly called
+// syncBalancesWithBackend right after itself — everywhere else (a Predict
+// order locking funds, an admin credit, a resting limit order that fills
+// hours or days later) left the last-fetched figure on screen indefinitely
+// with no way to self-correct short of a manual page reload. A user reading
+// a stale "available" that's actually higher than what they can really
+// spend is exactly the kind of thing that must not happen on a trading
+// platform — this closes that gap for every action, not just the ones some
+// feature happened to remember to refresh after.
+//
+// Deliberately module-level, not a React hook (usePollingResource, used
+// elsewhere for exactly this poll/backoff/visibility shape, can't be used
+// here — this store is a plain module singleton, not a component), but
+// mirrors that hook's behavior: a short baseline interval while connected,
+// exponential backoff up to a ceiling while nothing changes, reset back to
+// baseline by any action that's already known to move a balance (so the
+// user's OWN order/swap/transfer still updates promptly, this poll is only
+// the safety net for everything else), and a full pause while the tab is
+// hidden with an immediate refresh on return.
+const BALANCE_POLL_BASE_MS = 5000;
+const BALANCE_POLL_MAX_MS = 30000;
+let balancePollIntervalMs = BALANCE_POLL_BASE_MS;
+let balancePollTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearBalancePoll() {
+  if (balancePollTimer) {
+    clearTimeout(balancePollTimer);
+    balancePollTimer = null;
+  }
+}
+
+function scheduleBalancePoll() {
+  clearBalancePoll();
+  if (!state.connected || (typeof document !== "undefined" && document.hidden)) return;
+  balancePollTimer = setTimeout(() => {
+    syncBalancesWithBackend()
+      .catch(() => {
+        // Transient failure (network blip, momentary backend slowness):
+        // leave the last-known balances on screen rather than clearing
+        // them, and just try again on the next tick.
+      })
+      .finally(() => {
+        balancePollIntervalMs = Math.min(balancePollIntervalMs * 2, BALANCE_POLL_MAX_MS);
+        scheduleBalancePoll();
+      });
+  }, balancePollIntervalMs);
+}
+
+// Called by refreshBalances (i.e. every existing "just did something that
+// moves a balance" call site already in this file/other features) so a
+// user's own action both refreshes immediately AND resets the poll back to
+// the short baseline interval — otherwise an account that had been idle
+// long enough to back off to BALANCE_POLL_MAX_MS would keep polling that
+// slowly even right after the user's own trade, defeating the point of
+// resetting on real activity.
+function markBalanceActivity() {
+  balancePollIntervalMs = BALANCE_POLL_BASE_MS;
+  if (balancePollTimer) scheduleBalancePoll();
+}
+
+async function refreshBalancesAndMarkActive() {
+  const result = await syncBalancesWithBackend();
+  markBalanceActivity();
+  return result;
+}
+
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      clearBalancePoll();
+    } else if (state.connected) {
+      markBalanceActivity();
+      syncBalancesWithBackend().catch(() => {});
+    }
+  });
+}
+
 const STORAGE_KEY = "dexai.wallet.session.v1";
 const DISCONNECT_KEY = "dexai.wallet.disconnected.v1";
 const CONNECT_REQUEST_TIMEOUT_MS = 15000;
@@ -152,8 +251,23 @@ const announcedProviders = new Map<string, Eip6963ProviderDetail>();
 
 const emit = () => listeners.forEach((l) => l());
 const setState = (next: Partial<WalletState>) => {
+  const wasConnected = state.connected;
   state = { ...state, ...next };
   emit();
+  // Start/stop the balance poll on every connected-state transition, from
+  // this single choke point, rather than at each of the several call sites
+  // that can flip `connected` (accountsChanged, connect(), restoreSession())
+  // — a future call site that sets connected:true and forgets to also start
+  // polling would silently reintroduce the exact "stale until reload" bug
+  // this feature exists to close. disconnect() bypasses setState entirely
+  // (see its own comment on writing `state =` directly for ordering
+  // reasons) and stops the poll itself.
+  if (state.connected && !wasConnected) {
+    markBalanceActivity();
+    scheduleBalancePoll();
+  } else if (!state.connected && wasConnected) {
+    clearBalancePoll();
+  }
 };
 
 function getWindowEthereum() {
@@ -245,6 +359,59 @@ function matchProvider(source: WalletId): Eip1193Provider | null {
   }
 
   return null;
+}
+
+// Lazily created, cached singleton — EthereumProvider.init() spins up a
+// relay-server connection and pairing state, so it's expensive to create
+// and must be reused (not re-init'd) across a connect/disconnect/reconnect
+// cycle within the same page load.
+let walletConnectProviderPromise: ReturnType<typeof EthereumProvider.init> | null = null;
+
+function getFujiChainId(): number {
+  const raw = import.meta.env.VITE_FUJI_CHAIN_ID;
+  const parsed = raw ? Number(raw) : NaN;
+  return Number.isFinite(parsed) ? parsed : 43113;
+}
+
+async function getWalletConnectProvider() {
+  if (!walletConnectProviderPromise) {
+    const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
+    if (!projectId) throw new Error("WalletConnect is not configured (missing VITE_WALLETCONNECT_PROJECT_ID)");
+    walletConnectProviderPromise = EthereumProvider.init({
+      projectId,
+      chains: [getFujiChainId()],
+      showQrModal: true,
+      metadata: {
+        name: "BitDx",
+        description: "BitDx",
+        url: typeof window !== "undefined" ? window.location.origin : "https://bitdx.me",
+        icons: [],
+      },
+    });
+  }
+  return (await walletConnectProviderPromise) as unknown as Eip1193Provider;
+}
+
+// Used for the "tap a specific wallet on mobile" path (see
+// WALLET_DEEPLINK_SCHEMES): builds a fresh, un-modal'd WalletConnect
+// provider so its pairing URI can be captured off the "display_uri" event
+// and turned into that wallet's own deep link, instead of showing the
+// generic QR modal. Deliberately NOT the cached singleton above — this one
+// is only used to obtain a URI and is discarded/reused per connect attempt.
+async function createWalletConnectProviderForDeepLink() {
+  const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
+  if (!projectId) throw new Error("WalletConnect is not configured (missing VITE_WALLETCONNECT_PROJECT_ID)");
+  return EthereumProvider.init({
+    projectId,
+    chains: [getFujiChainId()],
+    showQrModal: false,
+    metadata: {
+      name: "BitDx",
+      description: "BitDx",
+      url: typeof window !== "undefined" ? window.location.origin : "https://bitdx.me",
+      icons: [],
+    },
+  });
 }
 
 function detachProvider(provider: Eip1193Provider | null | undefined) {
@@ -347,8 +514,52 @@ export function getConnectedProvider() {
   return activeProvider ?? state.provider ?? null;
 }
 
+// Deep-links out to a specific wallet's app using a WalletConnect pairing
+// URI, then waits for that same provider to finish connecting (the wallet
+// app calls back into the WC relay after the user approves, same as if the
+// generic QR modal had been scanned). Only reachable on mobile, and only
+// for wallets with a known deep-link scheme — see WALLET_DEEPLINK_SCHEMES.
+async function connectViaWalletDeepLink(source: WalletId) {
+  const buildLink = WALLET_DEEPLINK_SCHEMES[source];
+  if (!buildLink) return null;
+
+  const provider = await createWalletConnectProviderForDeepLink();
+  const wcEvents = provider as unknown as { on: (event: string, handler: (...args: unknown[]) => void) => void };
+  const opened = new Promise<void>((resolve) => {
+    wcEvents.on("display_uri", (uri: unknown) => {
+      if (typeof uri !== "string") return;
+      window.location.href = buildLink(uri);
+      resolve();
+    });
+  });
+
+  await provider.connect();
+  await opened;
+  return provider as unknown as Eip1193Provider;
+}
+
 async function connect(source: WalletId) {
-  const provider = matchProvider(source);
+  let provider: Eip1193Provider | null;
+
+  if (source === "walletconnect") {
+    provider = await getWalletConnectProvider();
+    // Unlike an injected provider, a fresh (or previously-disconnected)
+    // WalletConnect provider has no live session yet — eth_requestAccounts
+    // via the shared request() path below throws "Please call connect()
+    // before request()" until .connect() has opened the QR modal/pairing
+    // and a session exists. An already-restored session (accounts already
+    // populated) skips straight to the shared eth_requestAccounts call,
+    // which then resolves immediately from the existing session.
+    const wcAccounts = (provider as unknown as { accounts?: string[] }).accounts;
+    if (!wcAccounts || wcAccounts.length === 0) {
+      await (provider as unknown as { connect: () => Promise<void> }).connect();
+    }
+  } else if (isMobileDevice() && !matchProvider(source)) {
+    provider = await connectViaWalletDeepLink(source);
+  } else {
+    provider = matchProvider(source);
+  }
+
   if (!provider) {
     setState({ error: `${WALLETS.find((w) => w.id === source)?.name ?? "Selected wallet"} provider not found`, pending: null });
     throw new Error("Provider not found");
@@ -416,16 +627,33 @@ async function authenticateWithBackend(provider: Eip1193Provider, source: Wallet
 
 async function disconnect() {
   const provider = getConnectedProvider();
+  const walletId = state.walletId;
 
   // Clear local state immediately so network cleanup cannot erase a newer connection.
   detachProvider(provider);
   activeProvider = null;
+  // Reset the cached WC provider singleton on every disconnect, not just a
+  // WalletConnect one — a WC connect attempt abandoned mid-flow (e.g. the
+  // user closes the QR modal) can leave a half-initialized/stale provider
+  // promise cached, which the next connect() call should not reuse.
+  walletConnectProviderPromise = null;
   clearPersistedSession();
   setWsAuthToken(null);
   state = { connected: false, walletId: undefined, address: undefined, userId: undefined, balances: DEFAULT_BALANCES, error: undefined, pending: null, restored: true, provider: null };
+  clearBalancePoll();
   emit();
 
-  if (provider) {
+  if (walletId === "walletconnect" && provider) {
+    // A WC session is tracked relay-side, not just locally — leaving it
+    // open would keep showing "connected" in the wallet app even though
+    // this site has moved on, so it needs its own explicit teardown rather
+    // than just the generic wallet_revokePermissions call below.
+    try {
+      await (provider as unknown as { disconnect: () => Promise<void> }).disconnect();
+    } catch {
+      // Session may already be closed relay-side; not fatal to local disconnect.
+    }
+  } else if (provider) {
     try {
       await requestWithTimeout(provider, "wallet_revokePermissions", [{ eth_accounts: {} }]);
     } catch {
@@ -442,8 +670,16 @@ async function restoreSession() {
   if (!canRestoreWallet()) return null;
   const stored = loadSession();
   if (!stored) return null;
-  const provider = matchProvider(stored.walletId);
+  // WalletConnect's own SDK persists its session (pairing + accounts) across
+  // reloads internally; re-init'ing it here reconnects to that existing
+  // session rather than scanning window.ethereum, which a WC connection
+  // never touches.
+  const provider = stored.walletId === "walletconnect" ? await getWalletConnectProvider() : matchProvider(stored.walletId);
   if (!provider) return null;
+  if (stored.walletId === "walletconnect") {
+    const wcAccounts = (provider as unknown as { accounts?: string[] }).accounts;
+    if (!wcAccounts || wcAccounts.length === 0) return null;
+  }
 
   const accounts = (await requestWithTimeout(provider, "eth_accounts")) as string[] | unknown;
   const address = Array.isArray(accounts) ? accounts[0] : undefined;
@@ -487,7 +723,7 @@ export const wallet = {
   disconnect,
   restoreSession,
   sendTransfer,
-  refreshBalances: syncBalancesWithBackend,
+  refreshBalances: refreshBalancesAndMarkActive,
   clearError() {
     setState({ error: undefined });
   },

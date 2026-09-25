@@ -32,6 +32,7 @@ import {
   type PropFirmSize,
 } from "@/lib/propFirmPlans";
 import { purchasePropFirmAccount, type PropFirmPurchaseResult } from "@/lib/propFirmApi";
+import { wallet } from "@/lib/useWallet";
 
 type PurchaseStep = "configure" | "review" | "payment" | "ready";
 
@@ -86,6 +87,10 @@ export function PropFirmPurchaseDialog({
       const purchaseResult = await purchasePropFirmAccount(program, size);
       setResult(purchaseResult);
       setStep("ready");
+      // A Prop Firm purchase spends real balance the same as a swap or
+      // trade, but this call site never refreshed the wallet store — same
+      // gap as the prediction order fix, closed the same way.
+      wallet.refreshBalances().catch(() => {});
     } catch (err) {
       setPurchaseError(err instanceof Error ? err.message : "Purchase failed");
     } finally {

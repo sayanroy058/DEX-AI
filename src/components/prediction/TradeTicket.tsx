@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { getPredictionPositions, placePredictionOrder, sellPredictionPosition, type PredictionSide as ApiSide } from "@/lib/predictionApi";
+import { wallet } from "@/lib/useWallet";
 import { calculateBuyEstimate, calculateSellEstimate, formatContractPrice, formatPredictionCurrency, getPredictionOutcome, type PredictionMarket } from "@/lib/predictionMarkets";
 
 export function TradeTicket({ market, selectedOutcomeId, onSelectOutcome, disabledReason, onOrderPlaced }: {
@@ -87,6 +88,12 @@ export function TradeTicket({ market, selectedOutcomeId, onSelectOutcome, disabl
         }
         setOwned((prev) => ({ ...prev, [outcome.id]: Math.max(0, (prev[outcome.id] ?? 0) - filled) }));
       }
+      // A prediction order locks/frees BI2XUSD the same as any spot/futures
+      // order, but this call site never refreshed the wallet balance store —
+      // the polling loop in useWallet.ts is a safety net for exactly this
+      // kind of gap, but a user's OWN action should still update immediately
+      // rather than waiting out even the short poll interval.
+      wallet.refreshBalances().catch(() => {});
       onOrderPlaced?.();
     } catch (err) {
       toast.error(mode === "BUY" ? "Order failed" : "Sell failed", { description: err instanceof Error ? err.message : "Please try again." });

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, ShieldCheck } from "lucide-react";
 import { getFeeTiers, getMyFeeSubscription, subscribeFeeTier, type FeeTier, type MySubscription } from "@/lib/feesApi";
+import { wallet } from "@/lib/useWallet";
 import { toast } from "sonner";
 
 function fmtDate(iso: string): string {
@@ -50,6 +51,9 @@ export default function FeeTierSubscription() {
       toast.success(
         `Subscribed to Tier ${result.tier} — ${result.discountPct}% off all fees until ${fmtDate(result.expiresAt)}.`
       );
+      // A fee-tier subscription is paid for in BI2XUSD; refresh the wallet
+      // balance store the same as every other balance-spending action.
+      wallet.refreshBalances().catch(() => {});
       load();
     } catch (e: any) {
       setError(e.message || "Could not complete the purchase.");
