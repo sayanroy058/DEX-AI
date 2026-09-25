@@ -373,13 +373,25 @@ function getFujiChainId(): number {
   return Number.isFinite(parsed) ? parsed : 43113;
 }
 
+// Avalanche Fuji (43113) is a testnet most wallet apps, including Trust
+// Wallet, don't have registered for WalletConnect sessions — passing it as
+// a REQUIRED chain (the SDK's `chains` option) makes the wallet reject the
+// whole session with "requested chain not supported" the moment the user
+// approves, before any account is even returned. `optionalChains` instead
+// asks for it without making the wallet's support a hard precondition;
+// Ethereum mainnet (1) is included first purely as a chain every wallet is
+// guaranteed to recognize, so session approval itself always succeeds —
+// the actual chain used for transactions is still driven by whatever the
+// connected account/provider reports, same as before.
+const WALLETCONNECT_OPTIONAL_CHAINS = [1, getFujiChainId()];
+
 async function getWalletConnectProvider() {
   if (!walletConnectProviderPromise) {
     const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
     if (!projectId) throw new Error("WalletConnect is not configured (missing VITE_WALLETCONNECT_PROJECT_ID)");
     walletConnectProviderPromise = EthereumProvider.init({
       projectId,
-      chains: [getFujiChainId()],
+      optionalChains: WALLETCONNECT_OPTIONAL_CHAINS,
       showQrModal: true,
       metadata: {
         name: "BitDx",
@@ -403,7 +415,7 @@ async function createWalletConnectProviderForDeepLink() {
   if (!projectId) throw new Error("WalletConnect is not configured (missing VITE_WALLETCONNECT_PROJECT_ID)");
   return EthereumProvider.init({
     projectId,
-    chains: [getFujiChainId()],
+    optionalChains: WALLETCONNECT_OPTIONAL_CHAINS,
     showQrModal: false,
     metadata: {
       name: "BitDx",
