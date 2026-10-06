@@ -22,16 +22,17 @@ export function getPropFirmPrice(program: PropFirmProgram, size: PropFirmSize) {
   return prices[program][size];
 }
 
+// PropFirm fees and account sizes are both BI2XUSD-denominated (the fee is
+// genuinely debited in BI2XUSD from the user's exchange wallet — see
+// PropFirmPurchaseDialog's "Wallet debit" step), not real USD — formatted
+// with a trailing "BI2XUSD" suffix instead of a "$" prefix throughout this
+// feature so the currency isn't misrepresented.
 export function formatUsd(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return `${value.toLocaleString("en-US", { maximumFractionDigits: 0 })} BI2XUSD`;
 }
 
 export function formatAccountSize(value: PropFirmSize) {
-  return `$${value.toLocaleString("en-US")}`;
+  return `${value.toLocaleString("en-US")} BI2XUSD`;
 }
 
 export const propFirmRuleSummary: Record<PropFirmProgram, string[]> = {

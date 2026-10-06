@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Zap, ArrowRight, TrendingUp, Layers, Bot, Shield, Globe, QrCode, Star, Download, Monitor, Laptop, Apple, Home, BarChart2, Wallet, Menu, X } from "lucide-react";
+import { Zap, ArrowRight, TrendingUp, Layers, Bot, Shield, Globe, QrCode, Star, Download, Monitor, Laptop, Apple, Home, BarChart2, Wallet, Menu, X, KeyRound, Banknote, LineChart, Lock, Eye, ServerCog } from "lucide-react";
 import { WalletDialog } from "@/components/wallet/WalletDialog";
 import appStoreImg from "@/assets/app-store.png";
 import playStoreImg from "@/assets/play-store.png";
@@ -286,6 +286,90 @@ export default function Landing() {
               </div>
               <h3 className="text-xl font-bold text-foreground mb-2">Up to 100× Leverage</h3>
               <p className="text-muted-foreground text-sm leading-relaxed">Deep liquidity and ultra-low fees on every fill.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="py-20 px-6 lg:px-10 bg-card border-y border-border">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16 space-y-4">
+            <p className="text-cyan-600 dark:text-cyan-400 text-xs md:text-sm font-semibold tracking-[0.22em] uppercase">Getting Started</p>
+            <h2 className="text-4xl md:text-5xl font-black text-foreground">How It Works</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Three steps from zero to trading — no account forms, no KYC upload, no waiting.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                step: "01",
+                icon: KeyRound,
+                title: "Connect Your Wallet",
+                desc: "MetaMask, Coinbase Wallet, Binance Wallet, Bitget, or any mobile wallet via WalletConnect. Your wallet address is your identity — no email, no password.",
+              },
+              {
+                step: "02",
+                icon: Banknote,
+                title: "Fund Your Account",
+                desc: "Deposit from your connected wallet straight into your Spot balance. Move funds between Spot, Futures, Staking, Prediction, and P2P any time.",
+              },
+              {
+                step: "03",
+                icon: LineChart,
+                title: "Trade, Stake, or Automate",
+                desc: "Place Spot and Futures orders, run a trading bot, stake BI2X, set up a recurring SIP, or trade P2P directly with other users.",
+              },
+            ].map((item) => (
+              <div key={item.step} className="relative rounded-2xl border border-border bg-background/75 p-6 md:p-8">
+                <span className="absolute top-5 right-6 text-5xl font-black text-muted-foreground/10 select-none">{item.step}</span>
+                <div className="h-12 w-12 rounded-xl bg-cyan-500/20 flex items-center justify-center mb-5">
+                  <item.icon className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
+                </div>
+                <h3 className="text-xl font-bold text-foreground mb-2">{item.title}</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Security & Trust */}
+      <section className="py-20 px-6 lg:px-10 bg-background">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16 space-y-4">
+            <p className="text-cyan-600 dark:text-cyan-400 text-xs md:text-sm font-semibold tracking-[0.22em] uppercase">Security & Trust</p>
+            <h2 className="text-4xl md:text-5xl font-black text-foreground">You hold the keys</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              BitDx never asks for your seed phrase and never takes custody of your wallet.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="border border-border bg-gradient-to-br from-card to-muted/40 backdrop-blur rounded-2xl p-6">
+              <div className="h-12 w-12 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-4">
+                <Lock className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
+              </div>
+              <h3 className="text-xl font-bold text-foreground mb-2">Non-Custodial Login</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">You sign in by signing a message with your own wallet — MetaMask, Coinbase Wallet, Binance Wallet, Bitget, or WalletConnect. No password is ever stored.</p>
+            </div>
+
+            <div className="border border-border bg-gradient-to-br from-card to-muted/40 backdrop-blur rounded-2xl p-6">
+              <div className="h-12 w-12 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-4">
+                <Eye className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
+              </div>
+              <h3 className="text-xl font-bold text-foreground mb-2">You Approve Every Withdrawal</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">On-chain deposits and withdrawals go through your own wallet's confirmation prompt — BitDx can never move funds out of your wallet without your signature.</p>
+            </div>
+
+            <div className="border border-border bg-gradient-to-br from-card to-muted/40 backdrop-blur rounded-2xl p-6">
+              <div className="h-12 w-12 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-4">
+                <ServerCog className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
+              </div>
+              <h3 className="text-xl font-bold text-foreground mb-2">Separated Wallet Areas</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">Spot, Futures, Staking, Prediction, and P2P balances are kept in separate pools — funds only move between them when you explicitly transfer them.</p>
             </div>
           </div>
         </div>

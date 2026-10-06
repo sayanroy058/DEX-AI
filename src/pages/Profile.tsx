@@ -1,75 +1,83 @@
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { useWallet, shortAddress } from "@/lib/useWallet";
-import { Mail, Calendar, Edit, FileDown, CreditCard, Smartphone, Plus, WalletCards, Landmark, ShieldCheck, X, AlertTriangle } from "lucide-react";
-import { useState } from "react";
+import { me, type AuthUser } from "@/lib/authApi";
+import {
+  getP2PProfile, establishP2PUsername, getP2PPaymentAccounts, saveP2PPaymentAccount,
+  P2P_PAYMENT_METHODS, type P2PPaymentMethod, type P2PPaymentAccount, type P2PProfile,
+} from "@/lib/p2pApi";
+import { Calendar, Edit, FileDown, CreditCard, Smartphone, Plus, WalletCards, Landmark, ShieldCheck, User, Wallet, Fingerprint } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 type ReportRange = "7D" | "30D" | "90D" | "1Y";
 type ReportType = "Account Summary" | "Trade History" | "Tax Statement" | "P2P Statement";
-type PaymentMethodType = "UPI" | "IMPS" | "NEFT" | "RTGS" | "Bank Transfer";
-
-type PaymentMethod = {
-  id: number;
-  type: PaymentMethodType;
-  displayName: string;
-  holderName: string;
-  upiId?: string;
-  bankName?: string;
-  accountNumber?: string;
-  ifsc?: string;
-  mobile?: string;
-  limit?: string;
-};
-
-const initialPaymentMethods: PaymentMethod[] = [
-  {
-    id: 1,
-    type: "IMPS",
-    displayName: "HDFC Bank ending 2048",
-    holderName: "Trader One",
-    bankName: "HDFC Bank",
-    accountNumber: "XXXX2048",
-    ifsc: "HDFC0001234",
-    mobile: "+91 98765 43210",
-    limit: "INR 2,00,000/day",
-  },
-  {
-    id: 2,
-    type: "UPI",
-    displayName: "dexai@upi",
-    holderName: "Trader One",
-    upiId: "dexai@upi",
-    mobile: "+91 98765 43210",
-    limit: "INR 1,00,000/day",
-  },
-];
-
-const paymentTypes: PaymentMethodType[] = ["UPI", "IMPS", "NEFT", "RTGS", "Bank Transfer"];
 
 const emptyPaymentForm = {
-  type: "UPI" as PaymentMethodType,
-  holderName: "",
-  upiId: "",
+  method: "UPI" as P2PPaymentMethod,
+  accountName: "",
+  accountIdentifier: "",
   bankName: "",
-  accountNumber: "",
-  ifsc: "",
-  mobile: "",
-  limit: "",
+  ifscCode: "",
+  instructions: "",
 };
+
+function formatMemberSince(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+}
 
 export default function Profile() {
   const w = useWallet();
-  const memberSince = "Jan 2025";
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [p2pProfile, setP2pProfile] = useState<P2PProfile | null>(null);
+  const [paymentAccounts, setPaymentAccounts] = useState<P2PPaymentAccount[] | null>(null);
+
   const [reportOpen, setReportOpen] = useState(false);
   const [reportRange, setReportRange] = useState<ReportRange>("30D");
   const [reportType, setReportType] = useState<ReportType>("Account Summary");
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [addPaymentOpen, setAddPaymentOpen] = useState(false);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(initialPaymentMethods);
   const [paymentForm, setPaymentForm] = useState(emptyPaymentForm);
-  const [methodToRemove, setMethodToRemove] = useState<PaymentMethod | null>(null);
+  const [savingPayment, setSavingPayment] = useState(false);
+
+  const [editUsernameOpen, setEditUsernameOpen] = useState(false);
+  const [usernameInput, setUsernameInput] = useState("");
+  const [savingUsername, setSavingUsername] = useState(false);
+
+  // Real account info — /auth/me gives the wallet-session user's real
+  // createdAt (used for "Member since" below, replacing a hardcoded "Jan
+  // 2025"); /p2p/profile gives the real P2P username, "" until the user
+  // sets one (not fabricated — see EstablishP2PUsername's doc comment on
+  // the backend, a P2P username is permanent once set).
+  useEffect(() => {
+    if (!w.connected) {
+      setUser(null);
+      setP2pProfile(null);
+      return;
+    }
+    let cancelled = false;
+    me().then((r) => { if (!cancelled) setUser(r.user); }).catch(() => { if (!cancelled) setUser(null); });
+    getP2PProfile().then((r) => { if (!cancelled) setP2pProfile(r.profile); }).catch(() => { if (!cancelled) setP2pProfile(null); });
+    return () => { cancelled = true; };
+  }, [w.connected]);
+
+  const refreshPaymentAccounts = () => {
+    getP2PPaymentAccounts()
+      .then((r) => setPaymentAccounts(r.accounts))
+      .catch(() => setPaymentAccounts(null));
+  };
+  useEffect(() => {
+    if (!w.connected) {
+      setPaymentAccounts(null);
+      return;
+    }
+    refreshPaymentAccounts();
+  }, [w.connected]);
 
   const downloadReport = () => {
     const today = new Date().toISOString().slice(0, 10);
@@ -78,7 +86,6 @@ export default function Profile() {
       ["Wallet", w.connected ? shortAddress(w.address) : "Not connected"],
       ["Report Type", reportType],
       ["Report Range", reportRange],
-      ["Member Since", memberSince],
       ["Generated On", today],
     ];
     const csv = rows.map((r) => r.join(",")).join("\n");
@@ -95,128 +102,205 @@ export default function Profile() {
     toast.success(`${reportType} downloaded (${reportRange})`);
   };
 
-  const requiresBankDetails = paymentForm.type !== "UPI";
+  const requiresBankDetails = paymentForm.method === "Bank Transfer" || paymentForm.method === "NEFT" || paymentForm.method === "IMPS";
 
   const openAddPayment = () => {
     setPaymentForm(emptyPaymentForm);
     setAddPaymentOpen(true);
   };
 
-  const savePaymentMethod = () => {
-    if (!paymentForm.holderName.trim()) {
+  const savePaymentMethod = async () => {
+    if (savingPayment) return;
+    if (!paymentForm.accountName.trim()) {
       toast.error("Enter the account holder name");
       return;
     }
-
-    if (paymentForm.type === "UPI" && !paymentForm.upiId.trim()) {
-      toast.error("Enter a UPI ID");
+    if (!paymentForm.accountIdentifier.trim()) {
+      toast.error(paymentForm.method === "UPI" ? "Enter a UPI ID" : "Enter the account/payment identifier");
       return;
     }
-
-    if (requiresBankDetails && (!paymentForm.bankName.trim() || !paymentForm.accountNumber.trim() || !paymentForm.ifsc.trim())) {
-      toast.error("Enter bank name, account number, and IFSC");
+    if (requiresBankDetails && (!paymentForm.bankName.trim() || !paymentForm.ifscCode.trim())) {
+      toast.error("Enter bank name and IFSC code");
       return;
     }
-
-    const savedMethod: PaymentMethod = {
-      id: Date.now(),
-      type: paymentForm.type,
-      displayName:
-        paymentForm.type === "UPI"
-          ? paymentForm.upiId.trim()
-          : `${paymentForm.bankName.trim()} ending ${paymentForm.accountNumber.trim().slice(-4)}`,
-      holderName: paymentForm.holderName.trim(),
-      upiId: paymentForm.upiId.trim() || undefined,
-      bankName: paymentForm.bankName.trim() || undefined,
-      accountNumber: paymentForm.accountNumber.trim() || undefined,
-      ifsc: paymentForm.ifsc.trim().toUpperCase() || undefined,
-      mobile: paymentForm.mobile.trim() || undefined,
-      limit: paymentForm.limit.trim() || undefined,
-    };
-
-    setPaymentMethods((methods) => [savedMethod, ...methods]);
-    setAddPaymentOpen(false);
-    setPaymentOpen(true);
-    toast.success(`${savedMethod.type} payment method added`);
+    setSavingPayment(true);
+    try {
+      await saveP2PPaymentAccount(
+        paymentForm.method, paymentForm.accountName, paymentForm.accountIdentifier,
+        paymentForm.instructions, paymentForm.bankName, paymentForm.ifscCode
+      );
+      toast.success(`${paymentForm.method} payment method saved`);
+      setAddPaymentOpen(false);
+      setPaymentOpen(true);
+      refreshPaymentAccounts();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save payment method");
+    } finally {
+      setSavingPayment(false);
+    }
   };
 
-  const removePaymentMethod = () => {
-    if (!methodToRemove) return;
-    setPaymentMethods((methods) => methods.filter((method) => method.id !== methodToRemove.id));
-    toast.success(`${methodToRemove.type} payment method removed`);
-    setMethodToRemove(null);
+  const openEditUsername = () => {
+    setUsernameInput(p2pProfile?.username ?? "");
+    setEditUsernameOpen(true);
   };
+
+  const saveUsername = async () => {
+    if (savingUsername) return;
+    const value = usernameInput.trim();
+    if (!/^[A-Za-z0-9_]{3,24}$/.test(value)) {
+      toast.error("Username must be 3-24 letters, numbers, or underscores");
+      return;
+    }
+    setSavingUsername(true);
+    try {
+      const r = await establishP2PUsername(value);
+      setP2pProfile(r.profile);
+      toast.success("Username saved");
+      setEditUsernameOpen(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save username");
+    } finally {
+      setSavingUsername(false);
+    }
+  };
+
+  const memberSince = user ? formatMemberSince(user.createdAt) : null;
+  const avatarInitials = w.connected ? w.address.slice(2, 4).toUpperCase() : "—";
+  const displayName = p2pProfile?.username || (w.connected ? shortAddress(w.address) : "Not connected");
 
   return (
     <AppShell>
-      <div className="max-w-5xl mx-auto p-6 space-y-6">
-        <div className="glass-strong rounded-2xl p-6 border border-primary/20 flex flex-col md:flex-row gap-5 items-center md:items-start">
-          <div className="h-20 w-20 rounded-full bg-gradient-primary flex items-center justify-center text-2xl font-bold text-primary-foreground shadow-glow-primary">
-            {w.connected ? w.address.slice(2, 4).toUpperCase() : "NX"}
-          </div>
-          <div className="flex-1 text-center md:text-left">
-            <h1 className="text-2xl font-bold">{w.connected ? shortAddress(w.address) : "Anonymous Trader"}</h1>
-            <div className="text-sm text-muted-foreground flex items-center gap-2 justify-center md:justify-start mt-1">
-              <Mail className="h-3 w-3" /> trader@bitdx.ai
+      <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-5">
+        {/* Header — flat glass card, no banner. (A gradient banner with the
+            avatar overlapping it kept clipping the avatar regardless of how
+            the overlap was built — a plain non-overlapping layout avoids
+            that whole class of problem.) */}
+        <div className="glass-strong rounded-2xl border border-border/40 p-5 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-gradient-primary flex items-center justify-center text-xl sm:text-2xl font-bold text-primary-foreground shadow-glow-primary shrink-0">
+              {avatarInitials}
             </div>
-            <div className="flex flex-wrap gap-2 mt-3 justify-center md:justify-start">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] bg-primary/15 text-primary border border-primary/30">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold truncate">{displayName}</h1>
+              {p2pProfile?.username && w.connected && (
+                <div className="text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                  <WalletCards className="h-3.5 w-3.5 shrink-0" /> {shortAddress(w.address)}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="glass flex-1 sm:flex-none" onClick={openEditUsername} disabled={!w.connected}>
+                <Edit className="h-3.5 w-3.5 mr-1.5" /> {p2pProfile?.username ? "Edit profile" : "Set username"}
+              </Button>
+              <Button variant="outline" className="glass flex-1 sm:flex-none" onClick={() => setPaymentOpen(true)} disabled={!w.connected}>
+                <CreditCard className="h-3.5 w-3.5 mr-1.5" /> Payment Methods
+              </Button>
+            </div>
+          </div>
+          {memberSince && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-primary/15 text-primary border border-primary/30">
                 <Calendar className="h-3 w-3" /> Member since {memberSince}
               </span>
+              {user?.walletType && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-muted/40 text-muted-foreground border border-border/50">
+                  <WalletCards className="h-3 w-3" /> {user.walletType}
+                </span>
+              )}
             </div>
-          </div>
-          <div className="flex w-full flex-col gap-3 md:w-auto">
-            <Button variant="outline" className="glass w-full md:w-auto"><Edit className="h-3.5 w-3.5 mr-1.5" /> Edit profile</Button>
-            <Button variant="outline" className="glass w-full md:w-auto" onClick={() => setPaymentOpen(true)}>
-              <CreditCard className="h-3.5 w-3.5 mr-1.5" /> Payment Methods
-            </Button>
-          </div>
+          )}
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="glass rounded-xl p-5">
-            <h3 className="font-bold mb-3">Account</h3>
-            <Row k="Username" v="trader_one" />
-            <Row k="Email" v="trader@bitdx.ai" />
-            {/* <Row k="Member Since" v={memberSince} /> */}
-            <Row k="2FA" v="Enabled" />
-            <Row k="Wallet" v={w.connected ? shortAddress(w.address) : "Not connected"} />
-          </div>
-          <div className="glass rounded-xl p-5">
-            <h3 className="font-bold mb-3">Preferences</h3>
-            <Row k="Theme" v="Dark glass" />
-            <Row k="Language" v="English" />
-            <Row k="Currency" v="USD" />
-            <Row k="UI mode" v="Advanced" />
-          </div>
+        {/* Account — three small stat tiles instead of a cramped Row list,
+            each with its own icon chip (same AreaCard-style pattern used on
+            Portfolio.tsx). */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <StatTile icon={User} label="P2P Username" value={p2pProfile?.username || "Not set"} accentClass="text-primary bg-primary/10" />
+          <StatTile icon={Wallet} label="Wallet" value={w.connected ? shortAddress(w.address) : "Not connected"} accentClass="text-buy bg-buy/10" />
+          <StatTile icon={Fingerprint} label="Wallet Type" value={user?.walletType || "—"} accentClass="text-violet-500 bg-violet-500/10" />
         </div>
 
         <div className="glass rounded-xl p-5">
           <div className="flex items-center justify-between gap-3 mb-4">
-            <div>
-              <h3 className="font-bold">Payment Methods</h3>
-              <p className="text-xs text-muted-foreground mt-1">Manage local payment options for P2P trades.</p>
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-primary/10 text-primary">
+                <CreditCard className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm">Payment Methods</h3>
+                <p className="text-xs text-muted-foreground">Manage local payment options for P2P trades.</p>
+              </div>
             </div>
+            {paymentAccounts && paymentAccounts.length > 0 && (
+              <Button size="sm" variant="outline" className="glass shrink-0" onClick={openAddPayment}>
+                <Plus className="h-3.5 w-3.5 mr-1" /> Add
+              </Button>
+            )}
           </div>
+          {!w.connected ? (
+            <EmptyState icon={WalletCards} text="Connect your wallet to manage payment methods." />
+          ) : paymentAccounts === null ? (
+            <EmptyState icon={CreditCard} text="Loading…" />
+          ) : paymentAccounts.length === 0 ? (
+            <EmptyState icon={CreditCard} text="No payment methods saved yet." action={{ label: "Add Payment Method", onClick: openAddPayment }} />
+          ) : (
             <div className="grid sm:grid-cols-2 gap-3">
-              {paymentMethods.map((method) => (
-                <PaymentMethodCard key={method.id} method={method} />
+              {paymentAccounts.map((account) => (
+                <PaymentMethodCard key={account.id} account={account} />
               ))}
             </div>
-          </div>
+          )}
+        </div>
 
         <div className="glass-strong rounded-xl p-5 border border-primary/20">
-          <h3 className="font-bold mb-4">Generate Report</h3>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <div className="flex items-center gap-2.5 mb-1">
+            <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-primary/10 text-primary">
+              <FileDown className="h-4 w-4" />
+            </div>
+            <h3 className="font-bold text-sm">Generate Report</h3>
+          </div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mt-3">
             <p className="text-sm text-muted-foreground flex-1">
               Choose report type and timeframe before downloading.
             </p>
-            <Button onClick={() => setReportOpen(true)} className="sm:ml-auto bg-gradient-primary text-primary-foreground">
+            <Button onClick={() => setReportOpen(true)} className="sm:ml-auto bg-gradient-primary text-primary-foreground w-full sm:w-auto">
               <FileDown className="h-3.5 w-3.5 mr-1.5" /> Generate Report
             </Button>
           </div>
         </div>
       </div>
+
+      <Dialog open={editUsernameOpen} onOpenChange={setEditUsernameOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{p2pProfile?.username ? "P2P Username" : "Set P2P Username"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {p2pProfile?.username ? (
+              <p className="text-sm text-muted-foreground">
+                Your P2P username is <span className="font-semibold text-foreground">{p2pProfile.username}</span>. It's permanent and can't be changed once set.
+              </p>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Choose a P2P username — this is shown to counterparties on P2P trades. 3-24 letters, numbers, or underscores. This is permanent once set.
+                </p>
+                <Input
+                  value={usernameInput}
+                  onChange={(e) => setUsernameInput(e.target.value)}
+                  placeholder="your_username"
+                  className="h-10"
+                />
+                <Button onClick={saveUsername} disabled={savingUsername} className="w-full bg-gradient-primary text-primary-foreground">
+                  {savingUsername ? "Saving…" : "Save Username"}
+                </Button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={reportOpen} onOpenChange={setReportOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -265,6 +349,7 @@ export default function Profile() {
           </div>
         </DialogContent>
       </Dialog>
+
       <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
         <DialogContent className="max-w-2xl overflow-hidden border border-border bg-card p-0 text-foreground shadow-2xl dark:border-primary/20 dark:bg-background/80 dark:backdrop-blur-2xl">
           <DialogHeader className="border-b border-border/60 px-6 py-5">
@@ -277,8 +362,8 @@ export default function Profile() {
               <div>
                 <h3 className="font-semibold">Saved methods</h3>
                 <p className="text-sm text-muted-foreground">
-                  {paymentMethods.length > 0
-                    ? `${paymentMethods.length} saved method${paymentMethods.length > 1 ? "s" : ""} available for P2P trades.`
+                  {paymentAccounts && paymentAccounts.length > 0
+                    ? `${paymentAccounts.length} saved method${paymentAccounts.length > 1 ? "s" : ""} available for P2P trades.`
                     : "No saved payment methods yet."}
                 </p>
               </div>
@@ -287,15 +372,10 @@ export default function Profile() {
               </Button>
             </div>
 
-            {paymentMethods.length > 0 ? (
+            {paymentAccounts && paymentAccounts.length > 0 ? (
               <div className="grid gap-3">
-                {paymentMethods.map((method) => (
-                  <PaymentMethodCard
-                    key={method.id}
-                    method={method}
-                    detailed
-                    onRemove={() => setMethodToRemove(method)}
-                  />
+                {paymentAccounts.map((account) => (
+                  <PaymentMethodCard key={account.id} account={account} detailed />
                 ))}
               </div>
             ) : (
@@ -313,30 +393,6 @@ export default function Profile() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(methodToRemove)} onOpenChange={(open) => !open && setMethodToRemove(null)}>
-        <DialogContent className="max-w-md border border-border bg-card text-foreground shadow-2xl dark:border-primary/20 dark:bg-background/85 dark:backdrop-blur-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" /> Remove payment method?
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              This will remove {methodToRemove?.type}{" "}
-              <span className="font-semibold text-foreground">{methodToRemove?.displayName}</span> from your saved P2P payment methods.
-            </p>
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <Button variant="outline" onClick={() => setMethodToRemove(null)}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={removePaymentMethod}>
-                Remove Method
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={addPaymentOpen} onOpenChange={setAddPaymentOpen}>
         <DialogContent className="max-w-2xl overflow-hidden border border-border bg-card p-0 text-foreground shadow-2xl dark:border-primary/20 dark:bg-background/80 dark:backdrop-blur-2xl">
           <DialogHeader className="border-b border-border/60 px-6 py-5">
@@ -348,17 +404,17 @@ export default function Profile() {
             <div>
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Payment Type</div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                {paymentTypes.map((type) => (
+                {P2P_PAYMENT_METHODS.map((methodOption) => (
                   <button
-                    key={type}
-                    onClick={() => setPaymentForm((form) => ({ ...form, type }))}
+                    key={methodOption}
+                    onClick={() => setPaymentForm((form) => ({ ...form, method: methodOption }))}
                     className={`rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
-                      paymentForm.type === type
+                      paymentForm.method === methodOption
                         ? "border-primary/50 bg-primary/15 text-primary"
                         : "border-border/50 bg-muted/20 text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    {type}
+                    {methodOption}
                   </button>
                 ))}
               </div>
@@ -368,32 +424,24 @@ export default function Profile() {
               <div className="mb-1 flex items-center gap-2 font-semibold text-foreground">
                 <ShieldCheck className="h-4 w-4 text-primary" /> Required information
               </div>
-              Enter details exactly as registered with your bank or UPI app. These details are shown to counterparties during P2P settlement.
+              Enter details exactly as registered with your bank or UPI app. These details are shown to counterparties during P2P settlement. Saving a method you already have replaces its existing details.
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
                 label="Account Holder Name"
-                value={paymentForm.holderName}
+                value={paymentForm.accountName}
                 placeholder="Name as per bank/UPI"
-                onChange={(value) => setPaymentForm((form) => ({ ...form, holderName: value }))}
+                onChange={(value) => setPaymentForm((form) => ({ ...form, accountName: value }))}
               />
               <Field
-                label="Mobile Number"
-                value={paymentForm.mobile}
-                placeholder="+91 98765 43210"
-                onChange={(value) => setPaymentForm((form) => ({ ...form, mobile: value }))}
+                label={paymentForm.method === "UPI" ? "UPI ID" : "Account / Payment Identifier"}
+                value={paymentForm.accountIdentifier}
+                placeholder={paymentForm.method === "UPI" ? "name@upi" : "Account number / identifier"}
+                onChange={(value) => setPaymentForm((form) => ({ ...form, accountIdentifier: value }))}
               />
 
-              {paymentForm.type === "UPI" ? (
-                <Field
-                  label="UPI ID"
-                  value={paymentForm.upiId}
-                  placeholder="name@upi"
-                  onChange={(value) => setPaymentForm((form) => ({ ...form, upiId: value }))}
-                  className="sm:col-span-2"
-                />
-              ) : (
+              {requiresBankDetails && (
                 <>
                   <Field
                     label="Bank Name"
@@ -402,25 +450,20 @@ export default function Profile() {
                     onChange={(value) => setPaymentForm((form) => ({ ...form, bankName: value }))}
                   />
                   <Field
-                    label="Account Number"
-                    value={paymentForm.accountNumber}
-                    placeholder="Enter account number"
-                    onChange={(value) => setPaymentForm((form) => ({ ...form, accountNumber: value }))}
-                  />
-                  <Field
                     label="IFSC Code"
-                    value={paymentForm.ifsc}
+                    value={paymentForm.ifscCode}
                     placeholder="HDFC0001234"
-                    onChange={(value) => setPaymentForm((form) => ({ ...form, ifsc: value.toUpperCase() }))}
+                    onChange={(value) => setPaymentForm((form) => ({ ...form, ifscCode: value.toUpperCase() }))}
                   />
                 </>
               )}
 
               <Field
-                label="Daily Limit"
-                value={paymentForm.limit}
-                placeholder="INR 1,00,000/day"
-                onChange={(value) => setPaymentForm((form) => ({ ...form, limit: value }))}
+                label="Instructions (optional)"
+                value={paymentForm.instructions}
+                placeholder="Any notes for counterparties"
+                onChange={(value) => setPaymentForm((form) => ({ ...form, instructions: value }))}
+                className="sm:col-span-2"
               />
             </div>
 
@@ -428,8 +471,8 @@ export default function Profile() {
               <Button variant="outline" onClick={() => setAddPaymentOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={savePaymentMethod} className="bg-gradient-primary text-primary-foreground">
-                Save Payment Method
+              <Button onClick={savePaymentMethod} disabled={savingPayment} className="bg-gradient-primary text-primary-foreground">
+                {savingPayment ? "Saving…" : "Save Payment Method"}
               </Button>
             </div>
           </div>
@@ -439,57 +482,87 @@ export default function Profile() {
   );
 }
 
-function Row({ k, v }: { k: string; v: string }) {
+function StatTile({
+  icon: Icon, label, value, accentClass,
+}: {
+  icon: typeof User;
+  label: string;
+  value: string;
+  accentClass: string;
+}) {
   return (
-    <div className="flex justify-between text-sm py-2 border-b border-border/30 last:border-0">
-      <span className="text-muted-foreground">{k}</span>
-      <span className="font-medium">{v}</span>
+    <div className="glass rounded-xl p-4 flex items-center gap-3">
+      <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", accentClass)}>
+        <Icon className="h-4.5 w-4.5" />
+      </div>
+      <div className="min-w-0">
+        <div className="text-[11px] text-muted-foreground uppercase tracking-wide">{label}</div>
+        <div className="font-semibold text-sm truncate">{value}</div>
+      </div>
     </div>
   );
 }
 
-function PaymentMethodCard({
-  method,
-  detailed = false,
-  onRemove,
+function EmptyState({
+  icon: Icon, text, action,
 }: {
-  method: PaymentMethod;
-  detailed?: boolean;
-  onRemove?: () => void;
+  icon: typeof User;
+  text: string;
+  action?: { label: string; onClick: () => void };
 }) {
-  const Icon = method.type === "UPI" ? Smartphone : Landmark;
+  return (
+    <div className="text-center py-8">
+      <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-muted/40 text-muted-foreground">
+        <Icon className="h-5 w-5" />
+      </div>
+      <p className="text-xs text-muted-foreground">{text}</p>
+      {action && (
+        <Button size="sm" variant="outline" className="glass mt-3" onClick={action.onClick}>
+          <Plus className="h-3.5 w-3.5 mr-1" /> {action.label}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+const PAYMENT_METHOD_STYLE: Record<string, string> = {
+  UPI: "text-cyan-500 bg-cyan-500/10",
+  "Bank Transfer": "text-primary bg-primary/10",
+  NEFT: "text-amber-500 bg-amber-500/10",
+  IMPS: "text-buy bg-buy/10",
+  MPESN: "text-violet-500 bg-violet-500/10",
+};
+
+function PaymentMethodCard({
+  account,
+  detailed = false,
+}: {
+  account: P2PPaymentAccount;
+  detailed?: boolean;
+}) {
+  const Icon = account.method === "UPI" ? Smartphone : Landmark;
+  const accentClass = PAYMENT_METHOD_STYLE[account.method] ?? "text-primary bg-primary/10";
 
   return (
     <div className="relative rounded-xl border border-border/50 bg-muted/20 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5">
-      {onRemove && (
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label={`Remove ${method.type} payment method`}
-          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      )}
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", accentClass)}>
           <Icon className="h-5 w-5" />
         </div>
-        <div className={onRemove ? "min-w-0 flex-1 pr-8" : "min-w-0 flex-1"}>
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="font-bold">{method.type}</div>
+            <div className="font-bold">{account.method}</div>
             <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-500">
               Active
             </span>
           </div>
-          <div className="mt-0.5 truncate text-xs text-muted-foreground">{method.displayName}</div>
+          <div className="mt-0.5 truncate text-xs text-muted-foreground">{account.accountIdentifier}</div>
           {detailed && (
-            <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-              <span>Holder: <b className="text-foreground">{method.holderName}</b></span>
-              {method.bankName && <span>Bank: <b className="text-foreground">{method.bankName}</b></span>}
-              {method.ifsc && <span>IFSC: <b className="text-foreground">{method.ifsc}</b></span>}
-              {method.mobile && <span>Mobile: <b className="text-foreground">{method.mobile}</b></span>}
-              {method.limit && <span>Limit: <b className="text-foreground">{method.limit}</b></span>}
+            <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 pt-3 border-t border-border/30">
+              <span>Holder: <b className="text-foreground">{account.accountName}</b></span>
+              {account.bankName && <span>Bank: <b className="text-foreground">{account.bankName}</b></span>}
+              {account.ifscCode && <span>IFSC: <b className="text-foreground">{account.ifscCode}</b></span>}
+              {account.instructions && <span className="sm:col-span-2">Instructions: <b className="text-foreground">{account.instructions}</b></span>}
             </div>
           )}
         </div>

@@ -148,7 +148,7 @@ export default function PropFirm() {
                     <div className="absolute -top-6 -right-6 glass rounded-xl p-4 w-40 border border-border/50 animate-bounce" style={{ animationDelay: "0s" }}>
                       <div className="flex items-center gap-2 mb-2">
                         <TrendingUp className="h-4 w-4 text-buy" />
-                        <span className="text-xs font-bold">$100K</span>
+                        <span className="text-xs font-bold">100K BI2XUSD</span>
                       </div>
                       <p className="text-xs text-muted-foreground">Maximum size</p>
                     </div>

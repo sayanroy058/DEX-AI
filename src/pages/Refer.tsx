@@ -1,22 +1,29 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
-import { Copy, Gift, Users, DollarSign, Share2, Twitter, Send, Loader2 } from "lucide-react";
+import { Copy, Gift, Users, DollarSign, Share2, Twitter, Send, Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { getMyReferral, formatBI2XUSDRaw, type MyReferral } from "@/lib/referralApi";
+import { useWallet } from "@/lib/useWallet";
 
 export default function Refer() {
+  const w = useWallet();
   const [data, setData] = useState<MyReferral | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     document.title = "Refer & Earn | BitDx";
+    if (!w.connected) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     getMyReferral()
       .then(setData)
-      .catch((e) => setError(e.message || "Connect your wallet to see your referral link."))
+      .catch((e) => setError(e.message || "Could not load your referral link."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [w.connected]);
 
   const copy = (val: string, label: string) => {
     navigator.clipboard.writeText(val);
@@ -37,8 +44,11 @@ export default function Refer() {
     return (
       <AppShell>
         <div className="max-w-5xl mx-auto p-6">
-          <div className="glass rounded-xl p-8 text-center text-muted-foreground">
-            {error || "Sign in to get your referral link."}
+          <div className="glass rounded-xl p-10 text-center">
+            <LogIn className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground">
+              {!w.connected ? "Connect your wallet to see your referral link." : error || "Could not load your referral link."}
+            </p>
           </div>
         </div>
       </AppShell>

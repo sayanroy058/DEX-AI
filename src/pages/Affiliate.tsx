@@ -2,22 +2,29 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, DollarSign, Copy, Loader2 } from "lucide-react";
+import { Users, DollarSign, Copy, Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { getMyAffiliateLinks, formatBI2XUSDRaw, type AffiliateLinkSummary } from "@/lib/referralApi";
+import { useWallet } from "@/lib/useWallet";
 
 export default function Affiliate() {
+  const w = useWallet();
   const [links, setLinks] = useState<AffiliateLinkSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     document.title = "Affiliate Dashboard | BitDx";
+    if (!w.connected) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     getMyAffiliateLinks()
       .then((r) => setLinks(r.links ?? []))
-      .catch((e) => setError(e.message || "Connect your wallet to see your affiliate links."))
+      .catch((e) => setError(e.message || "Could not load your affiliate links."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [w.connected]);
 
   const copy = (val: string) => {
     navigator.clipboard.writeText(val);
@@ -48,11 +55,14 @@ export default function Affiliate() {
           </p>
         </div>
 
-        {error && (
+        {!w.connected ? (
+          <div className="glass rounded-xl p-10 text-center">
+            <LogIn className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground">Connect your wallet to see your affiliate links.</p>
+          </div>
+        ) : error ? (
           <div className="glass rounded-lg p-3 text-sm text-sell border border-sell/30">{error}</div>
-        )}
-
-        {!error && links.length === 0 ? (
+        ) : links.length === 0 ? (
           <div className="glass rounded-xl p-10 text-center text-muted-foreground">
             You don't have an affiliate link yet. Contact the BitDx team if you'd like to become an affiliate.
           </div>
