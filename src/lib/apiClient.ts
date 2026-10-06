@@ -507,3 +507,173 @@ export type StakingEvent = {
 export function getStakingHistory(limit = 100) {
   return tradeReq<{ events: StakingEvent[] | null }>(`/staking/history?limit=${limit}`);
 }
+
+// ─── Wallet-area transfers ──────────────────────────────────────────────────
+// Each area's balance lives in a different backend store (Spot/Futures are
+// partitioned inside the matching-engine's own ledger; Staking/Prediction/
+// P2P are separate Postgres-only wallets with their own fund/unfund
+// endpoints, modeled on P2P's original pattern — see
+// ~/.claude/plans/wallet-separation.md). There is no single "transfer
+// anything to anything" backend endpoint: the Portfolio page's transfer UI
+// composes these primitives itself (direct for Spot<->Futures, fund/unfund
+// for Spot<->{Staking,Prediction,P2P}, and two hops through Spot for any
+// other pair, e.g. Futures->Staking).
+const transferIdempotencyKey = () =>
+  globalThis.crypto?.randomUUID?.() ?? `xfer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+export type WalletTransferResult = { transfer: unknown };
+
+// Direct Spot<->Futures transfer, BI2XUSD only, via the engine's own ledger.
+// `amount` is a human-decimal string (e.g. "71" or "71.5"), NOT raw units —
+// unlike every fund/unfund wallet-area endpoint below, which take
+// amountRaw. The engine's /internal/transfer parses this with Go's
+// fixedpoint.FromString, not as a raw integer, so passing a raw-unit
+// string here (e.g. from parseBI2XUSDAmount) would be read as an amount
+// 1,000,000x too large.
+export function walletTransfer(fromMarket: "SPOT" | "FUTURES", toMarket: "SPOT" | "FUTURES", amount: string) {
+  return tradeReq<WalletTransferResult>("/wallet/transfer", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fromMarket, toMarket, asset: "BI2XUSD", amount }),
+  });
+}
+
+type WalletAreaBalance = { availableRaw: string; reservedRaw: string; totalRaw: string };
+
+// Staking wallet: BI2XUSD only, main(Spot)<->Staking.
+export function fundStakingWallet(amountRaw: string) {
+  return tradeReq<{ balance: WalletAreaBalance }>("/staking/wallet/fund", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amountRaw, idempotencyKey: transferIdempotencyKey() }),
+  });
+}
+export function unfundStakingWallet(amountRaw: string) {
+  return tradeReq<{ balance: WalletAreaBalance }>("/staking/wallet/unfund", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amountRaw, idempotencyKey: transferIdempotencyKey() }),
+  });
+}
+
+// Prediction wallet: BI2XUSD only, main(Spot)<->Prediction.
+export function fundPredictionWallet(amountRaw: string) {
+  return tradeReq<{ balance: WalletAreaBalance }>("/wallet/prediction/fund", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amountRaw, idempotencyKey: transferIdempotencyKey() }),
+  });
+}
+export function unfundPredictionWallet(amountRaw: string) {
+  return tradeReq<{ balance: WalletAreaBalance }>("/wallet/prediction/unfund", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amountRaw, idempotencyKey: transferIdempotencyKey() }),
+  });
+}
+
+// ─── SIP / SWP ───────────────────────────────────────────────────────────────
+// Real scheduled Spot execution: a SIP places a recurring MARKET BUY for a
+// fixed USD amount's worth of `asset` on each scheduled date; a SWP places
+// the mirror MARKET SELL. See Dex-Backend's internal/api/sipswp.go (the
+// background worker) and internal/repo/sipswp.go (the scheduling/next-run-
+// date logic) — there is no client-side scheduling here at all, the backend
+// worker polls and executes plans on its own regardless of whether this
+// page is even open.
+export type SipSwpKind = "SIP" | "SWP";
+export type SipSwpFrequency = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
+export type SipSwpStatus = "active" | "paused" | "cancelled" | "completed";
+
+export type SipSwpPlan = {
+  id: string;
+  kind: SipSwpKind;
+  name: string;
+  asset: string;
+  quoteAsset: string;
+  amountUsdRaw: string;
+  frequency: SipSwpFrequency;
+  dayOfPeriod?: number;
+  startDate: string;
+  endDate?: string;
+  status: SipSwpStatus;
+  nextRunDate: string;
+  executionsCompleted: number;
+  totalUsdRaw: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SipSwpExecution = {
+  id: string;
+  planId: string;
+  scheduledDate: string;
+  status: "completed" | "skipped" | "failed";
+  orderId?: string;
+  amountUsdRaw: string;
+  qtyRaw?: string;
+  price?: string;
+  skipReason?: string;
+  createdAt: string;
+};
+
+export type CreateSipSwpPlanParams = {
+  kind: SipSwpKind;
+  name?: string;
+  asset: string;
+  quoteAsset?: string;
+  amountUsdRaw: string;
+  frequency: SipSwpFrequency;
+  dayOfPeriod?: number;
+  startDate: string;
+  endDate?: string;
+};
+
+export function createSipSwpPlan(params: CreateSipSwpPlanParams) {
+  return tradeReq<{ plan: SipSwpPlan }>("/sip/plans", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+}
+
+export function getSipSwpPlans() {
+  return tradeReq<{ plans: SipSwpPlan[] | null }>("/sip/plans");
+}
+
+export function getSipSwpPlan(planId: string) {
+  return tradeReq<{ plan: SipSwpPlan }>(`/sip/plans/get?planId=${encodeURIComponent(planId)}`);
+}
+
+export function getSipSwpExecutions(planId: string, limit = 100) {
+  return tradeReq<{ executions: SipSwpExecution[] | null }>(`/sip/plans/executions?planId=${encodeURIComponent(planId)}&limit=${limit}`);
+}
+
+function sipSwpPlanAction(path: string, planId: string) {
+  return tradeReq<{ status: string }>(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ planId }),
+  });
+}
+
+export const pauseSipSwpPlan = (planId: string) => sipSwpPlanAction("/sip/plans/pause", planId);
+export const resumeSipSwpPlan = (planId: string) => sipSwpPlanAction("/sip/plans/resume", planId);
+export const cancelSipSwpPlan = (planId: string) => sipSwpPlanAction("/sip/plans/cancel", planId);
+
+// parseSipAmount/formatSipAmount: same raw-unit (6-decimal) convention as
+// parseBI2XUSDAmount/formatBI2XUSDAmount in p2pApi.ts, duplicated here
+// rather than imported across modules to keep apiClient.ts's SIP/SWP
+// section self-contained (p2pApi.ts hits a different base URL entirely —
+// VITE_AUTH_API_URL vs this file's TRADE_API_URL — so the two were never
+// meant to share runtime state, just this one numeric convention).
+export function parseSipAmount(value: string): string {
+  if (!/^\d+(\.\d{0,6})?$/.test(value) || Number(value) <= 0) throw new Error("Enter a valid amount with up to 6 decimal places");
+  const [whole, fraction = ""] = value.split(".");
+  return (BigInt(whole) * 1_000_000n + BigInt(fraction.padEnd(6, "0"))).toString();
+}
+export function formatSipAmount(raw: string): string {
+  const value = BigInt(raw || "0");
+  const whole = value / 1_000_000n;
+  const fraction = (value % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
+  return fraction ? `${whole}.${fraction}` : whole.toString();
+}

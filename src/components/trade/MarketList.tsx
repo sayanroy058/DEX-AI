@@ -25,6 +25,13 @@ const ASSET_TABS: { id: AssetClass; label: string; icon: any; kinds: MarketKind[
   // { id: "stocks", label: "Stocks", icon: Briefcase, kinds: ["perp", "options"], comingSoon: true },
 ];
 
+// Display-only, disabled buttons (no state, no handlers).
+const PLACEHOLDER_TABS = [
+  { label: "Forex", icon: DollarSign },
+  { label: "Commodity", icon: Droplet },
+  { label: "Stocks", icon: Briefcase },
+];
+
 const KIND_LABEL: Record<MarketKind, string> = { spot: "Spot", perp: "Future", options: "Options" };
 
 // Options trading is DISABLED (2026-09-11 product decision: crypto
@@ -163,6 +170,20 @@ export function MarketList({
               )}
             </button>
           ))}
+          {/* Not-yet-available asset classes: greyed out, no behaviour. */}
+          {PLACEHOLDER_TABS.map(t => (
+            <button
+              key={t.label}
+              type="button"
+              disabled
+              aria-disabled="true"
+              title={`${t.label} — coming soon`}
+              className="flex flex-col items-center justify-center py-1.5 rounded text-[9px] font-semibold gap-0.5 text-muted-foreground/40 cursor-not-allowed"
+            >
+              <t.icon className="h-3 w-3" />
+              {t.label}
+            </button>
+          ))}
         </div>
 
         {/* Sub-tabs (kinds) — hidden for a coming-soon asset class, there's
@@ -192,6 +213,15 @@ export function MarketList({
                 )}
               </button>
             ))}
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              title="Options — coming soon"
+              className="px-2 py-0.5 text-[10px] rounded text-muted-foreground/40 cursor-not-allowed"
+            >
+              Options
+            </button>
           </div>
         )}
       </div>

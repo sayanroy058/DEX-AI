@@ -71,6 +71,44 @@ export function getWalletBalances() {
   return authReq<WalletBalanceResponse>(`/wallet/balance`);
 }
 
+// AreaBalance is one wallet area's figures (Futures/Staking/Prediction),
+// raw integer strings at the platform's standard 6-decimal scale — same
+// convention as every other balance figure in this API. See
+// BalancesByAreaResponse's doc comment for what "area" means here.
+export type AreaBalance = {
+  availableRaw: string;
+  reservedRaw: string;
+  totalRaw: string;
+};
+
+// SpotAreaBalance is Spot's own shape, kept distinct from AreaBalance since
+// Spot is multi-asset (BTC/BI2X/BI2XUSD/USDC/USDT) while Futures/Staking/
+// Prediction are each a single BI2XUSD pool — see Dex-Backend's
+// WalletServer.BalancesByArea doc comment.
+export type SpotAreaBalance = {
+  assets: Record<string, string>;
+  locked: Record<string, string>;
+};
+
+// BalancesByAreaResponse is Phase 6 of ~/.claude/plans/wallet-separation.md:
+// the per-area breakdown backing the unified wallet view (Spot/Futures/
+// Staking/Prediction), one HTTP round trip instead of four. An area the
+// backend couldn't load (e.g. the engine briefly unreachable for Futures)
+// is simply absent from `areas` rather than the whole response failing —
+// callers should treat a missing key as "unknown right now", not "zero".
+export type BalancesByAreaResponse = {
+  areas: {
+    SPOT?: SpotAreaBalance;
+    FUTURES?: AreaBalance;
+    STAKING?: AreaBalance;
+    PREDICTION?: AreaBalance;
+  };
+};
+
+export function getBalancesByArea() {
+  return authReq<BalancesByAreaResponse>(`/wallet/balances-by-area`);
+}
+
 export function requestWithdrawal(asset: string, amount: string) {
   return authReq<{ id: string; asset: string; status: string; txHash?: string }>(`/wallet/withdraw-request`, {
     method: "POST",

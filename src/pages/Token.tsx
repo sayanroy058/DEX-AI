@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
+import logo from "@/assets/logo.png";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
-  Zap, TrendingUp, Users, ExternalLink, Copy, FileText,
+  Zap, TrendingUp, Users, ExternalLink, Copy,
   ShieldCheck, Flame, BarChart3, Clock, Activity,
 } from "lucide-react";
 import {
@@ -426,30 +427,12 @@ export default function Token() {
           </div>
         </section>
 
-        {/* ── Whitepaper CTA ── */}
-        <div className="glass rounded-2xl p-6 border border-primary/20 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-              <FileText className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="font-bold">Deep dive into the architecture</div>
-              <div className="text-sm text-muted-foreground">Learn about the governance, emissions, and stability mechanisms.</div>
-            </div>
-          </div>
-          <Button className="bg-gradient-primary text-primary-foreground hover:shadow-glow-primary w-full sm:w-auto shrink-0">
-            Read Whitepaper <ExternalLink className="h-3.5 w-3.5 ml-1.5" />
-          </Button>
-        </div>
-
         {/* ── Footer ── */}
         <footer className="pt-8 border-t border-border/50">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="h-7 w-7 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow-primary">
-                  <Zap className="h-3.5 w-3.5 text-primary-foreground" strokeWidth={2.5} />
-                </div>
+                <img src={logo} alt="BitDx" className="h-7 w-7 rounded-lg object-contain" />
                 <span className="font-bold text-foreground">BitDx</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed max-w-[200px]">

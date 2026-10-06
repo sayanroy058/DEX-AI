@@ -1,13 +1,11 @@
 import { useState } from "react";
 import { NavLink as RouterNavLink, useLocation, Link } from "react-router-dom";
-import { LayoutDashboard, LineChart, Wallet, Users, Settings, Zap, Bell, Search, ArrowDownToLine, ArrowUpFromLine, User, Building2, Sparkles, Repeat, Coins, Gift, CalendarClock, Bot, CircleHelp, Percent, TrendingUp, Lock } from "lucide-react";
+import { LayoutDashboard, LineChart, Wallet, Users, Settings, Zap, Bell, Search, User, Building2, Sparkles, Repeat, Coins, Gift, CalendarClock, Bot, CircleHelp, Percent, TrendingUp, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { WalletDialog } from "@/components/wallet/WalletDialog";
-import { TransferDialog } from "@/components/wallet/TransferDialog";
 import { useWallet, shortAddress, getWalletSourceLabel } from "@/lib/useWallet";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import logo from "@/assets/logo.png";
@@ -22,7 +20,7 @@ const navItems = [
   { to: "/prediction", icon: TrendingUp, label: "Predict" },
   { to: "/token", icon: Coins, label: "Token" },
   { to: "/staking", icon: Lock, label: "Staking" },
-  // { to: "/sip", icon: CalendarClock, label: "SIP/SWP" }, — hidden 2026-09-17 (product decision); route stays live in App.tsx for direct URLs
+  { to: "/sip", icon: CalendarClock, label: "SIP/SWP" },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -30,16 +28,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isTradePage = location.pathname === "/trade";
   const w = useWallet();
   const [walletOpen, setWalletOpen] = useState(false);
-  const [transferOpen, setTransferOpen] = useState(false);
-  const [transferMode, setTransferMode] = useState<"deposit" | "withdraw">("deposit");
-
-  const openTransfer = (m: "deposit" | "withdraw") => {
-    if (!w.connected) { setWalletOpen(true); return; }
-    setTransferMode(m);
-    setTransferOpen(true);
-  };
-
-  const totalUsd = w.balances.reduce((sum, balance) => sum + balance.amount, 0);
 
   return (
     <div className="min-h-screen w-full flex flex-col">
@@ -90,36 +78,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         */}
 
         {w.connected && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative" title="Wallet balance">
-                <Wallet className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-72 glass-strong border-glass-border p-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-muted-foreground uppercase tracking-wide">Total Balance</span>
-                <span className="text-[10px] text-primary">{getWalletSourceLabel(w.walletId)}</span>
-              </div>
-              <div className="text-2xl font-bold font-mono mb-3">${totalUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                {w.balances.map(b => (
-                  <div key={b.asset} className="flex justify-between text-xs glass rounded px-2 py-1.5">
-                    <span className="font-medium">{b.asset}</span>
-                    <span className="font-mono">{b.amount.toLocaleString(undefined, { maximumFractionDigits: 6 })}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 gap-2 mt-3">
-                <Button size="sm" variant="outline" className="h-8 text-xs text-buy border-buy/40 hover:bg-buy/10 hover:text-buy" onClick={() => openTransfer("deposit")}>
-                  <ArrowDownToLine className="h-3 w-3 mr-1" /> Deposit
-                </Button>
-                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => openTransfer("withdraw")}>
-                  <ArrowUpFromLine className="h-3 w-3 mr-1" /> Withdraw
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
+          <Button variant="ghost" size="icon" className="relative" title="Portfolio" asChild>
+            <Link to="/portfolio">
+              <Wallet className="h-4 w-4" />
+            </Link>
+          </Button>
         )}
 
         <Button variant="outline" className={cn("glass px-2.5 sm:px-4", w.connected ? "border-buy/40 text-buy hover:bg-buy/10 hover:text-buy" : "border-primary/40 text-primary hover:bg-primary/10 hover:text-primary")} onClick={() => setWalletOpen(true)}>
@@ -157,7 +120,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       <WalletDialog open={walletOpen} onOpenChange={setWalletOpen} />
-      <TransferDialog open={transferOpen} onOpenChange={setTransferOpen} defaultMode={transferMode} />
 
       <nav className="lg:hidden flex items-center gap-1 px-2 py-2 glass-strong border-b border-glass-border overflow-x-auto scrollbar-none">
         {navItems.map(item => (

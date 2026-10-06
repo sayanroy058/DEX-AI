@@ -16,11 +16,18 @@ import { useWallet } from "@/lib/useWallet";
 import { useMarketMetadata } from "@/lib/useMarketMetadata";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
-type Side = "buy" | "sell";
+export type Side = "buy" | "sell";
 type OrderType = "market" | "limit";
 export type MarketMode = "spot" | "futures" | "options";
 type MarginMode = "isolated" | "cross";
 type OptionType = "call" | "put";
+
+// Manual numeric inputs: keep digits and a single decimal point only.
+function sanitizeDecimal(value: string): string {
+  const stripped = value.replace(/[^0-9.]/g, "");
+  const dot = stripped.indexOf(".");
+  return dot === -1 ? stripped : stripped.slice(0, dot + 1) + stripped.slice(dot + 1).replace(/\./g, "");
+}
 
 export function TradePanel({
   symbol,
@@ -29,6 +36,7 @@ export function TradePanel({
   mode: controlledMode,
   onModeChange,
   orders,
+  initialSide,
 }: {
   symbol: string;
   price: number;
@@ -40,6 +48,12 @@ export function TradePanel({
   mode?: MarketMode;
   onModeChange?: (mode: MarketMode) => void;
   orders: ReturnType<typeof useOrders>;
+  // Preselects the Buy/Sell toggle on first render — used by the chart's
+  // floating Buy/Sell button (TradingChart.tsx) so tapping "Sell" there
+  // opens this same panel already on the sell side instead of always
+  // defaulting to buy. Uncontrolled after mount (the user can still freely
+  // switch sides); only read once via useState's initializer.
+  initialSide?: Side;
 }) {
   const baseAsset = symbol.split("-")[0] || "BTC";
   const backendMarket = backendMarketFor(symbol);
@@ -53,7 +67,7 @@ export function TradePanel({
   const [uncontrolledMode, setUncontrolledMode] = useState<MarketMode>("spot");
   const mode = controlledMode ?? uncontrolledMode;
   const setMode = setUncontrolledMode;
-  const [side, setSide] = useState<Side>("buy");
+  const [side, setSide] = useState<Side>(initialSide ?? "buy");
   const isSpotSell = mode === "spot" && side === "sell";
   const isSpotBuy = mode === "spot" && side === "buy";
   const isOptions = mode === "options";
@@ -80,7 +94,8 @@ export function TradePanel({
   const [marginMode, setMarginMode] = useState<MarginMode>("isolated");
   const [leverage, setLeverage] = useState(10);
   const [reduceOnly, setReduceOnly] = useState(false);
-  const [slippageBps, setSlippageBps] = useState("50");
+  // Fixed default cap sent with market orders; no longer user-editable.
+  const slippageBps = "50";
   const [marketConfirmOpen, setMarketConfirmOpen] = useState(false);
   const [leverageInput, setLeverageInput] = useState("10");
   const [isCustomLeverageOpen, setIsCustomLeverageOpen] = useState(false);
@@ -517,7 +532,7 @@ export function TradePanel({
   };
   const handleLeverageInputChange = (value: string) => {
     if (!isIsolatedMargin) return;
-    const cleaned = value.replace(/x/gi, "");
+    const cleaned = sanitizeDecimal(value);
     if (cleaned === "") {
       setLeverageInput(cleaned);
       return;
@@ -536,7 +551,8 @@ export function TradePanel({
     setLeverageValue(Number.isFinite(numericValue) ? numericValue : leverage);
     setIsCustomLeverageOpen(false);
   };
-  const handleSizeInputChange = (value: string) => {
+  const handleSizeInputChange = (raw: string) => {
+    const value = sanitizeDecimal(raw);
     if (value === "") {
       setSizeInput(value);
       return;
@@ -666,7 +682,7 @@ export function TradePanel({
             <Input
               value={limitPrice}
               onFocus={() => { editedPriceRef.current = true; }}
-              onChange={e => { editedPriceRef.current = true; setLimitPrice(e.target.value); }}
+              onChange={e => { editedPriceRef.current = true; setLimitPrice(sanitizeDecimal(e.target.value)); }}
               className="h-9 rounded-lg font-mono text-sm bg-muted/30 border-border px-3"
             />
           </div>
@@ -678,7 +694,7 @@ export function TradePanel({
               <div className="text-xs text-muted-foreground mb-1.5">Strike</div>
               <Input
                 value={strike}
-                onChange={e => { editedStrikeRef.current = true; setStrike(e.target.value); }}
+                onChange={e => { editedStrikeRef.current = true; setStrike(sanitizeDecimal(e.target.value)); }}
                 className="h-10 rounded-xl font-mono text-sm bg-muted/30 border-border px-3"
               />
             </div>
@@ -797,13 +813,6 @@ export function TradePanel({
               <input type="checkbox" checked={reduceOnly} onChange={e => setReduceOnly(e.target.checked)} className="accent-primary" />
               Reduce only
             </label>
-            {orderType === "market" && (
-              <label className="flex items-center gap-1 rounded-md border border-border bg-muted/20 px-2 text-xs text-muted-foreground">
-                Max slippage
-                <Input value={slippageBps} onChange={e => setSlippageBps(e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" className="h-7 border-0 bg-transparent px-1 text-right font-mono text-xs" aria-label="Maximum market-order slippage in basis points" />
-                bps
-              </label>
-            )}
           </div>
         )}
 
@@ -869,7 +878,7 @@ export function TradePanel({
                 aria-label="Enable take profit"
               />
               <span className="text-xs">Take Profit</span>
-              <Input disabled={!tpEnabled} value={tp} onChange={e => setTp(e.target.value)}
+              <Input disabled={!tpEnabled} value={tp} onChange={e => setTp(sanitizeDecimal(e.target.value))}
                 className="h-7 rounded-md font-mono text-xs text-buy px-2" />
               <div className="flex items-center gap-0.5">
                 <span className="text-xs text-buy font-mono">+</span>
@@ -877,8 +886,9 @@ export function TradePanel({
                   disabled={!tpEnabled}
                   value={tpPctInput}
                   onChange={e => {
-                    setTpPctInput(e.target.value);
-                    const pct = parseFloat(e.target.value);
+                    const clean = sanitizeDecimal(e.target.value);
+                    setTpPctInput(clean);
+                    const pct = parseFloat(clean);
                     if (Number.isFinite(pct) && price > 0) {
                       editedTpPctRef.current = true;
                       setTp(percentToTpPrice(pct).toFixed(2));
@@ -899,7 +909,7 @@ export function TradePanel({
                 aria-label="Enable stop loss"
               />
               <span className="text-xs">Stop Loss</span>
-              <Input disabled={!slEnabled} value={sl} onChange={e => setSl(e.target.value)}
+              <Input disabled={!slEnabled} value={sl} onChange={e => setSl(sanitizeDecimal(e.target.value))}
                 className="h-7 rounded-md font-mono text-xs text-sell px-2" />
               <div className="flex items-center gap-0.5">
                 <span className="text-xs text-sell font-mono">-</span>
@@ -907,8 +917,9 @@ export function TradePanel({
                   disabled={!slEnabled}
                   value={slPctInput}
                   onChange={e => {
-                    setSlPctInput(e.target.value);
-                    const pct = parseFloat(e.target.value);
+                    const clean = sanitizeDecimal(e.target.value);
+                    setSlPctInput(clean);
+                    const pct = parseFloat(clean);
                     if (Number.isFinite(pct) && price > 0) {
                       editedSlPctRef.current = true;
                       setSl(percentToSlPrice(pct).toFixed(2));

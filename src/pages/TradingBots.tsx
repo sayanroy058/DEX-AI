@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CreateBotModal } from "@/components/bots/CreateBotModal";
 import { cn } from "@/lib/utils";
 import {
@@ -315,27 +316,38 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-// AI Agent bot creation is disabled — it never created a real bot (no
-// botsApi call, pure simulated frontend state), so the button is disabled
-// rather than wired to the commented-out /ai-agent route. Re-enable by
-// restoring the onClick + route in App.tsx once a real AI-driven bot
-// creation flow exists.
+// AI Agent bot creation isn't live yet (it never created a real bot), so the
+// button opens a "Coming Soon" message instead of a creation flow.
 function CreateBotButton() {
+  const [open, setOpen] = useState(false);
   return (
-    <button
-      type="button"
-      disabled
-      className="group relative isolate inline-flex h-11 cursor-not-allowed items-center gap-2 overflow-hidden rounded-full border border-border/50 bg-muted/20 px-4 text-sm font-bold text-muted-foreground opacity-60"
-      aria-label="Create AI Agent (coming soon)"
-    >
-      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted/40 text-muted-foreground">
-        <BotIcon className="h-4 w-4" />
-      </span>
-      <span>Create AI Agent</span>
-      <span className="pointer-events-none absolute right-0 top-full mt-2 w-max max-w-[220px] translate-y-1 rounded-lg border border-border bg-popover px-3 py-2 text-xs font-semibold text-popover-foreground opacity-0 shadow-xl transition-all group-hover:translate-y-0 group-hover:opacity-100">
-        Coming soon
-      </span>
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex h-11 items-center gap-2 rounded-full border border-border/50 bg-muted/20 px-4 text-sm font-bold text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10"
+        aria-label="Create AI Agent (coming soon)"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-primary">
+          <BotIcon className="h-4 w-4" />
+        </span>
+        <span>Create AI Agent</span>
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-sm border border-border bg-card text-center">
+          <DialogHeader className="items-center">
+            <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+              <BotIcon className="h-6 w-6" />
+            </div>
+            <DialogTitle className="text-xl font-black">AI Agent — Coming Soon</DialogTitle>
+            <DialogDescription>
+              AI-driven trading bots aren't live yet. Check back soon, or create a Grid, DCA or TWAP bot today.
+            </DialogDescription>
+          </DialogHeader>
+          <Button onClick={() => setOpen(false)} className="bg-primary text-primary-foreground hover:bg-primary/90">Got it</Button>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

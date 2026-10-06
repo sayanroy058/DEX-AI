@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "@/components/ui/use-toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,8 @@ import {
   X,
   ChevronRight,
   ArrowLeft,
+  Pause,
+  Play,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -32,6 +35,14 @@ import {
   CartesianGrid,
   Tooltip,
 } from "recharts";
+import {
+  createSipSwpPlan, getSipSwpPlans, getSipSwpExecutions, pauseSipSwpPlan, resumeSipSwpPlan, cancelSipSwpPlan,
+  parseSipAmount, formatSipAmount,
+  type SipSwpPlan, type SipSwpExecution, type SipSwpFrequency,
+} from "@/lib/apiClient";
+import { registeredSpotSymbols } from "@/lib/backendMarkets";
+import { useWallet } from "@/lib/useWallet";
+import { useMarket } from "@/lib/useMarkets";
 
 const DEFAULT_PROJECTION_MONTHS = 36;
 const CYCLES_PER_YEAR: Record<string, number> = {
@@ -73,111 +84,131 @@ function projectionMoney(value: number) {
 
 type PlanType = "sip" | "swp";
 
-interface Plan {
+// FREQUENCY_OPTIONS/frequencyToBackend/frequencyFromBackend bridge the
+// form's display labels ("Daily"/"Weekly"/"Monthly"/"Yearly") and the
+// backend's SipSwpFrequency ("DAILY"/"WEEKLY"/"MONTHLY"/"YEARLY").
+const FREQUENCY_OPTIONS: { value: SipSwpFrequency; label: string }[] = [
+  { value: "DAILY", label: "Daily" },
+  { value: "WEEKLY", label: "Weekly" },
+  { value: "MONTHLY", label: "Monthly" },
+  { value: "YEARLY", label: "Yearly" },
+];
+
+// A real plan's displayable fields — derived from SipSwpPlan (the raw API
+// shape) once per fetch, so the render code below works with plain numbers/
+// strings instead of raw-unit conversions scattered everywhere.
+interface DisplayPlan {
   id: string;
   type: PlanType;
   name: string;
   asset: string;
-  amount: number;
-  frequency: string;
+  amount: number; // per-cycle USD amount, human units
+  frequency: string; // display label, e.g. "Monthly"
+  dayOfPeriod?: number;
   startDate: string;
   endDate: string;
-  status: "active" | "paused";
-  totalInvested: number;
-  currentValue: number;
-  returns: number;
+  status: "active" | "paused" | "cancelled" | "completed";
+  totalInvested: number; // totalUsdRaw, human units — SIP: invested; SWP: withdrawn
   nextExecution: string;
   executionsCompleted: number;
+  raw: SipSwpPlan;
 }
 
-const MOCK_PLANS: Plan[] = [
-  {
-    id: "1",
-    type: "sip",
-    name: "BTC Growth Plan",
-    asset: "BTC",
-    amount: 1000,
-    frequency: "Monthly",
-    startDate: "2026-01-01",
-    endDate: "2027-01-01",
-    status: "active",
-    totalInvested: 5000,
-    currentValue: 5820,
-    returns: 820,
-    nextExecution: "2026-06-01",
-    executionsCompleted: 5,
-  },
-  {
-    id: "2",
-    type: "sip",
-    name: "ETH Weekly SIP",
-    asset: "ETH",
-    amount: 250,
-    frequency: "Weekly",
-    startDate: "2026-02-01",
-    endDate: "2026-12-01",
-    status: "active",
-    totalInvested: 3750,
-    currentValue: 4100,
-    returns: 350,
-    nextExecution: "2026-06-07",
-    executionsCompleted: 15,
-  },
-  {
-    id: "3",
-    type: "swp",
-    name: "Monthly Withdrawal",
-    asset: "DEXUSD",
-    amount: 500,
-    frequency: "Monthly",
-    startDate: "2026-03-01",
-    endDate: "2027-03-01",
-    status: "active",
-    totalInvested: 10000,
-    currentValue: 8500,
-    returns: -1500,
-    nextExecution: "2026-06-01",
-    executionsCompleted: 3,
-  },
-  {
-    id: "4",
-    type: "swp",
-    name: "SOL Income Plan",
-    asset: "SOL",
-    amount: 200,
-    frequency: "Weekly",
-    startDate: "2026-01-15",
-    endDate: "2026-12-15",
-    status: "paused",
-    totalInvested: 5000,
-    currentValue: 4200,
-    returns: -800,
-    nextExecution: "—",
-    executionsCompleted: 10,
-  },
-];
-
-const EXECUTION_HISTORY = [
-  { date: "2026-05-01", amount: 1000, status: "completed", price: 62400 },
-  { date: "2026-04-01", amount: 1000, status: "completed", price: 59100 },
-  { date: "2026-03-01", amount: 1000, status: "completed", price: 61200 },
-  { date: "2026-02-01", amount: 1000, status: "completed", price: 57800 },
-  { date: "2026-01-01", amount: 1000, status: "completed", price: 55300 },
-];
+function toDisplayPlan(p: SipSwpPlan): DisplayPlan {
+  const freqLabel = FREQUENCY_OPTIONS.find((f) => f.value === p.frequency)?.label ?? p.frequency;
+  return {
+    id: p.id,
+    type: p.kind === "SIP" ? "sip" : "swp",
+    name: p.name,
+    asset: p.asset,
+    amount: Number(formatSipAmount(p.amountUsdRaw)),
+    frequency: freqLabel,
+    dayOfPeriod: p.dayOfPeriod,
+    startDate: p.startDate,
+    endDate: p.endDate ?? "",
+    status: p.status,
+    totalInvested: Number(formatSipAmount(p.totalUsdRaw)),
+    nextExecution: p.status === "active" ? p.nextRunDate : "—",
+    executionsCompleted: p.executionsCompleted,
+    raw: p,
+  };
+}
 
 export default function SIP() {
+  const wallet = useWallet();
   const [activeTab, setActiveTab] = useState<PlanType>("sip");
-  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
-  const [plans, setPlans] = useState<Plan[]>(MOCK_PLANS);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [plans, setPlans] = useState<DisplayPlan[]>([]);
+  const [executions, setExecutions] = useState<SipSwpExecution[]>([]);
   const [amountPerCycle, setAmountPerCycle] = useState("0");
-  const [frequency, setFrequency] = useState("Daily");
+  const [frequency, setFrequency] = useState<SipSwpFrequency>("DAILY");
+  const [dayOfPeriod, setDayOfPeriod] = useState("1");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [planName, setPlanName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Spot-tradable base assets, from the engine's own registered SPOT
+  // symbols — not a hardcoded list, so this automatically reflects
+  // whichever assets actually have a live Spot order book to execute a
+  // SIP/SWP MARKET order against (today, just BI2X-BI2XUSD — see
+  // backendMarkets.ts's own doc comment on why the rest are FUTURES-only).
+  const spotAssets = useMemo(
+    () => registeredSpotSymbols().map((s) => s.symbol.split("-")[0]),
+    []
+  );
+  const [asset, setAsset] = useState(spotAssets[0] ?? "BI2X");
+
+  const refreshPlans = () => {
+    getSipSwpPlans()
+      .then((r) => setPlans((r.plans ?? []).map(toDisplayPlan)))
+      .catch(() => {/* transient network error; next poll will retry */});
+  };
+
+  useEffect(() => {
+    if (!wallet.connected) return;
+    refreshPlans();
+    const timer = window.setInterval(refreshPlans, 15000);
+    return () => window.clearInterval(timer);
+  }, [wallet.connected]);
+
+  useEffect(() => {
+    if (!selectedPlanId) {
+      setExecutions([]);
+      return;
+    }
+    let cancelled = false;
+    getSipSwpExecutions(selectedPlanId)
+      .then((r) => { if (!cancelled) setExecutions(r.executions ?? []); })
+      .catch(() => { if (!cancelled) setExecutions([]); });
+    return () => { cancelled = true; };
+  }, [selectedPlanId]);
+
+  const selectedPlan = plans.find((p) => p.id === selectedPlanId) ?? null;
+
+  // Real current value: sum the base-asset qty actually bought (SIP) or
+  // sold (SWP) across every COMPLETED execution, priced at the asset's
+  // current Spot mark — replacing the old mock's fabricated currentValue/
+  // returns figures. null while the asset's market price hasn't loaded yet
+  // (useMarket returns undefined for an unknown/not-yet-loaded symbol),
+  // distinct from a genuine 0 — same "unknown vs zero" convention used
+  // elsewhere in this codebase (e.g. Portfolio.tsx's area cards).
+  const selectedPlanMarket = useMarket(selectedPlan ? `${selectedPlan.asset}-BI2XUSD` : "");
+  const selectedPlanValue = useMemo(() => {
+    if (!selectedPlan) return null;
+    const price = selectedPlanMarket?.price;
+    if (!price || price <= 0) return null;
+    const totalQty = executions.reduce((sum, e) => {
+      if (e.status !== "completed" || !e.qtyRaw) return sum;
+      return sum + Number(formatSipAmount(e.qtyRaw));
+    }, 0);
+    return totalQty * price;
+  }, [selectedPlan, selectedPlanMarket, executions]);
 
   const projection = useMemo(() => {
     const months = projectionMonths(startDate, endDate);
     const amount = Math.max(0, Number(amountPerCycle) || 0);
-    const cyclesPerYear = CYCLES_PER_YEAR[frequency] ?? 12;
+    const cyclesPerYear = CYCLES_PER_YEAR[FREQUENCY_OPTIONS.find((f) => f.value === frequency)?.label ?? "Monthly"] ?? 12;
     const data = Array.from({ length: months + 1 }, (_, month) => {
       const completedCycles = month === 0 ? 0 : Math.max(1, Math.round((month / 12) * cyclesPerYear));
       const contributed = amount * completedCycles;
@@ -205,9 +236,73 @@ export default function SIP() {
 
   const filteredPlans = plans.filter((p) => p.type === activeTab);
 
-  function cancelPlan(id: string) {
-    setPlans((prev) => prev.filter((p) => p.id !== id));
-    setSelectedPlan(null);
+  async function handleCreatePlan() {
+    if (submitting) return;
+    let amountUsdRaw: string;
+    try {
+      amountUsdRaw = parseSipAmount(amountPerCycle);
+    } catch (e) {
+      toast({ title: "Invalid amount", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+      return;
+    }
+    if (!startDate) {
+      toast({ title: "Pick a start date", variant: "destructive" });
+      return;
+    }
+    const needsDayOfPeriod = frequency === "MONTHLY" || frequency === "YEARLY";
+    const dayNum = Number(dayOfPeriod);
+    if (needsDayOfPeriod && (!Number.isInteger(dayNum) || dayNum < 1 || dayNum > 31)) {
+      toast({ title: "Day of month must be between 1 and 31", variant: "destructive" });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await createSipSwpPlan({
+        kind: activeTab === "sip" ? "SIP" : "SWP",
+        name: planName.trim() || undefined,
+        asset,
+        amountUsdRaw,
+        frequency,
+        dayOfPeriod: needsDayOfPeriod ? dayNum : undefined,
+        startDate,
+        endDate: endDate || undefined,
+      });
+      toast({ title: `${activeTab === "sip" ? "SIP" : "SWP"} plan created`, description: `${amountPerCycle} USD every ${FREQUENCY_OPTIONS.find((f) => f.value === frequency)?.label.toLowerCase()} in ${asset}.` });
+      setPlanName("");
+      refreshPlans();
+    } catch (e) {
+      toast({ title: "Could not create plan", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function pausePlan(id: string) {
+    try {
+      await pauseSipSwpPlan(id);
+      refreshPlans();
+    } catch (e) {
+      toast({ title: "Could not pause plan", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    }
+  }
+
+  async function resumePlan(id: string) {
+    try {
+      await resumeSipSwpPlan(id);
+      refreshPlans();
+    } catch (e) {
+      toast({ title: "Could not resume plan", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    }
+  }
+
+  async function cancelPlan(id: string) {
+    try {
+      await cancelSipSwpPlan(id);
+      refreshPlans();
+      setSelectedPlanId(null);
+    } catch (e) {
+      toast({ title: "Could not cancel plan", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    }
   }
 
   if (selectedPlan) {
@@ -224,7 +319,7 @@ export default function SIP() {
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setSelectedPlan(null)}
+                onClick={() => setSelectedPlanId(null)}
                 className="glass rounded-lg p-2 border border-border/40 hover:border-primary/40 transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -285,19 +380,21 @@ export default function SIP() {
             </div>
             <div className="glass rounded-xl p-4 border border-border/40">
               <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Current Value</div>
-              <div className="font-mono font-bold text-lg">${selectedPlan.currentValue.toLocaleString()}</div>
+              <div className="font-mono font-bold text-lg">{selectedPlanValue === null ? "—" : `$${selectedPlanValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}</div>
             </div>
             <div className="glass rounded-xl p-4 border border-border/40">
               <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">
                 {isSip ? "Returns" : "Net Change"}
               </div>
-              <div
-                className={`font-mono font-bold text-lg ${
-                  selectedPlan.returns >= 0 ? "text-emerald-400" : "text-red-400"
-                }`}
-              >
-                {selectedPlan.returns >= 0 ? "+" : ""}${selectedPlan.returns.toLocaleString()}
-              </div>
+              {(() => {
+                if (selectedPlanValue === null) return <div className="font-mono font-bold text-lg text-muted-foreground">—</div>;
+                const returns = selectedPlanValue - selectedPlan.totalInvested;
+                return (
+                  <div className={`font-mono font-bold text-lg ${returns >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {returns >= 0 ? "+" : ""}${returns.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  </div>
+                );
+              })()}
             </div>
             <div className="glass rounded-xl p-4 border border-border/40">
               <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Executions Done</div>
@@ -356,40 +453,35 @@ export default function SIP() {
               {isSip ? (
               <div className="space-y-2">
                 <div className="text-xs text-muted-foreground">Return rate</div>
-                <div
-                  className={`text-2xl font-bold font-mono ${
-                    selectedPlan.returns >= 0 ? "text-emerald-400" : "text-red-400"
-                  }`}
-                >
-                  {selectedPlan.totalInvested > 0
-                    ? `${selectedPlan.returns >= 0 ? "+" : ""}${(
-                        (selectedPlan.returns / selectedPlan.totalInvested) *
-                        100
-                      ).toFixed(2)}%`
-                    : "—"}
-                </div>
+                {(() => {
+                  if (selectedPlanValue === null || selectedPlan.totalInvested <= 0) return <div className="text-2xl font-bold font-mono text-muted-foreground">—</div>;
+                  const returns = selectedPlanValue - selectedPlan.totalInvested;
+                  const pct = (returns / selectedPlan.totalInvested) * 100;
+                  return (
+                    <div className={`text-2xl font-bold font-mono ${returns >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      {returns >= 0 ? "+" : ""}{pct.toFixed(2)}%
+                    </div>
+                  );
+                })()}
               </div>
               ) : (
                 <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">Projected Runway</div>
+                  <div className="text-xs text-muted-foreground">Total Withdrawn</div>
                   <div className="text-2xl font-bold font-mono text-primary">
-                    {Math.floor(selectedPlan.currentValue / selectedPlan.amount)}
+                    ${selectedPlan.totalInvested.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </div>
-                  <div className="text-xs text-muted-foreground">cycles remaining at current withdrawal</div>
+                  <div className="text-xs text-muted-foreground">across {selectedPlan.executionsCompleted} completed cycle{selectedPlan.executionsCompleted === 1 ? "" : "s"}</div>
                 </div>
               )}
 
-              {isSip && (
+              {isSip && selectedPlanValue !== null && (
                 <div>
                   <div className="text-xs text-muted-foreground mb-1">P&L</div>
                   <div className="h-1.5 rounded-full bg-muted/40 overflow-hidden flex">
                     <div
                       className="h-full bg-emerald-500/70 rounded-full"
                       style={{
-                        width: `${Math.min(
-                          100,
-                          (selectedPlan.currentValue / (selectedPlan.totalInvested || 1)) * 100
-                        )}%`,
+                        width: `${Math.min(100, (selectedPlanValue / (selectedPlan.totalInvested || 1)) * 100)}%`,
                       }}
                     />
                   </div>
@@ -412,18 +504,30 @@ export default function SIP() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/20">
-                  {EXECUTION_HISTORY.map((row, i) => (
-                    <tr key={i} className="hover:bg-muted/10 transition-colors">
-                      <td className="py-2.5 font-mono text-xs">{row.date}</td>
-                      <td className="py-2.5 font-mono text-xs text-right">${row.amount.toLocaleString()}</td>
-                      <td className="py-2.5 font-mono text-xs text-right">${row.price.toLocaleString()}</td>
+                  {executions.map((row) => (
+                    <tr key={row.id} className="hover:bg-muted/10 transition-colors">
+                      <td className="py-2.5 font-mono text-xs">{row.scheduledDate}</td>
+                      <td className="py-2.5 font-mono text-xs text-right">${Number(formatSipAmount(row.amountUsdRaw)).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                      <td className="py-2.5 font-mono text-xs text-right">{row.price ? `$${Number(row.price).toLocaleString(undefined, { maximumFractionDigits: 6 })}` : "—"}</td>
                       <td className="py-2.5 text-right">
-                        <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/15 text-emerald-400 rounded-full px-2 py-0.5">
-                          ✓ {row.status}
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] rounded-full px-2 py-0.5 ${
+                            row.status === "completed"
+                              ? "bg-emerald-500/15 text-emerald-400"
+                              : "bg-amber-500/15 text-amber-400"
+                          }`}
+                          title={row.skipReason ?? undefined}
+                        >
+                          {row.status === "completed" ? "✓" : "⚠"} {row.status}
                         </span>
                       </td>
                     </tr>
                   ))}
+                  {executions.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="py-6 text-center text-xs text-muted-foreground">No executions yet — this fills in as scheduled cycles run.</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -446,9 +550,14 @@ export default function SIP() {
           </div>
           <div className="glass rounded-xl px-4 py-3 border border-primary/30 w-full sm:w-auto sm:min-w-52">
             <div className="text-[11px] text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-              <Wallet className="h-3 w-3" /> Wallet Balance
+              <Wallet className="h-3 w-3" /> Spot BI2XUSD Balance
             </div>
-            <div className="text-xl font-bold font-mono mt-1">$84,260.00</div>
+            <div className="text-xl font-bold font-mono mt-1">
+              {(() => {
+                const bal = wallet.balances.find((b) => b.asset === "BI2XUSD")?.available;
+                return bal === undefined ? "—" : `$${bal.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+              })()}
+            </div>
           </div>
         </div>
 
@@ -489,11 +598,12 @@ export default function SIP() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Asset">
-                  <select className="w-full h-10 rounded-md bg-muted/30 border border-border px-3 text-sm">
-                    <option>BTC</option>
-                    <option>ETH</option>
-                    <option>SOL</option>
-                    <option>DEXUSD</option>
+                  <select
+                    value={asset}
+                    onChange={(event) => setAsset(event.target.value)}
+                    className="w-full h-10 rounded-md bg-muted/30 border border-border px-3 text-sm"
+                  >
+                    {spotAssets.map((a) => <option key={a} value={a}>{a}</option>)}
                   </select>
                 </Field>
                 <Field label={activeTab === "sip" ? "Amount per cycle (USD)" : "Withdrawal per cycle (USD)"}>
@@ -507,19 +617,27 @@ export default function SIP() {
                 <Field label="Frequency">
                   <select
                     value={frequency}
-                    onChange={(event) => setFrequency(event.target.value)}
+                    onChange={(event) => setFrequency(event.target.value as SipSwpFrequency)}
                     className="w-full h-10 rounded-md bg-muted/30 border border-border px-3 text-sm"
                   >
-                    <option>Daily</option>
-                    <option>Weekly</option>
-                    <option>Monthly</option>
-                    <option>Yearly</option>
+                    {FREQUENCY_OPTIONS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
                   </select>
                 </Field>
+                {(frequency === "MONTHLY" || frequency === "YEARLY") && (
+                  <Field label="Day of month">
+                    <Input
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={dayOfPeriod}
+                      onChange={(event) => setDayOfPeriod(event.target.value)}
+                    />
+                  </Field>
+                )}
                 <Field label="Start Date">
                   <Input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
                 </Field>
-                <Field label="End Date">
+                <Field label="End Date (optional)">
                   <Input
                     type="date"
                     min={startDate || undefined}
@@ -527,13 +645,17 @@ export default function SIP() {
                     onChange={(event) => setEndDate(event.target.value)}
                   />
                 </Field>
-                <Field label="Plan Name">
-                  <Input defaultValue={activeTab === "sip" ? "SIP Plan 01" : "SWP Plan 01"} />
+                <Field label="Plan Name (optional)">
+                  <Input
+                    placeholder={activeTab === "sip" ? "SIP Plan" : "SWP Plan"}
+                    value={planName}
+                    onChange={(event) => setPlanName(event.target.value)}
+                  />
                 </Field>
               </div>
-              <Button className="w-full bg-gradient-primary text-primary-foreground h-10">
+              <Button className="w-full bg-gradient-primary text-primary-foreground h-10" onClick={handleCreatePlan} disabled={submitting}>
                 <Calendar className="h-4 w-4 mr-2" />
-                {activeTab === "sip" ? "Start SIP Plan" : "Start SWP Plan"}
+                {submitting ? "Starting…" : activeTab === "sip" ? "Start SIP Plan" : "Start SWP Plan"}
               </Button>
             </div>
 
@@ -643,47 +765,56 @@ export default function SIP() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredPlans.map((plan) => (
-                <button
+                <div
                   key={plan.id}
-                  onClick={() => setSelectedPlan(selectedPlan?.id === plan.id ? null : plan)}
-                  className={`glass rounded-xl p-4 border text-left transition-all hover:border-primary/50 group ${
+                  className={`glass rounded-xl p-4 border transition-all hover:border-primary/50 group ${
                     selectedPlan?.id === plan.id
                       ? "border-primary ring-1 ring-primary/30"
                       : "border-border/40"
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      {plan.asset}
-                    </span>
-                    <Badge
-                      variant={plan.status === "active" ? "default" : "secondary"}
-                      className={`text-[10px] px-1.5 py-0 ${
-                        plan.status === "active"
-                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {plan.status}
-                    </Badge>
-                  </div>
-                  <div className="font-semibold text-sm truncate">{plan.name}</div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5">
-                    ${plan.amount} / {plan.frequency}
-                  </div>
-                  <div className="mt-3 flex items-center justify-between">
-                    <div>
-                      <div className="text-[10px] text-muted-foreground">Current Value</div>
-                      <div className="font-mono font-bold text-sm">${plan.currentValue.toLocaleString()}</div>
+                  <button onClick={() => setSelectedPlanId(selectedPlanId === plan.id ? null : plan.id)} className="w-full text-left">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        {plan.asset}
+                      </span>
+                      <Badge
+                        variant={plan.status === "active" ? "default" : "secondary"}
+                        className={`text-[10px] px-1.5 py-0 ${
+                          plan.status === "active"
+                            ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {plan.status}
+                      </Badge>
                     </div>
-                    <div className={`text-xs font-mono font-semibold ${plan.returns >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                      {plan.returns >= 0 ? "+" : ""}${plan.returns.toLocaleString()}
+                    <div className="font-semibold text-sm truncate">{plan.name}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                      ${plan.amount} / {plan.frequency}
                     </div>
+                    <div className="mt-3 flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] text-muted-foreground">{plan.type === "sip" ? "Total Invested" : "Total Withdrawn"}</div>
+                        <div className="font-mono font-bold text-sm">${plan.totalInvested.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                      </div>
+                      <div className="text-xs font-mono text-muted-foreground">{plan.executionsCompleted} cycle{plan.executionsCompleted === 1 ? "" : "s"}</div>
+                    </div>
+                  </button>
+                  <div className="flex items-center justify-between mt-2">
+                    {plan.status === "active" || plan.status === "paused" ? (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); (plan.status === "active" ? pausePlan : resumePlan)(plan.id); }}
+                        className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {plan.status === "active" ? <><Pause className="h-3 w-3" /> Pause</> : <><Play className="h-3 w-3" /> Resume</>}
+                      </button>
+                    ) : <span />}
+                    <button onClick={() => setSelectedPlanId(selectedPlanId === plan.id ? null : plan.id)} className="text-primary/60 group-hover:text-primary transition-colors">
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
                   </div>
-                  <div className="flex items-center justify-end mt-2 text-primary/60 group-hover:text-primary transition-colors">
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </div>
-                </button>
+                </div>
               ))}
             </div>
           )}

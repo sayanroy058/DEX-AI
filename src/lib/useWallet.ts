@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { EthereumProvider } from "@walletconnect/ethereum-provider";
-import { getNonce, getWalletBalances, login as apiLogin, logout as apiLogout, me } from "@/lib/authApi";
+import { getNonce, getWalletBalances, getBalancesByArea, login as apiLogin, logout as apiLogout, me, type AreaBalance } from "@/lib/authApi";
 import { setWsAuthToken } from "@/lib/wsAuthToken";
 
 export type WalletId = "metamask" | "trust" | "binance" | "coinbase" | "bitget" | "walletconnect";
@@ -60,12 +60,26 @@ export type Balance = {
 };
 export type WalletSource = WalletId;
 
+// WalletArea is every funding pool this platform's balance can live in —
+// Phase 6 of ~/.claude/plans/wallet-separation.md. "SPOT" isn't included
+// here: it's Balance[]'s own existing shape (balancesByArea covers the
+// OTHER areas a unified view needs alongside it, not a replacement for it).
+export type WalletArea = "FUTURES" | "STAKING" | "PREDICTION";
+
+const WALLET_AREAS: WalletArea[] = ["FUTURES", "STAKING", "PREDICTION"];
+
 export type WalletState = {
   connected: boolean;
   walletId?: WalletId;
   address?: string;
   userId?: string;
   balances: Balance[];
+  // balancesByArea holds every non-Spot area's BI2XUSD figures (raw-unit
+  // strings from the backend, parsed to numbers here the same way Balance
+  // already does) — a key is absent, not zeroed, when that area couldn't be
+  // loaded (see getBalancesByArea's doc comment), so a consumer can tell
+  // "unknown" apart from "genuinely zero".
+  balancesByArea: Partial<Record<WalletArea, { available: number; reserved: number; total: number }>>;
   error?: string;
   pending?: WalletId | null;
   restored: boolean;
@@ -165,6 +179,34 @@ async function syncBalancesWithBackend() {
   return balances;
 }
 
+// syncBalancesByAreaWithBackend fetches the non-Spot areas (Futures/
+// Staking/Prediction) in one call — Phase 6. Each area is a single-asset
+// pool (Futures/Prediction: BI2XUSD; Staking: BI2X — it stakes BI2X itself,
+// not a cash balance), but every supported asset shares the same 6-decimal
+// raw-unit scale (see ASSET_DECIMALS above), so reusing
+// ASSET_DECIMALS.BI2XUSD here decodes all three correctly regardless of
+// which asset a given area actually holds — callers just need to know
+// which asset a given area's figure is denominated in when labeling it
+// (see e.g. Portfolio.tsx's AreaCard rows). A missing key in the response
+// (that area couldn't be loaded server-side) is left absent here too,
+// rather than defaulted to zero, preserving the "unknown vs. zero"
+// distinction for consumers.
+async function syncBalancesByAreaWithBackend() {
+  const response = await getBalancesByArea();
+  const balancesByArea: WalletState["balancesByArea"] = {};
+  for (const area of WALLET_AREAS) {
+    const raw: AreaBalance | undefined = response.areas?.[area];
+    if (!raw) continue;
+    balancesByArea[area] = {
+      available: rawBalanceToNumber(raw.availableRaw, ASSET_DECIMALS.BI2XUSD),
+      reserved: rawBalanceToNumber(raw.reservedRaw, ASSET_DECIMALS.BI2XUSD),
+      total: rawBalanceToNumber(raw.totalRaw, ASSET_DECIMALS.BI2XUSD),
+    };
+  }
+  setState({ balancesByArea });
+  return balancesByArea;
+}
+
 // Balance polling: before this, `available` only ever updated when a
 // specific action (place/cancel order, swap, transfer) explicitly called
 // syncBalancesWithBackend right after itself — everywhere else (a Predict
@@ -201,7 +243,7 @@ function scheduleBalancePoll() {
   clearBalancePoll();
   if (!state.connected || (typeof document !== "undefined" && document.hidden)) return;
   balancePollTimer = setTimeout(() => {
-    syncBalancesWithBackend()
+    Promise.all([syncBalancesWithBackend(), syncBalancesByAreaWithBackend()])
       .catch(() => {
         // Transient failure (network blip, momentary backend slowness):
         // leave the last-known balances on screen rather than clearing
@@ -227,7 +269,7 @@ function markBalanceActivity() {
 }
 
 async function refreshBalancesAndMarkActive() {
-  const result = await syncBalancesWithBackend();
+  const [result] = await Promise.all([syncBalancesWithBackend(), syncBalancesByAreaWithBackend()]);
   markBalanceActivity();
   return result;
 }
@@ -239,6 +281,7 @@ if (typeof document !== "undefined") {
     } else if (state.connected) {
       markBalanceActivity();
       syncBalancesWithBackend().catch(() => {});
+      syncBalancesByAreaWithBackend().catch(() => {});
     }
   });
 }
@@ -248,7 +291,7 @@ const DISCONNECT_KEY = "dexai.wallet.disconnected.v1";
 const CONNECT_REQUEST_TIMEOUT_MS = 15000;
 const DEFAULT_TREASURY_ADDRESS = "0x402a3f89b21c77d4e10e4a52c908f8ab13c4F981";
 
-let state: WalletState = { connected: false, balances: DEFAULT_BALANCES, restored: false, pending: null };
+let state: WalletState = { connected: false, balances: DEFAULT_BALANCES, balancesByArea: {}, restored: false, pending: null };
 const listeners = new Set<() => void>();
 const providerListeners = new WeakMap<object, { accountsChanged: (...args: unknown[]) => void; chainChanged: (...args: unknown[]) => void; disconnect: (...args: unknown[]) => void }>();
 let activeProvider: Eip1193Provider | null = null;
@@ -450,9 +493,9 @@ function attachProvider(provider: Eip1193Provider, source: WalletId) {
   const accountsChanged = (accounts: unknown) => {
     const next = Array.isArray(accounts) ? accounts[0] : undefined;
     if (typeof next === "string" && next) {
-      setState({ connected: true, walletId: source, address: next, provider, balances: DEFAULT_BALANCES });
+      setState({ connected: true, walletId: source, address: next, provider, balances: DEFAULT_BALANCES, balancesByArea: {} });
       authenticateWithBackend(provider, source, next)
-        .then(syncBalancesWithBackend)
+        .then(() => Promise.all([syncBalancesWithBackend(), syncBalancesByAreaWithBackend()]))
         .catch((error) => setState({ error: toWalletError(error) }));
       persistSession(source, next);
       return;
@@ -595,7 +638,7 @@ async function connect(source: WalletId) {
 
     try {
       await authenticateWithBackend(provider, source, address);
-      await syncBalancesWithBackend();
+      await Promise.all([syncBalancesWithBackend(), syncBalancesByAreaWithBackend()]);
     } catch (authError) {
       // Wallet is connected on-chain even if backend session creation fails; surface but don't block.
       console.warn("Backend login failed", authError);
@@ -656,7 +699,7 @@ async function disconnect() {
   walletConnectProviderPromise = null;
   clearPersistedSession();
   setWsAuthToken(null);
-  state = { connected: false, walletId: undefined, address: undefined, userId: undefined, balances: DEFAULT_BALANCES, error: undefined, pending: null, restored: true, provider: null };
+  state = { connected: false, walletId: undefined, address: undefined, userId: undefined, balances: DEFAULT_BALANCES, balancesByArea: {}, error: undefined, pending: null, restored: true, provider: null };
   clearBalancePoll();
   emit();
 
@@ -725,7 +768,7 @@ async function restoreSession() {
     }
   }
 
-  await syncBalancesWithBackend();
+  await Promise.all([syncBalancesWithBackend(), syncBalancesByAreaWithBackend()]);
   return { walletId: stored.walletId, address };
 }
 

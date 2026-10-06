@@ -272,11 +272,17 @@ describe("wallet state", () => {
   });
 
   it("subtracts pending withdrawal holds from available balance", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
-      balances: { USDC: "20669000", USDT: "0" },
-      locked: { USDC: "1000000", USDT: "0" },
-      withdrawalLocked: { USDC: "15000000", USDT: "0" },
-    }), { status: 200, headers: { "Content-Type": "application/json" } })));
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      if (url.includes("/wallet/balances-by-area")) {
+        return new Response(JSON.stringify({ areas: {} }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      return new Response(JSON.stringify({
+        balances: { USDC: "20669000", USDT: "0" },
+        locked: { USDC: "1000000", USDT: "0" },
+        withdrawalLocked: { USDC: "15000000", USDT: "0" },
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }));
 
     await wallet.refreshBalances();
 
@@ -297,11 +303,21 @@ describe("wallet state", () => {
 // they have more spendable balance than they actually do.
 describe("wallet balance polling", () => {
   function balanceFetchMock(balance = "1000000") {
-    return vi.fn(async () => new Response(JSON.stringify({
-      balances: { USDC: balance, USDT: "0" },
-      locked: { USDC: "0", USDT: "0" },
-      withdrawalLocked: { USDC: "0", USDT: "0" },
-    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    // One mock implementation serves both /wallet/balance and the Phase 6
+    // /wallet/balances-by-area endpoint (useWallet.ts's refresh paths call
+    // both together) — branches on the request URL since each has its own
+    // response shape.
+    return vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      if (url.includes("/wallet/balances-by-area")) {
+        return new Response(JSON.stringify({ areas: {} }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      return new Response(JSON.stringify({
+        balances: { USDC: balance, USDT: "0" },
+        locked: { USDC: "0", USDT: "0" },
+        withdrawalLocked: { USDC: "0", USDT: "0" },
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
   }
 
   async function connectProvider() {

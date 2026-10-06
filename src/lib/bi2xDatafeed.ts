@@ -1,6 +1,6 @@
 // A custom datafeed for the licensed TradingView Advanced Charting Library,
 // backed by the BI2X data feed's TradingView UDF-compatible endpoints
-// (https://bitdx-feed-jk3y.onrender.com/api/datafeed/*).
+// (https://bitdx-feed-ez3b.onrender.com/api/datafeed/*).
 //
 // This mirrors binanceDatafeed.ts's shape (same IDatafeedChartApi/
 // IExternalDatafeed-satisfying object, same Bar/PeriodParams types) so

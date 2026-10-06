@@ -33,9 +33,9 @@ type MarketIcon = ComponentType<{ className?: string }>;
 const ASSET_TABS: { id: AssetClass | "all"; label: string; icon: MarketIcon; kinds: (MarketKind | "all")[]; comingSoon?: boolean }[] = [
   { id: "all", label: "All", icon: Flame, kinds: ["all"] },
   { id: "crypto", label: "Crypto", icon: Bitcoin, kinds: ["all", "spot", "perp"] },
-  // { id: "forex", label: "Forex", icon: DollarSign, kinds: ["all", "perp"], comingSoon: true },
-  // { id: "commodity", label: "Commodity", icon: Droplet, kinds: ["all", "perp"], comingSoon: true },
-  // { id: "stocks", label: "Stocks", icon: Briefcase, kinds: ["all", "perp", "options"], comingSoon: true },
+  { id: "forex", label: "Forex", icon: DollarSign, kinds: ["all", "perp"], comingSoon: true },
+  { id: "commodity", label: "Commodity", icon: Droplet, kinds: ["all", "perp"], comingSoon: true },
+  { id: "stocks", label: "Stocks", icon: Briefcase, kinds: ["all", "perp", "options"], comingSoon: true },
 ];
 
 const KIND_LABEL: Record<string, string> = { all: "All", spot: "Spot", perp: "Future", options: "Options" };
@@ -48,6 +48,13 @@ const KIND_LABEL: Record<string, string> = { all: "All", spot: "Spot", perp: "Fu
 // the trade page. See matching-engine/cmd/engine/markets.go's optionsEnabled
 // for the backend-side gate.
 const COMING_SOON_KINDS = new Set<MarketKind>(["options"]);
+
+// Deep-link into the trade page on the market's own symbol and section, so a
+// Perpetual/Future row opens Futures rather than the default Spot view.
+function tradeLink(market: IndexedMarket) {
+  const mode = market.category === "perp" ? "futures" : market.category;
+  return `/trade?symbol=${encodeURIComponent(market.symbol)}&mode=${mode}`;
+}
 
 const Markets = () => {
   const { markets, loading } = useMarketIndexes();
@@ -124,19 +131,18 @@ const Markets = () => {
                   <button
                     key={item.id}
                     onClick={() => { setAsset(item.id); setKind("all"); }}
+                    disabled={item.comingSoon}
+                    aria-disabled={item.comingSoon}
                     className={cn(
                       "relative px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all",
-                      asset === item.id
-                        ? "bg-primary/15 text-primary border border-primary/30"
-                        : "text-muted-foreground hover:bg-muted/40",
+                      item.comingSoon
+                        ? "text-muted-foreground/40 cursor-not-allowed"
+                        : asset === item.id
+                          ? "bg-primary/15 text-primary border border-primary/30"
+                          : "text-muted-foreground hover:bg-muted/40",
                     )}
                   >
                     <item.icon className="h-3.5 w-3.5" /> {item.label}
-                    {item.comingSoon && (
-                      <span className="px-1.5 py-px rounded-full bg-warning/15 text-warning text-[9px] font-bold leading-none">
-                        Soon
-                      </span>
-                    )}
                   </button>
                 ))}
               </div>
@@ -198,7 +204,7 @@ const Markets = () => {
                 {filtered.map((market) => (
                   <tr key={market.symbol} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-3">
-                      <Link to="/trade" className="flex items-center gap-2 group">
+                      <Link to={tradeLink(market)} className="flex items-center gap-2 group">
                         <div className="h-8 w-8 rounded-full bg-gradient-primary flex items-center justify-center font-bold text-[10px] text-primary-foreground">
                           {market.base.slice(0, 3)}
                         </div>
@@ -282,7 +288,7 @@ function ListCard({
           <p className="text-xs text-muted-foreground py-4 text-center">No live data available</p>
         )}
         {!loading && items.map((market, index) => (
-          <Link key={market.base} to="/trade" className="flex items-center justify-between hover:bg-muted/30 -mx-2 px-2 py-1 rounded transition-colors">
+          <Link key={market.base} to={tradeLink(market)} className="flex items-center justify-between hover:bg-muted/30 -mx-2 px-2 py-1 rounded transition-colors">
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-[10px] text-muted-foreground w-4">{index + 1}</span>
               <span className="font-semibold text-sm truncate">{market.symbol}</span>

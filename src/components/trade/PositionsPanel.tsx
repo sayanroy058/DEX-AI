@@ -12,6 +12,7 @@ import { useOrders } from "@/lib/useOrders";
 import { wsClient, WSEvent } from "@/lib/wsClient";
 import { getMyBots, Bot as BotDTO } from "@/lib/botsApi";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 
 type FundingEntry = {
   time: string;
@@ -468,11 +469,16 @@ export function PositionsPanel({
                 {realizedPnlTotal >= 0 ? "+" : ""}${realizedPnlTotal.toFixed(2)}
               </span>
             </span>
-            <span>
+            <Link
+              to="/pnl"
+              className="rounded-md border border-border/60 px-2 py-0.5 transition-colors hover:border-primary hover:text-primary"
+              title="Open the Profit / Loss page"
+            >
               Total PnL: <span className={cn("font-mono font-bold", totalPnl >= 0 ? "text-buy" : "text-sell")}>
                 {totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)}
               </span>
-            </span>
+              <span className="ml-1">›</span>
+            </Link>
           </div>
         </div>
 

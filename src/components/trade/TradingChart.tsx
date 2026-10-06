@@ -1,8 +1,14 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { INITIAL_MARKETS } from "@/lib/mockData";
 import { createBinanceDatafeed } from "@/lib/binanceDatafeed";
 import { createBI2XDatafeed } from "@/lib/bi2xDatafeed";
 import { readTheme, type ThemeMode } from "@/lib/theme";
+import { Maximize2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TradePanel, type MarketMode, type Side } from "@/components/trade/TradePanel";
+import { useOrders } from "@/lib/useOrders";
+import type { OptionChainEntry } from "@/lib/apiClient";
 
 function marketFor(symbol: string) {
   return INITIAL_MARKETS.find(m => m.symbol === symbol);
@@ -159,6 +165,7 @@ function ChartPane({ symbol, timeframe }: { symbol: string; timeframe: string })
   // after the reconstruction effect just built it with the current theme)
   // apart from "a real toggle happened while the widget was already up".
   const widgetThemeRef = useRef<ThemeMode | null>(null);
+  const persistRef = useRef<(() => void) | null>(null);
   const [theme, setTheme] = useState<ThemeMode>(readTheme);
   const isCrypto = marketFor(symbol)?.asset === "crypto" || !marketFor(symbol);
   const base = (marketFor(symbol)?.base ?? symbol.split("-")[0]).toUpperCase();
@@ -254,16 +261,47 @@ function ChartPane({ symbol, timeframe }: { symbol: string; timeframe: string })
 
     if (isCrypto) {
       const isBi2x = isBI2X(symbol);
+      // The library has no storage of its own, so persist the chart state
+      // (drawings, indicators) per symbol in localStorage and restore it
+      // through `saved_data` on the next construction.
+      const storageKey = `dex-chart-state-v1:${symbol}`;
+      let savedData: object | undefined;
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (raw) savedData = JSON.parse(raw);
+      } catch {
+        savedData = undefined;
+      }
+      const persist = () => {
+        try {
+          widgetRef.current?.save?.((state: object) => {
+            try {
+              localStorage.setItem(storageKey, JSON.stringify(state));
+            } catch {
+              // Storage full or blocked — drawings just won't persist.
+            }
+          });
+        } catch {
+          // Widget not ready or already torn down.
+        }
+      };
+      persistRef.current = persist;
       loadAdvancedChartingLibrary().then(() => {
         if (cancelled || !window.TradingView) return;
         widgetRef.current = new window.TradingView.widget({
           ...commonOptions,
+          ...(savedData ? { saved_data: savedData } : {}),
+          auto_save_delay: 1,
           symbol: isBi2x ? "BI2X" : base,
           datafeed: isBi2x ? createBI2XDatafeed() : createBinanceDatafeed(),
           library_path: "/charting_library/",
           studies_overrides: {},
         });
         widgetThemeRef.current = initialTheme;
+        widgetRef.current.onChartReady(() => {
+          if (cancelled) return;
+          widgetRef.current.subscribe("onAutoSaveNeeded", persist);
+        });
       });
     } else {
       // tv.js's free embed widget resolves its container by id string at
@@ -285,8 +323,14 @@ function ChartPane({ symbol, timeframe }: { symbol: string; timeframe: string })
       });
     }
 
+    const onUnload = () => persistRef.current?.();
+    window.addEventListener("beforeunload", onUnload);
+
     return () => {
       cancelled = true;
+      window.removeEventListener("beforeunload", onUnload);
+      persistRef.current?.();
+      persistRef.current = null;
       if (widgetRef.current?.remove && container.isConnected) {
         try {
           widgetRef.current.remove();
@@ -315,25 +359,158 @@ const LAYOUTS = [
   { id: "4", label: "4", cols: 2, rows: 2 },
 ];
 
-export function TradingChart({ symbol }: { symbol: string; price?: number }) {
+function ChartGrid({ symbol }: { symbol: string }) {
   const tf = "15";
   const layout = LAYOUTS[0];
   const panes = layout.cols * layout.rows;
 
   return (
-    <div className="glass rounded-b-xl rounded-t-none flex flex-col h-full overflow-hidden">
-      <div
-        className="flex-1 grid gap-1 p-1 min-h-0"
-        style={{
-          gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`,
-          gridTemplateRows: `repeat(${layout.rows}, minmax(0, 1fr))`,
-        }}
+    <div
+      className="flex-1 grid gap-1 p-1 min-h-0"
+      style={{
+        gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`,
+        gridTemplateRows: `repeat(${layout.rows}, minmax(0, 1fr))`,
+      }}
+    >
+      {Array.from({ length: panes }).map((_, i) => (
+        <div key={i} className="glass-strong rounded-lg overflow-hidden border border-border/40 min-h-0">
+          <ChartPane symbol={symbol} timeframe={tf} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function TradingChart({
+  symbol, price, mode, onModeChange, selectedOption, orders,
+}: {
+  symbol: string;
+  price?: number;
+  // Everything below is optional and only used by the maximize overlay's
+  // floating Buy/Sell (see MaximizedChartOverlay) — every existing call
+  // site that doesn't pass these still renders exactly as before, just
+  // without a working Buy/Sell button while maximized (the maximize
+  // button itself still always renders). The trade page (Index.tsx) is
+  // expected to pass all of these since it already has them in scope for
+  // its own TradePanel instance.
+  mode?: MarketMode;
+  onModeChange?: (mode: MarketMode) => void;
+  selectedOption?: OptionChainEntry | null;
+  orders?: ReturnType<typeof useOrders>;
+}) {
+  const [maximized, setMaximized] = useState(false);
+
+  // Esc closes the maximized overlay, same convention as the native
+  // Fullscreen API this stands in for (see TradingChart's own file-level
+  // comment on why it can't just use that API directly — TradingView's
+  // embed widget's own fullscreen button targets its iframe, which would
+  // hide our floating buttons entirely).
+  useEffect(() => {
+    if (!maximized) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") setMaximized(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [maximized]);
+
+  return (
+    <div className="glass rounded-b-xl rounded-t-none flex flex-col h-full overflow-hidden relative">
+      <Button
+        variant="outline"
+        size="icon"
+        className="absolute top-2 right-2 z-10 h-7 w-7 glass-strong"
+        title="Maximize chart"
+        onClick={() => setMaximized(true)}
       >
-        {Array.from({ length: panes }).map((_, i) => (
-          <div key={i} className="glass-strong rounded-lg overflow-hidden border border-border/40 min-h-0">
-            <ChartPane symbol={symbol} timeframe={tf} />
+        <Maximize2 className="h-3.5 w-3.5" />
+      </Button>
+      <ChartGrid symbol={symbol} />
+      {maximized && createPortal(
+        <MaximizedChartOverlay
+          symbol={symbol}
+          price={price ?? 0}
+          mode={mode}
+          onModeChange={onModeChange}
+          selectedOption={selectedOption}
+          orders={orders}
+          onClose={() => setMaximized(false)}
+        />,
+        document.body
+      )}
+    </div>
+  );
+}
+
+// MaximizedChartOverlay fills the viewport (an app-level stand-in for
+// native fullscreen — see TradingChart's doc comment) with the chart and a
+// floating Buy/Sell pill pair docked bottom-right, matching the reference
+// trading-terminal screenshots this was built from. Tapping Buy or Sell
+// opens the real TradePanel (the same order-entry logic the non-maximized
+// layout already uses, not a reimplementation) as a floating card
+// preselected to that side; closing it returns to just the chart +
+// buttons, not back out of maximize.
+function MaximizedChartOverlay({
+  symbol, price, mode, onModeChange, selectedOption, orders, onClose,
+}: {
+  symbol: string;
+  price: number;
+  mode?: MarketMode;
+  onModeChange?: (mode: MarketMode) => void;
+  selectedOption?: OptionChainEntry | null;
+  orders?: ReturnType<typeof useOrders>;
+  onClose: () => void;
+}) {
+  const [openSide, setOpenSide] = useState<Side | null>(null);
+  const canTrade = orders !== undefined;
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-background flex flex-col">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 glass-strong">
+        <span className="text-sm font-semibold">{symbol}</span>
+        <Button variant="ghost" size="icon" className="h-7 w-7" title="Exit maximized view (Esc)" onClick={onClose}>
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="flex-1 min-h-0 relative flex flex-col">
+        <ChartGrid symbol={symbol} />
+
+        {canTrade && (
+          <div className="absolute top-14 right-20 z-10 flex flex-col items-end gap-2">
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setOpenSide(openSide === "buy" ? null : "buy")}
+                className="bg-gradient-buy text-buy-foreground hover:shadow-glow-buy h-11 px-6 font-bold shadow-lg"
+              >
+                Buy
+              </Button>
+              <Button
+                onClick={() => setOpenSide(openSide === "sell" ? null : "sell")}
+                variant="destructive"
+                className="h-11 px-6 font-bold shadow-lg"
+              >
+                Sell
+              </Button>
+            </div>
+            {openSide && (
+              <div className="glass-strong rounded-xl border border-border/50 shadow-xl w-[320px] max-h-[70vh] overflow-y-auto">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-border/40">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Place Order</span>
+                  <button onClick={() => setOpenSide(null)} className="text-muted-foreground hover:text-foreground">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <TradePanel
+                  symbol={symbol}
+                  price={price}
+                  selectedOption={selectedOption}
+                  mode={mode}
+                  onModeChange={onModeChange}
+                  orders={orders!}
+                  initialSide={openSide}
+                />
+              </div>
+            )}
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

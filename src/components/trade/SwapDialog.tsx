@@ -141,6 +141,15 @@ function TokenSelect({
   );
 }
 
+function StaticToken({ token }: { token: Token }) {
+  return (
+    <span className="flex h-12 w-auto shrink-0 min-w-[128px] items-center gap-2 rounded-xl border border-border bg-muted/30 px-3">
+      <TokenAvatar token={token} size={26} />
+      <span className="font-bold">{token.symbol}</span>
+    </span>
+  );
+}
+
 function formatAmount(value: number, maximumFractionDigits = 4) {
   return value.toLocaleString(undefined, {
     maximumFractionDigits,
@@ -214,13 +223,10 @@ export function SwapDialog({
       : numericAmount > fromBalance || exceedsPool;
   const canSwap = creditedAmount !== null && creditedAmount > 0 && !insufficient && !submitting;
 
-  // Allowed choices per side, restricted to the backend's directional pair
-  // allowlist: the "From" picker lists every asset with at least one
-  // destination, and the "To" picker lists only what the chosen "From" can
-  // legally convert into.
-  const fromOptions = TOKEN_LIST.map((t) => t.symbol).filter(
-    (symbol) => SWAP_DESTINATIONS[symbol].length > 0,
-  );
+  // One side is always BI2XUSD and the other is USDC/USDT: when BI2XUSD is
+  // the source, "From" is fixed and "To" picks USDT/USDC; otherwise "From"
+  // picks USDC/USDT and "To" is fixed to BI2XUSD.
+  const fromOptions = TOKEN_LIST.map((t) => t.symbol).filter((symbol) => symbol !== "BI2XUSD");
   const toOptions = SWAP_DESTINATIONS[fromSymbol];
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -350,7 +356,11 @@ export function SwapDialog({
             )}
 
             <div className="flex items-center gap-3">
-              <TokenSelect value={fromSymbol} options={fromOptions} onChange={handleFromChange} />
+              {fromSymbol === "BI2XUSD" ? (
+                <StaticToken token={fromToken} />
+              ) : (
+                <TokenSelect value={fromSymbol} options={fromOptions} onChange={handleFromChange} />
+              )}
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <input
                   type="text"
@@ -407,10 +417,7 @@ export function SwapDialog({
               {toOptions.length > 1 ? (
                 <TokenSelect value={toSymbol} options={toOptions} onChange={handleToChange} />
               ) : (
-                <span className="flex h-12 w-auto shrink-0 min-w-[128px] items-center gap-2 rounded-xl border border-border bg-muted/30 px-3">
-                  <TokenAvatar token={toToken} size={26} />
-                  <span className="font-bold">{toToken.symbol}</span>
-                </span>
+                <StaticToken token={toToken} />
               )}
               <div className="min-w-0 flex-1 truncate text-right font-mono text-2xl font-bold">
                 <span className={outputAmount > 0 ? "text-foreground" : "text-muted-foreground/40"}>

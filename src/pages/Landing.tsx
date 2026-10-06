@@ -37,14 +37,17 @@ export default function Landing() {
           <span className="font-bold text-lg tracking-tight text-foreground">BitDx</span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
+        <nav className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8 text-sm text-muted-foreground whitespace-nowrap">
           <Link to="/trade" className="hover:text-foreground transition-colors">Trade</Link>
+          <Link to="/trading-bots" className="hover:text-foreground transition-colors">Bots</Link>
           <Link to="/markets" className="hover:text-foreground transition-colors">Market</Link>
           {/* <Link to="/copy" className="hover:text-foreground transition-colors">Copy</Link> Copy Trading hidden */}
           <Link to="/prop" className="hover:text-foreground transition-colors">Prop Firm</Link>
           <Link to="/p2p" className="hover:text-foreground transition-colors">P2P</Link>
+          <Link to="/prediction" className="hover:text-foreground transition-colors">Predict</Link>
           <Link to="/token" className="hover:text-foreground transition-colors">Token</Link>
-          {/* SIP/SWP link hidden 2026-09-17 (product decision) */}
+          <Link to="/staking" className="hover:text-foreground transition-colors">Staking</Link>
+          <Link to="/sip" className="hover:text-foreground transition-colors">SIP/SWP</Link>
         </nav>
 
         <div className="flex items-center gap-2">
@@ -66,12 +69,15 @@ export default function Landing() {
       {mobileMenuOpen && (
         <div className="md:hidden fixed inset-x-0 top-16 bg-card/95 backdrop-blur-lg border-b border-border z-40 py-6 px-6 flex flex-col gap-4">
           <Link to="/trade" className="text-muted-foreground hover:text-foreground font-medium py-2 border-b border-border/60" onClick={() => setMobileMenuOpen(false)}>Trade</Link>
+          <Link to="/trading-bots" className="text-muted-foreground hover:text-foreground font-medium py-2 border-b border-border/60" onClick={() => setMobileMenuOpen(false)}>Bots</Link>
           <Link to="/markets" className="text-muted-foreground hover:text-foreground font-medium py-2 border-b border-border/60" onClick={() => setMobileMenuOpen(false)}>Market</Link>
           {/* <Link to="/copy" className="text-muted-foreground hover:text-foreground font-medium py-2 border-b border-border/60" onClick={() => setMobileMenuOpen(false)}>Copy</Link> Copy Trading hidden */}
           <Link to="/prop" className="text-muted-foreground hover:text-foreground font-medium py-2 border-b border-border/60" onClick={() => setMobileMenuOpen(false)}>Prop Firm</Link>
           <Link to="/p2p" className="text-muted-foreground hover:text-foreground font-medium py-2 border-b border-border/60" onClick={() => setMobileMenuOpen(false)}>P2P</Link>
+          <Link to="/prediction" className="text-muted-foreground hover:text-foreground font-medium py-2 border-b border-border/60" onClick={() => setMobileMenuOpen(false)}>Predict</Link>
           <Link to="/token" className="text-muted-foreground hover:text-foreground font-medium py-2 border-b border-border/60" onClick={() => setMobileMenuOpen(false)}>Token</Link>
-          {/* SIP/SWP link hidden 2026-09-17 (product decision) */}
+          <Link to="/staking" className="text-muted-foreground hover:text-foreground font-medium py-2 border-b border-border/60" onClick={() => setMobileMenuOpen(false)}>Staking</Link>
+          <Link to="/sip" className="text-muted-foreground hover:text-foreground font-medium py-2 border-b border-border/60" onClick={() => setMobileMenuOpen(false)}>SIP/SWP</Link>
         </div>
       )}
 
@@ -552,7 +558,7 @@ export default function Landing() {
             <div className="space-y-3 text-sm text-muted-foreground">
               <Link to="/p2p" className="block hover:text-primary transition-colors">P2P</Link>
               <Link to="/token" className="block hover:text-primary transition-colors">Token</Link>
-              {/* SIP/SWP footer link hidden 2026-09-17 (product decision) */}
+              <Link to="/sip" className="block hover:text-primary transition-colors">SIP/SWP</Link>
             </div>
           </div>
 

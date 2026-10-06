@@ -3,7 +3,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { createBot, type BotTemplate, type CreateBotRequest, type BotMarket } from "@/lib/botsApi";
+import { useWallet } from "@/lib/useWallet";
 import { registeredFuturesSymbols, registeredSpotSymbols } from "@/lib/backendMarkets";
+
+// DCA frequency choices; the bots service takes the interval in seconds.
+// Months/quarters/years use fixed 30/90/365-day lengths.
+const DCA_FREQUENCIES: { label: string; seconds: number }[] = [
+  { label: "Minutes", seconds: 60 },
+  { label: "Hourly", seconds: 3600 },
+  { label: "Daily", seconds: 86_400 },
+  { label: "Weekly", seconds: 604_800 },
+  { label: "Monthly", seconds: 2_592_000 },
+  { label: "Quarterly", seconds: 7_776_000 },
+  { label: "Yearly", seconds: 31_536_000 },
+];
 
 // CreateBotModal renders a template's configurable params and POSTs a new bot.
 // `symbol` and `investment` params map to the top-level CreateBotRequest fields;
@@ -20,6 +33,8 @@ export function CreateBotModal({
   const [values, setValues] = useState<Record<string, string>>({});
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const { balances } = useWallet();
+  const walletBalance = balances.find((b) => b.asset === "BI2XUSD")?.available ?? 0;
   const [error, setError] = useState<string | null>(null);
 
   // Previously a hardcoded binary (Spot -> SPOT, else -> FUTURES), which
@@ -49,6 +64,7 @@ export function CreateBotModal({
     for (const p of template.params) {
       defaults[p.key] = p.key === "symbol" ? symbolOptions[0] ?? "" : p.default ?? "";
     }
+    if (template.key.endsWith("_dca")) defaults.intervalSec = String(DCA_FREQUENCIES[1].seconds);
     setValues(defaults);
     setName(template.title);
     setError(null);
@@ -60,6 +76,20 @@ export function CreateBotModal({
   }, [template]);
 
   if (!template) return null;
+
+  const isDca = template.key.endsWith("_dca");
+  const hasMarginMode = template.params.some((p) => p.key === "marginMode");
+  // Leverage only applies to Isolated margin; Cross keeps it locked at the default.
+  const leverageLocked = hasMarginMode && (values.marginMode ?? "CROSS") !== "ISOLATED";
+  const setValue = (key: string, value: string) => setValues((v) => ({ ...v, [key]: value }));
+  const setMarginMode = (mode: string) =>
+    setValues((v) => ({
+      ...v,
+      marginMode: mode,
+      ...(mode !== "ISOLATED" ? { leverage: template.params.find((p) => p.key === "leverage")?.default ?? "1" } : {}),
+    }));
+  // Spot DCA's separate "Total Budget" is only a reference figure, so it's not shown.
+  const visibleParams = template.params.filter((p) => !(template.key === "spot_dca" && p.key === "investment"));
 
   const submit = async () => {
     setError(null);
@@ -111,17 +141,24 @@ export function CreateBotModal({
           <Field label="Bot Name">
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+              readOnly
+              className="h-10 w-full cursor-not-allowed rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground outline-none"
             />
           </Field>
 
+          <div className="flex items-center justify-between rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+            <span className="text-muted-foreground">Wallet Balance</span>
+            <span className="font-mono font-bold">
+              {walletBalance.toLocaleString(undefined, { maximumFractionDigits: 4 })} BI2XUSD
+            </span>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
-            {template.params.map((p) => (
+            {visibleParams.map((p) => (
               <Field
                 key={p.key}
                 label={p.label}
-                help={p.key === "symbol" ? "Only pairs with a live order book are listed" : p.help}
+                help={p.key === "symbol" ? "Only pairs with a live order book are listed" : p.key === "leverage" && leverageLocked ? "Select Isolated margin to set leverage" : p.help}
                 required={p.required}
               >
                 {p.key === "symbol" ? (
@@ -137,10 +174,35 @@ export function CreateBotModal({
                       </option>
                     ))}
                   </select>
+                ) : isDca && p.key === "intervalSec" ? (
+                  <select
+                    value={values[p.key] ?? ""}
+                    onChange={(e) => setValue(p.key, e.target.value)}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+                  >
+                    {DCA_FREQUENCIES.map((f) => (
+                      <option key={f.label} value={String(f.seconds)}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : p.key === "side" && p.options ? (
+                  <div className="grid h-10 grid-cols-2 gap-1 rounded-md bg-muted/35 p-1">
+                    {[{ label: "Long", value: "BUY", on: "bg-buy text-buy-foreground" }, { label: "Short", value: "SELL", on: "bg-sell text-sell-foreground" }].map((o) => (
+                      <button
+                        key={o.value}
+                        type="button"
+                        onClick={() => setValue(p.key, o.value)}
+                        className={cn("rounded text-sm font-bold transition-colors", values[p.key] === o.value ? o.on : "text-muted-foreground hover:text-foreground")}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
                 ) : p.type === "select" && p.options ? (
                   <select
                     value={values[p.key] ?? ""}
-                    onChange={(e) => setValues((v) => ({ ...v, [p.key]: e.target.value }))}
+                    onChange={(e) => (p.key === "marginMode" ? setMarginMode(e.target.value) : setValue(p.key, e.target.value))}
                     className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
                   >
                     {p.options.map((o) => (
@@ -154,8 +216,9 @@ export function CreateBotModal({
                     value={values[p.key] ?? ""}
                     onChange={(e) => setValues((v) => ({ ...v, [p.key]: e.target.value }))}
                     placeholder={p.default}
+                    disabled={p.key === "leverage" && leverageLocked}
                     inputMode={p.type === "number" || p.type === "interval" ? "decimal" : "text"}
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 )}
               </Field>
