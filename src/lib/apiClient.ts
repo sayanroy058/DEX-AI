@@ -540,7 +540,12 @@ export function walletTransfer(fromMarket: "SPOT" | "FUTURES", toMarket: "SPOT" 
 
 type WalletAreaBalance = { availableRaw: string; reservedRaw: string; totalRaw: string };
 
-// Staking wallet: BI2XUSD only, main(Spot)<->Staking.
+// Staking wallet: BI2X only (it stakes BI2X itself, not a cash balance —
+// see Dex-Backend's FundStakingWalletAsset/Staking.Stake, which debit the
+// "BI2X" column specifically), main(Spot)<->Staking.
+export function getStakingWallet() {
+  return tradeReq<{ balance: WalletAreaBalance }>("/staking/wallet");
+}
 export function fundStakingWallet(amountRaw: string) {
   return tradeReq<{ balance: WalletAreaBalance }>("/staking/wallet/fund", {
     method: "POST",

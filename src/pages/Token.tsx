@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import logo from "@/assets/logo.png";
+import bi2xusdLogo from "@/assets/bi2xusd-logo.png";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   Zap, TrendingUp, Users, ExternalLink, Copy,
-  ShieldCheck, Flame, BarChart3, Clock, Activity,
+  Flame, BarChart3, Clock, Activity,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
@@ -308,8 +309,8 @@ export default function Token() {
         ══════════════════════════════════════════════ */}
         <section>
           <div className="flex items-center gap-2 mb-4">
-            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
-              <ShieldCheck className="h-3.5 w-3.5 text-white" />
+            <div className="h-7 w-7 rounded-lg overflow-hidden flex items-center justify-center bg-background/50">
+              <img src={bi2xusdLogo} alt="BI2XUSD" className="h-full w-full object-contain" />
             </div>
             <h2 className="text-lg font-bold">BI2XUSD Stablecoin</h2>
           </div>
@@ -320,7 +321,9 @@ export default function Token() {
             {/* DEXUSD card */}
             <div className="glass rounded-2xl p-5 border border-border/50">
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-sm">$</div>
+                <div className="h-10 w-10 rounded-xl overflow-hidden flex items-center justify-center bg-background/50 border border-border/50">
+                  <img src={bi2xusdLogo} alt="BI2XUSD" className="h-full w-full object-contain" />
+                </div>
                 <div>
                   <div className="font-bold text-lg leading-none">BI2XUSD</div>
                   <div className="flex items-center gap-2 mt-0.5">

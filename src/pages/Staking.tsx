@@ -2,9 +2,9 @@ import { FormEvent, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Coins, Loader2, Lock, TrendingUp, Unlock } from "lucide-react";
+import { Coins, LogIn, Loader2, Lock, TrendingUp, Unlock } from "lucide-react";
 import { wallet, useWallet } from "@/lib/useWallet";
-import { getStakingHistory, getStakingPositions, redeemStake, stakeBI2X, type StakingEvent, type StakingPosition } from "@/lib/apiClient";
+import { getStakingHistory, getStakingPositions, getStakingWallet, redeemStake, stakeBI2X, type StakingEvent, type StakingPosition } from "@/lib/apiClient";
 import { estimateAccruedInterest, estimateCurrentValue, rawToHuman } from "@/lib/stakingMath";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +15,7 @@ function formatBI2X(n: number): string {
 }
 
 export default function Staking() {
-  const walletState = useWallet();
+  const w = useWallet();
   const [positions, setPositions] = useState<StakingPosition[]>([]);
   const [events, setEvents] = useState<StakingEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,20 +36,33 @@ export default function Staking() {
   // comment: the backend recalculates authoritatively at redeem time).
   const [, setTick] = useState(0);
 
-  const bi2xBalance = walletState.balances.find((b) => b.asset === "BI2X")?.available ?? 0;
+  // The staking wallet is its OWN funded pool (separate from Spot) — see
+  // Dex-Backend's Staking.Stake, which debits staking_wallet_balances, not
+  // Spot's user_balances. This used to read walletState.balances' Spot
+  // BI2X figure here instead, which could show BI2X the user holds in
+  // Spot but never funded into the staking wallet (and Stake() would then
+  // reject with "insufficient available BI2X in staking wallet; fund it
+  // first" — a real figure that just wasn't this one).
+  const [stakingWalletAvailable, setStakingWalletAvailable] = useState(0);
 
   const load = () =>
-    Promise.all([getStakingPositions(), getStakingHistory()])
-      .then(([positionsRes, historyRes]) => {
+    Promise.all([getStakingPositions(), getStakingHistory(), getStakingWallet()])
+      .then(([positionsRes, historyRes, walletRes]) => {
         setPositions(positionsRes.positions ?? []);
         setEvents(historyRes.events ?? []);
+        setStakingWalletAvailable(rawToHuman(walletRes.balance.availableRaw));
       })
       .catch(() => setError("Could not load your staking positions."));
 
   useEffect(() => {
     document.title = "BI2X Staking | BitDx";
+    if (!w.connected) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     load().finally(() => setLoading(false));
-  }, []);
+  }, [w.connected]);
 
   useEffect(() => {
     if (!positions.some((p) => p.status === "active")) return;
@@ -66,7 +79,7 @@ export default function Staking() {
       setStakeError("Enter an amount greater than 0.");
       return;
     }
-    if (Number(amount) > bi2xBalance) {
+    if (Number(amount) > stakingWalletAvailable) {
       setStakeError("Amount exceeds your available BI2X balance.");
       return;
     }
@@ -131,12 +144,19 @@ export default function Staking() {
           </p>
         </div>
 
+        {!w.connected ? (
+          <div className="glass rounded-xl p-10 text-center">
+            <LogIn className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground">Connect your wallet to see your staking positions.</p>
+          </div>
+        ) : (
+        <>
         {error && <div className="rounded-lg border border-sell/30 bg-sell/10 px-3 py-2 text-sm text-sell">{error}</div>}
 
         <div className="grid sm:grid-cols-3 gap-3">
           <div className="glass rounded-xl p-4">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Wallet Available</div>
-            <div className="text-lg font-bold font-mono">{formatBI2X(bi2xBalance)} BI2X</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Staking Wallet Available</div>
+            <div className="text-lg font-bold font-mono">{formatBI2X(stakingWalletAvailable)} BI2X</div>
           </div>
           <div className="glass rounded-xl p-4">
             <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Currently Staked</div>
@@ -159,8 +179,8 @@ export default function Staking() {
             <div className="flex-1 space-y-1.5">
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>Amount</span>
-                <button type="button" className="text-primary hover:underline" onClick={() => setStakeAmount(String(bi2xBalance))}>
-                  Max: {formatBI2X(bi2xBalance)} BI2X
+                <button type="button" className="text-primary hover:underline" onClick={() => setStakeAmount(String(stakingWalletAvailable))}>
+                  Max: {formatBI2X(stakingWalletAvailable)} BI2X
                 </button>
               </div>
               <Input inputMode="decimal" placeholder="0.00" value={stakeAmount} onChange={(e) => setStakeAmount(e.target.value)} />
@@ -279,6 +299,8 @@ export default function Staking() {
               </table>
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
     </AppShell>
