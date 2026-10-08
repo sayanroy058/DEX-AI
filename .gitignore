@@ -16,6 +16,13 @@ build/
 .vite/
 *.tsbuildinfo
 
+# TradingView Advanced Charting Library — licensed, not open source.
+# Served as static assets from public/, but must not be committed to a
+# public/shared repo. Re-copy from the vendor drop before building if this
+# directory is missing (see TradingChart.tsx for the loader that expects it
+# at /charting_library/charting_library.standalone.js).
+public/charting_library/
+
 # IDE and editor files
 .vscode/
 .idea/
@@ -61,3 +68,5 @@ pids/
 .turbo/
 dist-ssr/
 .claude/
+# Vite dep-optimizer temp files
+vite.config.ts.timestamp-*.mjs

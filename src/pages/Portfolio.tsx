@@ -163,13 +163,16 @@ const Portfolio = () => {
     return { symbol: displaySymbol, side, size, entry, mark, leverage, pnl, pnlPct, value };
   }), [futuresPositions, markets, futuresTickers]);
 
-  // Real spot holdings — every non-zero asset balance, valued at the
-  // corresponding SPOT market's current price (BI2XUSD itself is cash, not
-  // a "holding" with a market to price it against).
+  // Real spot holdings — every non-zero asset balance. Every other asset
+  // is valued at its corresponding SPOT market's current price; BI2XUSD
+  // itself has no such market (there's no "BI2XUSD-BI2XUSD" pair) and is
+  // priced at a flat 1:1 instead, same convention Asset Breakdown below
+  // already uses for it.
   const spotHoldings = useMemo(() => {
     return walletState.balances
-      .filter((b) => b.asset !== "BI2XUSD" && b.amount > 0)
+      .filter((b) => b.amount > 0)
       .map((b) => {
+        if (b.asset === "BI2XUSD") return { ...b, price: 1, value: b.amount };
         const displaySymbol = `${b.asset}-BI2XUSD`;
         const price = markets.find((mk) => mk.symbol === displaySymbol)?.price ?? 0;
         return { ...b, price, value: b.amount * price };

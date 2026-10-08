@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Zap, ArrowRight, TrendingUp, Layers, Bot, Shield, Globe, QrCode, Star, Download, Monitor, Laptop, Apple, Home, BarChart2, Wallet, Menu, X, KeyRound, Banknote, LineChart, Lock, Eye, ServerCog } from "lucide-react";
+import { Zap, ArrowRight, TrendingUp, Layers, Bot, Shield, Globe, QrCode, Star, Download, Monitor, Laptop, Apple, Home, BarChart2, Wallet, Menu, X, KeyRound, Banknote, LineChart, Lock, Eye, ServerCog, Boxes, Building2 } from "lucide-react";
 import { WalletDialog } from "@/components/wallet/WalletDialog";
 import appStoreImg from "@/assets/app-store.png";
 import playStoreImg from "@/assets/play-store.png";
@@ -205,11 +205,18 @@ export default function Landing() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
-              // 2026-09-17: Forex/Commodities/Stocks/SIP/SWP cards hidden (product
-              // decision — don't advertise unavailable products). Restore as needed.
               { title: "Crypto", sub: "Spot & Futures", icon: TrendingUp, color: "text-cyan-600 dark:text-cyan-400 bg-cyan-500/15 border-cyan-500/35" },
               { title: "AI Agent Trading", sub: "AI Automated Strategies", icon: Bot, color: "text-emerald-600 dark:text-emerald-300 bg-emerald-500/15 border-emerald-500/35" },
               { title: "Bot Trading", sub: "AI-Powered Bots", icon: Bot, color: "text-amber-600 dark:text-amber-300 bg-amber-500/15 border-amber-500/35" },
+              // Forex/Commodities/Stocks: listed per request, but not yet
+              // live on the exchange (matching-engine's disabledMarkets —
+              // no order book exists for these today), so these cards are
+              // deliberately plain divs with no link/onClick, same as every
+              // other card in this grid — nothing here claims they're
+              // tradable right now.
+              { title: "Forex", sub: "Major & Minor Pairs", icon: Banknote, color: "text-blue-600 dark:text-blue-300 bg-blue-500/15 border-blue-500/35" },
+              { title: "Commodities", sub: "Gold, Silver & Oil", icon: Boxes, color: "text-orange-600 dark:text-orange-300 bg-orange-500/15 border-orange-500/35" },
+              { title: "Stocks", sub: "Global Equities", icon: Building2, color: "text-purple-600 dark:text-purple-300 bg-purple-500/15 border-purple-500/35" },
             ].map((item) => (
               <div key={item.title} className="group rounded-2xl border border-border bg-background/75 p-5 md:p-6 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 transition-all">
                 <div className={`h-10 w-10 rounded-xl border flex items-center justify-center mb-4 ${item.color} group-hover:shadow-lg group-hover:shadow-cyan-500/50 transition-all`}>
