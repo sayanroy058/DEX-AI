@@ -9,7 +9,7 @@ import { formatPrice } from "@/lib/mockData";
 import { TrendingUp, TrendingDown, Info, Zap, Shield, Calculator, ChevronDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { backendMarketFor, backendOptionsMarketFor, optionInstrumentSymbol } from "@/lib/backendMarkets";
+import { backendMarketFor, backendOptionsMarketFor, optionInstrumentSymbol, registeredSpotSymbols } from "@/lib/backendMarkets";
 import { useOrders } from "@/lib/useOrders";
 import { getOptionChain, OptionChainEntry, submitAttachedOrder, SubmitOrderParams } from "@/lib/apiClient";
 import { useWallet } from "@/lib/useWallet";
@@ -57,6 +57,12 @@ export function TradePanel({
 }) {
   const baseAsset = symbol.split("-")[0] || "BTC";
   const backendMarket = backendMarketFor(symbol);
+  // Only BI2X currently has a real Spot order book (every other base asset
+  // — BTC, ETH, SOL, etc. — is Futures-only; see backendMarkets.ts's own
+  // doc comment on REGISTERED). The Spot tab is disabled for any other
+  // base asset instead of letting the user select a mode with no live
+  // market behind it.
+  const hasSpotMarket = registeredSpotSymbols().some((s) => s.symbol.split("-")[0] === baseAsset);
   const marketMetadata = useMarketMetadata(symbol);
   // Splitting the display symbol (e.g. "BTC-PERP") gave "PERP" as the quote
   // asset for every futures market — marketMetadata.quoteCurrency is the
@@ -71,6 +77,17 @@ export function TradePanel({
   const isSpotSell = mode === "spot" && side === "sell";
   const isSpotBuy = mode === "spot" && side === "buy";
   const isOptions = mode === "options";
+
+  // If the symbol changes to a base asset with no Spot market while this
+  // panel is already showing Spot mode (e.g. switching from BI2X to BTC in
+  // the market list), fall back to Futures instead of leaving the panel
+  // stuck on a now-disabled tab with a dead order form behind it.
+  useEffect(() => {
+    if (mode === "spot" && !hasSpotMarket) {
+      setMode("futures");
+      onModeChange?.("futures");
+    }
+  }, [mode, hasSpotMarket, onModeChange, setMode]);
   const quoteBalance = walletState.balances.find((b) => b.asset === quoteAsset)?.available ?? 0;
   const baseBalance = walletState.balances.find((b) => b.asset === baseAsset)?.available ?? 0;
   // Buys spend quote currency; spot sells spend the purchased base asset.
@@ -593,7 +610,14 @@ export function TradePanel({
               <TabsTrigger value="options" disabled ...>Options</TabsTrigger>
               and change this grid back to grid-cols-3. */}
           <TabsList className="grid grid-cols-2 h-8 bg-muted/30 w-full rounded-lg p-0.5">
-            <TabsTrigger value="spot" className="h-7 text-xs font-semibold rounded-md">Spot</TabsTrigger>
+            <TabsTrigger
+              value="spot"
+              disabled={!hasSpotMarket}
+              title={hasSpotMarket ? undefined : `${baseAsset} has no Spot market — Futures only`}
+              className="h-7 text-xs font-semibold rounded-md"
+            >
+              Spot
+            </TabsTrigger>
             <TabsTrigger value="futures" className="h-7 text-xs font-semibold rounded-md">Futures</TabsTrigger>
           </TabsList>
         </Tabs>

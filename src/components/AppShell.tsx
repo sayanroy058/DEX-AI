@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { WalletDialog } from "@/components/wallet/WalletDialog";
+import { SwapDialog } from "@/components/trade/SwapDialog";
 import { useWallet, shortAddress, getWalletSourceLabel } from "@/lib/useWallet";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import logo from "@/assets/logo.png";
@@ -28,6 +29,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isTradePage = location.pathname === "/trade";
   const w = useWallet();
   const [walletOpen, setWalletOpen] = useState(false);
+  const [swapOpen, setSwapOpen] = useState(false);
 
   return (
     <div className="min-h-screen w-full flex flex-col">
@@ -85,6 +87,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Button>
         )}
 
+        {w.connected && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSwapOpen(true)}
+            className="h-8 text-xs glass border-primary/30 text-primary hover:bg-primary/10 hover:text-primary shrink-0"
+            title="Swap tokens"
+          >
+            <Repeat className="h-3.5 w-3.5 sm:mr-1.5" />
+            <span className="hidden sm:inline">Swap</span>
+          </Button>
+        )}
+
         <Button variant="outline" className={cn("glass px-2.5 sm:px-4", w.connected ? "border-buy/40 text-buy hover:bg-buy/10 hover:text-buy" : "border-primary/40 text-primary hover:bg-primary/10 hover:text-primary")} onClick={() => setWalletOpen(true)}>
           <span className={cn("mr-1 sm:mr-1.5 h-1.5 w-1.5 rounded-full animate-pulse", w.connected ? "bg-buy" : "bg-primary")} />
           <span className="hidden sm:inline">{w.connected ? `${getWalletSourceLabel(w.walletId)} · ${shortAddress(w.address)}` : "Connect Wallet"}</span>
@@ -120,6 +135,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       <WalletDialog open={walletOpen} onOpenChange={setWalletOpen} />
+      <SwapDialog open={swapOpen} onOpenChange={setSwapOpen} />
 
       <nav className="lg:hidden flex items-center gap-1 px-2 py-2 glass-strong border-b border-glass-border overflow-x-auto scrollbar-none">
         {navItems.map(item => (
