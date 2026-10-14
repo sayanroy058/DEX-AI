@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
-  Zap, TrendingUp, Users, ExternalLink, Copy,
+  TrendingUp, Users, ExternalLink, Copy,
   Flame, BarChart3, Clock, Activity,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   AreaChart, Area, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend,
 } from "recharts";
+import { TokenLogo } from "@/components/trade/TokenLogo";
 import { cn } from "@/lib/utils";
 import { getBI2XPrice } from "@/lib/feesApi";
 
@@ -141,9 +142,7 @@ export default function Token() {
         ══════════════════════════════════════════════ */}
         <section>
           <div className="flex items-center gap-2 mb-4">
-            <div className="h-7 w-7 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow-primary">
-              <Zap className="h-3.5 w-3.5 text-primary-foreground" strokeWidth={2.5} />
-            </div>
+            <TokenLogo symbol="BI2X" className="h-7 w-7" />
             <h2 className="text-lg font-bold">BI2X Token</h2>
           </div>
 
@@ -153,9 +152,7 @@ export default function Token() {
             {/* Price card */}
             <div className="glass rounded-2xl p-5 border border-primary/20">
               <div className="flex items-center gap-3 mb-3">
-                <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow-primary">
-                  <Zap className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
-                </div>
+                <TokenLogo symbol="BI2X" className="h-10 w-10" />
                 <div>
                   <div className="font-bold text-lg leading-none">BI2X Token</div>
                   <div className="flex items-center gap-2 mt-0.5">
@@ -316,7 +313,7 @@ export default function Token() {
           </div>
 
           {/* Three-col row */}
-          <div className="grid lg:grid-cols-3 gap-4 mb-4">
+          <div className="grid lg:grid-cols-2 gap-4 mb-4">
 
             {/* DEXUSD card */}
             <div className="glass rounded-2xl p-5 border border-border/50">
@@ -388,39 +385,6 @@ export default function Token() {
                 <span>-30 days</span>
                 <span>Now</span>
               </div>
-            </div>
-
-            {/* Reserve composition */}
-            <div className="glass rounded-2xl p-5 border border-border/50">
-              <div className="flex items-center gap-2 mb-4">
-                <BarChart3 className="h-4 w-4 text-primary" />
-                <span className="font-semibold text-sm">Reserve Composition</span>
-              </div>
-
-              {/* Stacked bar */}
-              <div className="h-3 rounded-full overflow-hidden flex mb-4">
-                <div className="bg-cyan-400" style={{ width: "60%" }} />
-                <div className="bg-indigo-500" style={{ width: "30%" }} />
-                <div className="bg-emerald-500" style={{ width: "10%" }} />
-              </div>
-
-              <div className="space-y-3">
-                {[
-                  { label: "BTC", pct: 60, val: "$487.4M", color: "bg-cyan-400" },
-                  { label: "ETH", pct: 30, val: "$243.7M", color: "bg-indigo-500" },
-                  { label: "BI2XUSD", pct: 10, val: "$81.2M", color: "bg-emerald-500" },
-                ].map(r => (
-                  <div key={r.label} className="flex items-center gap-2 text-[11px]">
-                    <div className={`h-2 w-2 rounded-full shrink-0 ${r.color}`} />
-                    <span className="text-muted-foreground flex-1">{r.label} <span className="text-foreground">{r.pct}%</span></span>
-                    <span className="font-mono font-semibold">{r.val}</span>
-                  </div>
-                ))}
-              </div>
-
-              <Button variant="outline" size="sm" className="w-full mt-4 glass border-primary/40 text-primary hover:bg-primary/10 text-xs h-8">
-                View Reserve transparency <ExternalLink className="h-3 w-3 ml-1" />
-              </Button>
             </div>
           </div>
 

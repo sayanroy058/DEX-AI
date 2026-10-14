@@ -1,16 +1,15 @@
-import { useState } from "react";
 import { useMarket } from "@/lib/useMarkets";
 import { formatCompact, formatPrice } from "@/lib/mockData";
 import { useIndexPrice } from "@/lib/useIndexPrice";
 import { useLivePrice } from "@/lib/useLivePrice";
 import { useTicker } from "@/lib/useTicker";
 import { backendMarketFor } from "@/lib/backendMarkets";
-import { TrendingUp, TrendingDown, Bot, Sparkles, Calculator, RotateCcw, Repeat } from "lucide-react";
+import { TrendingUp, TrendingDown, Bot, Sparkles, Calculator, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { SwapDialog } from "./SwapDialog";
+import { TokenLogo } from "./TokenLogo";
 
 export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onResetLayout }: {
   symbol: string;
@@ -26,7 +25,6 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
   const livePrice = useLivePrice(symbol);
   const backendMarket = backendMarketFor(symbol);
   const ticker = useTicker(backendMarket?.symbol, backendMarket?.market);
-  const [swapOpen, setSwapOpen] = useState(false);
   if (!market) return null;
 
   const executable = !!backendMarket;
@@ -68,9 +66,7 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
   return (
     <div className="glass rounded-xl px-4 py-2.5 flex items-center gap-6 overflow-x-auto">
       <div className="flex items-center gap-2 min-w-fit">
-        <div className="h-9 w-9 rounded-full bg-gradient-primary flex items-center justify-center font-bold text-xs text-primary-foreground shadow-glow-primary">
-          {market.base.slice(0, 3)}
-        </div>
+        <TokenLogo symbol={market.base} />
         <div>
           <div className="font-bold text-sm flex items-center gap-1.5">
             {market.symbol}
@@ -108,16 +104,6 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
       {index && <Stat label="24h Low" value={`$${formatPrice(index.low)}`} />}
 
       <div className="ml-auto flex items-center gap-2 min-w-fit">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setSwapOpen(true)}
-          className={"h-8 text-xs glass border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"}
-          title="Swap tokens"
-        >
-          <Repeat className="h-3.5 w-3.5 mr-1.5" />
-          Swap
-        </Button>
         <Button
           variant="outline"
           size="sm"
@@ -171,7 +157,6 @@ export function MarketHeader({ symbol, calculatorOpen, onToggleCalculator, onRes
           </Button>
         )}
       </div>
-      <SwapDialog open={swapOpen} onOpenChange={setSwapOpen} />
     </div>
   );
 }
