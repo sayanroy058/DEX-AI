@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { INITIAL_MARKETS, Market } from "./mockData";
 
 const BOTS_API_URL = import.meta.env.VITE_BOTS_API_URL ?? "http://localhost:8082";
-const POLL_MS = 1_000;
+const POLL_MS = 3_000;
+// Last good /indexes response, so a refresh or revisit paints prices
+// immediately instead of waiting on the first network round-trip.
+const CACHE_KEY = "marketIndexes:v1";
+const CACHE_MAX_AGE_MS = 5 * 60_000;
 
 export type MarketDataStatus = "live" | "stale" | "unavailable";
 
@@ -101,9 +105,32 @@ function markFeedFailure(current: IndexedMarket[]): IndexedMarket[] {
   }));
 }
 
+function readCache(): IndexBatchItem[] | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const { savedAt, indexes } = JSON.parse(raw) as { savedAt: number; indexes: IndexBatchItem[] };
+    if (!Array.isArray(indexes) || Date.now() - savedAt > CACHE_MAX_AGE_MS) return null;
+    return indexes;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(indexes: IndexBatchItem[]) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ savedAt: Date.now(), indexes }));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
 export function useMarketIndexes() {
-  const [markets, setMarkets] = useState<IndexedMarket[]>(MARKET_METADATA);
-  const [loading, setLoading] = useState(true);
+  const [cached] = useState(readCache);
+  const [markets, setMarkets] = useState<IndexedMarket[]>(() =>
+    cached ? mergeIndexData(MARKET_METADATA, cached) : MARKET_METADATA,
+  );
+  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
 
   const url = useMemo(() => {
@@ -116,6 +143,12 @@ export function useMarketIndexes() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let controller: AbortController | undefined;
 
+    const schedule = () => {
+      if (!cancelled && document.visibilityState === "visible") {
+        timer = setTimeout(() => void poll(), POLL_MS);
+      }
+    };
+
     const poll = async () => {
       controller = new AbortController();
       try {
@@ -125,6 +158,7 @@ export function useMarketIndexes() {
         if (!Array.isArray(body.indexes)) throw new Error("invalid market index response");
         if (cancelled) return;
         setMarkets((current) => mergeIndexData(current, body.indexes));
+        writeCache(body.indexes);
         setError(null);
       } catch (cause) {
         if (cancelled || (cause instanceof DOMException && cause.name === "AbortError")) return;
@@ -133,14 +167,27 @@ export function useMarketIndexes() {
       } finally {
         if (!cancelled) {
           setLoading(false);
-          timer = setTimeout(() => void poll(), POLL_MS);
+          schedule();
         }
       }
     };
 
+    // Pause polling while the tab is hidden; refresh right away on return.
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        if (timer) clearTimeout(timer);
+        void poll();
+      } else if (timer) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     void poll();
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
       controller?.abort();
       if (timer) clearTimeout(timer);
     };

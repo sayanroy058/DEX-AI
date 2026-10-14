@@ -24,6 +24,12 @@ const navItems = [
   { to: "/sip", icon: CalendarClock, label: "SIP/SWP" },
 ];
 
+// Warm the lazy route chunk on hover/focus so the click doesn't wait on it.
+const ROUTE_PREFETCH: Record<string, () => Promise<unknown>> = {
+  "/markets": () => import("@/pages/Markets"),
+};
+const prefetchRoute = (to: string) => { void ROUTE_PREFETCH[to]?.().catch(() => {}); };
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const isTradePage = location.pathname === "/trade";
@@ -46,6 +52,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <RouterNavLink
               key={item.to}
               to={item.to}
+              onMouseEnter={() => prefetchRoute(item.to)}
+              onFocus={() => prefetchRoute(item.to)}
               className={({ isActive }) =>
                 cn(
                   "px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap",
