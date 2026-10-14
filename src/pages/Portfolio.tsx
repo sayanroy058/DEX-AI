@@ -31,6 +31,20 @@ const BREAKDOWN_COLORS = [
   "hsl(178 70% 50%)", "hsl(0 70% 60%)", "hsl(48 90% 55%)", "hsl(260 60% 60%)",
 ];
 
+type AreaId = "spot" | "futures" | "staking" | "prediction" | "p2p";
+const AREA_TABS: { id: AreaId; label: string; icon: LucideIcon; activeClass: string }[] = [
+  { id: "spot", label: "Spot", icon: Wallet, activeClass: "bg-primary/15 text-primary border-primary/40" },
+  { id: "futures", label: "Futures", icon: TrendingUp, activeClass: "bg-buy/15 text-buy border-buy/40" },
+  { id: "staking", label: "Staking", icon: Lock, activeClass: "bg-amber-500/15 text-amber-500 border-amber-500/40" },
+  { id: "prediction", label: "Prediction", icon: Target, activeClass: "bg-violet-500/15 text-violet-500 border-violet-500/40" },
+  { id: "p2p", label: "P2P", icon: Users, activeClass: "bg-cyan-500/15 text-cyan-500 border-cyan-500/40" },
+];
+
+type HoldingRow = { asset: string; total: number; available?: number; reserved?: number; price: number; value: number };
+
+// Stablecoins are valued 1:1; everything else uses its <ASSET>-BI2XUSD spot price.
+const STABLE_ASSETS = new Set(["BI2XUSD", "USDC", "USDT"]);
+
 const Portfolio = () => {
   const markets = useMarkets();
   const walletState = useWallet();
@@ -41,6 +55,7 @@ const Portfolio = () => {
   const [walletTransferOpen, setWalletTransferOpen] = useState(false);
   const [futuresPositions, setFuturesPositions] = useState<FuturesPositionDTO[]>([]);
   const [realizedPnl, setRealizedPnl] = useState<RealizedPnlDTO[]>([]);
+  const [activeArea, setActiveArea] = useState<AreaId>("spot");
   const [p2pBalances, setP2pBalances] = useState<P2PWalletBalance[] | null>(null);
 
   const openTransfer = (m: "deposit" | "withdraw") => { setTransferMode(m); setTransferOpen(true); };
@@ -163,22 +178,6 @@ const Portfolio = () => {
     return { symbol: displaySymbol, side, size, entry, mark, leverage, pnl, pnlPct, value };
   }), [futuresPositions, markets, futuresTickers]);
 
-  // Real spot holdings — every non-zero asset balance. Every other asset
-  // is valued at its corresponding SPOT market's current price; BI2XUSD
-  // itself has no such market (there's no "BI2XUSD-BI2XUSD" pair) and is
-  // priced at a flat 1:1 instead, same convention Asset Breakdown below
-  // already uses for it.
-  const spotHoldings = useMemo(() => {
-    return walletState.balances
-      .filter((b) => b.amount > 0)
-      .map((b) => {
-        if (b.asset === "BI2XUSD") return { ...b, price: 1, value: b.amount };
-        const displaySymbol = `${b.asset}-BI2XUSD`;
-        const price = markets.find((mk) => mk.symbol === displaySymbol)?.price ?? 0;
-        return { ...b, price, value: b.amount * price };
-      });
-  }, [walletState.balances, markets]);
-
   const totalPnl = positions.reduce((s, p) => s + p.pnl, 0);
 
   // Real equity curve: cumulative realized PnL over time (oldest first —
@@ -205,36 +204,6 @@ const Portfolio = () => {
     const avgTrade = pnls.length ? pnls.reduce((s, n) => s + n, 0) / pnls.length : null;
     return { winRate, avgTrade, closedCount: pnls.length };
   }, [realizedPnl]);
-
-  // Real asset breakdown: every priced holding across Spot (every non-zero
-  // balance, INCLUDING BI2XUSD at 1:1 — unlike spotHoldings above, this
-  // view is meant to answer "what do I hold overall", so the cash balance
-  // belongs here even though it has no market to price against) and open
-  // Futures notional (positions), replacing the old hardcoded
-  // ASSET_BREAKDOWN mock list. A futures position's "value" here is its
-  // notional (mark * size), same figure the Open table used to show, not
-  // its margin.
-  const assetBreakdown = useMemo(() => {
-    const bySymbol = new Map<string, number>();
-    for (const b of walletState.balances) {
-      if (b.amount <= 0) continue;
-      const value = b.asset === "BI2XUSD" ? b.amount : b.amount * (markets.find((mk) => mk.symbol === `${b.asset}-BI2XUSD`)?.price ?? 0);
-      if (value > 0) bySymbol.set(b.asset, (bySymbol.get(b.asset) ?? 0) + value);
-    }
-    for (const p of positions) {
-      const base = p.symbol.split("-")[0] ?? p.symbol;
-      if (p.value > 0) bySymbol.set(base, (bySymbol.get(base) ?? 0) + p.value);
-    }
-    const total = Array.from(bySymbol.values()).reduce((s, v) => s + v, 0);
-    return Array.from(bySymbol.entries())
-      .sort((a, b) => b[1] - a[1])
-      .map(([asset, value], i) => ({
-        asset,
-        value,
-        pct: total > 0 ? (value / total) * 100 : 0,
-        color: BREAKDOWN_COLORS[i % BREAKDOWN_COLORS.length],
-      }));
-  }, [walletState.balances, markets, positions]);
 
   // Per-area balances, each shown in its OWN section below — deliberately
   // NOT summed into one grand total: Spot alone holds several different
@@ -271,6 +240,71 @@ const Portfolio = () => {
   // dialog's asset selector currently has picked rather than a fixed set.
   const spotAmountFor = (asset: string) => walletState.balances.find((b) => b.asset === asset)?.available ?? null;
 
+  const priceFor = (asset: string) =>
+    STABLE_ASSETS.has(asset) ? 1 : markets.find((mk) => mk.symbol === `${asset}-BI2XUSD`)?.price ?? 0;
+
+  // Holdings + loaded flag for the selected area. loaded=false means the
+  // balance couldn't be fetched just now (shown as unavailable, not as zero).
+  const areaView = useMemo(() => {
+    const mk = (asset: string, total: number, extra: Partial<HoldingRow> = {}): HoldingRow => {
+      const price = priceFor(asset);
+      return { asset, total, price, value: total * price, ...extra };
+    };
+    const positive = (rows: HoldingRow[]) => rows.filter((r) => r.total > 0);
+    switch (activeArea) {
+      case "spot":
+        return {
+          loaded: true,
+          rows: positive(walletState.balances.map((b) => mk(b.asset, b.amount, { available: b.available, reserved: b.tradingLocked }))),
+        };
+      case "staking":
+        return { loaded: !!stakingBalance, rows: stakingBalance ? positive([mk("BI2X", stakingBalance.total)]) : [] };
+      case "prediction":
+        return { loaded: !!predictionBalance, rows: predictionBalance ? positive([mk("BI2XUSD", predictionBalance.total)]) : [] };
+      case "p2p":
+        return {
+          loaded: p2pBalances !== null,
+          rows: positive(["BI2XUSD", "USDC", "USDT"].map((a) => mk(a, p2pAmountFor(a) ?? 0))),
+        };
+      default: {
+        // Futures: breakdown is open-position notional by base asset.
+        const byBase = new Map<string, number>();
+        for (const p of positions) {
+          const base = p.symbol.split("-")[0] ?? p.symbol;
+          byBase.set(base, (byBase.get(base) ?? 0) + p.value);
+        }
+        return {
+          loaded: futuresBalance !== undefined,
+          rows: Array.from(byBase.entries()).map(([asset, value]) => ({ asset, total: 0, price: 0, value })),
+        };
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeArea, walletState.balances, stakingBalance, predictionBalance, p2pBalances, positions, futuresBalance, markets]);
+
+  const areaBreakdown = useMemo(() => {
+    const total = areaView.rows.reduce((sum, r) => sum + r.value, 0);
+    return areaView.rows
+      .filter((r) => r.value > 0)
+      .sort((a, b) => b.value - a.value)
+      .map((r, i) => ({ asset: r.asset, value: r.value, pct: total > 0 ? (r.value / total) * 100 : 0, color: BREAKDOWN_COLORS[i % BREAKDOWN_COLORS.length] }));
+  }, [areaView]);
+
+  // Compact balance chips shown under the tab bar (the old area cards' numbers).
+  const areaChips: { asset: string; value: string | null }[] = {
+    spot: [
+      { asset: "BI2X", value: formatTokenAmount(dbBalances.BI2X) },
+      { asset: "BI2XUSD", value: formatTokenAmount(dbBalances.BI2XUSD) },
+      { asset: "USDC", value: formatTokenAmount(dbBalances.USDC) },
+      { asset: "USDT", value: formatTokenAmount(dbBalances.USDT) },
+    ],
+    futures: [{ asset: "BI2XUSD", value: futuresBalance ? formatTokenAmount(futuresBalance.total) : null }],
+    staking: [{ asset: "BI2X", value: stakingBalance ? formatTokenAmount(stakingBalance.total) : null }],
+    prediction: [{ asset: "BI2XUSD", value: predictionBalance ? formatTokenAmount(predictionBalance.total) : null }],
+    p2p: ["BI2XUSD", "USDC", "USDT"].map((a) => ({ asset: a, value: p2pAmountFor(a) !== null ? formatTokenAmount(p2pAmountFor(a)!) : null })),
+  }[activeArea];
+  const activeLabel = AREA_TABS.find((t) => t.id === activeArea)!.label;
+
   useEffect(() => {
     if (!walletState.connected) return;
     wallet.refreshBalances().catch(() => {});
@@ -302,75 +336,55 @@ const Portfolio = () => {
           </div>
         </div>
 
-        {/* Per-area balances — Spot/Futures/Staking/Prediction/P2P, each its
-            own funding pool with its own card, each listing its OWN real
-            per-asset balances rather than one collapsed/summed number
-            (Spot and P2P each hold several non-interchangeable assets;
-            Futures/Staking/Prediction are BI2XUSD-only pools — see each
-            area's own backend schema). Never summed into a page-wide total
-            either (see futuresBalance's comment above for why). A row
-            showing "—" means that asset/area couldn't be loaded just now
-            (e.g. the engine briefly unreachable for Futures), not that
-            it's genuinely zero. */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-          <AreaCard
-            label="Spot"
-            icon={Wallet}
-            iconClass="text-primary bg-primary/10"
-            barClass="bg-primary"
-            rows={[
-              { asset: "BI2X", value: formatTokenAmount(dbBalances.BI2X) },
-              { asset: "BI2XUSD", value: formatTokenAmount(dbBalances.BI2XUSD) },
-              { asset: "USDC", value: formatTokenAmount(dbBalances.USDC) },
-              { asset: "USDT", value: formatTokenAmount(dbBalances.USDT) },
-            ]}
-          />
-          <AreaCard
-            label="Futures"
-            icon={TrendingUp}
-            iconClass="text-buy bg-buy/10"
-            barClass="bg-buy"
-            rows={[{ asset: "BI2XUSD", value: futuresBalance ? formatTokenAmount(futuresBalance.total) : null }]}
-          />
-          <AreaCard
-            label="Staking"
-            icon={Lock}
-            iconClass="text-amber-500 bg-amber-500/10"
-            barClass="bg-amber-500"
-            rows={[{ asset: "BI2X", value: stakingBalance ? formatTokenAmount(stakingBalance.total) : null }]}
-          />
-          <AreaCard
-            label="Prediction"
-            icon={Target}
-            iconClass="text-violet-500 bg-violet-500/10"
-            barClass="bg-violet-500"
-            rows={[{ asset: "BI2XUSD", value: predictionBalance ? formatTokenAmount(predictionBalance.total) : null }]}
-          />
-          <AreaCard
-            label="P2P"
-            icon={Users}
-            iconClass="text-cyan-500 bg-cyan-500/10"
-            barClass="bg-cyan-500"
-            rows={[
-              { asset: "BI2XUSD", value: p2pAmountFor("BI2XUSD") !== null ? formatTokenAmount(p2pAmountFor("BI2XUSD")!) : null },
-              { asset: "USDC", value: p2pAmountFor("USDC") !== null ? formatTokenAmount(p2pAmountFor("USDC")!) : null },
-              { asset: "USDT", value: p2pAmountFor("USDT") !== null ? formatTokenAmount(p2pAmountFor("USDT")!) : null },
-            ]}
-          />
+        {/* Area switcher — one small pill per funding pool (Spot / Futures /
+            Staking / Prediction / P2P). Selecting one swaps the balance chips,
+            Asset Breakdown and Holdings below to that pool. Balances are never
+            summed across pools (different, non-interchangeable assets). A
+            "—" chip means that pool couldn't be loaded, not that it's zero. */}
+        <div className="flex flex-wrap items-center gap-2">
+          {AREA_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveArea(tab.id)}
+              aria-pressed={activeArea === tab.id}
+              className={cn(
+                "h-8 px-3 rounded-full border text-xs font-semibold flex items-center gap-1.5 transition-all",
+                activeArea === tab.id ? tab.activeClass : "border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/40",
+              )}
+            >
+              <tab.icon className="h-3.5 w-3.5" />
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        <EquityChart points={equityPoints} pnl={totalPnl} winRate={tradeStats.winRate} avgTrade={tradeStats.avgTrade} />
+        <div className="flex flex-wrap gap-2">
+          {areaChips.map((c) => (
+            <div key={c.asset} className="glass rounded-lg px-3 py-1.5 flex items-baseline gap-2">
+              <span className="text-[11px] text-muted-foreground">{c.asset}</span>
+              <span className={cn("text-sm font-bold font-mono", c.value === null && "text-muted-foreground/50")}>{c.value ?? "—"}</span>
+            </div>
+          ))}
+        </div>
 
-        {/* Asset Breakdown — real priced holdings (Spot balances + open
-            Futures notional), not the old hardcoded mock list. Moved below
-            the Equity Curve per request. */}
+        {activeArea === "futures" && (
+          <EquityChart points={equityPoints} pnl={totalPnl} winRate={tradeStats.winRate} avgTrade={tradeStats.avgTrade} />
+        )}
+
         <div className="glass rounded-xl p-5">
-          <h3 className="font-semibold mb-4 flex items-center gap-2"><PieChart className="h-4 w-4 text-primary" /> Asset Breakdown</h3>
-          {assetBreakdown.length === 0 ? (
-            <div className="text-center text-xs text-muted-foreground py-6">No priced holdings yet — your Spot balances and open Futures positions will show up here.</div>
+          <h3 className="font-semibold mb-4 flex items-center gap-2"><PieChart className="h-4 w-4 text-primary" /> {activeLabel} Asset Breakdown</h3>
+          {areaBreakdown.length === 0 ? (
+            <div className="text-center text-xs text-muted-foreground py-6">
+              {!areaView.loaded
+                ? `${activeLabel} balance is unavailable right now.`
+                : activeArea === "futures"
+                  ? "No open Futures positions yet."
+                  : `No ${activeLabel} holdings yet.`}
+            </div>
           ) : (
             <div className="space-y-2.5">
-              {assetBreakdown.map(a => (
+              {areaBreakdown.map(a => (
                 <div key={a.asset}>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="font-medium">{a.asset}</span>
@@ -385,46 +399,83 @@ const Portfolio = () => {
           )}
         </div>
 
-        {/* Spot Holdings — moved here from the trade page's Positions panel
-            "Holdings" tab, since a spot balance is account-wide, not tied to
-            whichever symbol you happen to be trading. */}
         <div className="glass rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between">
-            <h3 className="font-semibold flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Spot Holdings</h3>
-            <span className="text-xs text-muted-foreground">{spotHoldings.length} assets</span>
+            <h3 className="font-semibold flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> {activeLabel} Holdings</h3>
+            <span className="text-xs text-muted-foreground">
+              {activeArea === "futures" ? `${positions.length} positions` : `${areaView.rows.length} assets`}
+            </span>
           </div>
-          {spotHoldings.length === 0 ? (
-            <div className="p-6 text-center text-xs text-muted-foreground">No spot holdings yet. Buy a spot asset to see it here.</div>
+          {activeArea === "futures" ? (
+            positions.length === 0 ? (
+              <div className="p-6 text-center text-xs text-muted-foreground">No open Futures positions.</div>
+            ) : (
+              <div className="overflow-x-auto scrollbar-none">
+                <table className="w-full text-sm min-w-[700px]">
+                  <thead className="text-[11px] text-muted-foreground uppercase">
+                    <tr className="border-b border-border/50">
+                      <th className="text-left px-4 py-2">Symbol</th>
+                      <th className="text-left">Side</th>
+                      <th className="text-right">Size</th>
+                      <th className="text-right">Entry</th>
+                      <th className="text-right">Mark</th>
+                      <th className="text-right">Lev.</th>
+                      <th className="text-right">PnL</th>
+                      <th className="text-right pr-4">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {positions.map((p, i) => (
+                      <tr key={`${p.symbol}-${p.side}-${i}`} className="border-b border-border/30 hover:bg-muted/20">
+                        <td className="px-4 py-3 font-semibold">{p.symbol}</td>
+                        <td className={cn("font-semibold uppercase text-xs", p.side === "long" ? "text-buy" : "text-sell")}>{p.side}</td>
+                        <td className="text-right font-mono">{p.size.toFixed(4)}</td>
+                        <td className="text-right font-mono text-muted-foreground">{formatPrice(p.entry)}</td>
+                        <td className="text-right font-mono text-muted-foreground">{formatPrice(p.mark)}</td>
+                        <td className="text-right font-mono">{p.leverage}x</td>
+                        <td className={cn("text-right font-mono font-semibold", p.pnl >= 0 ? "text-buy" : "text-sell")}>
+                          {p.pnl >= 0 ? "+" : ""}${p.pnl.toFixed(2)} <span className="text-[10px]">({p.pnlPct.toFixed(2)}%)</span>
+                        </td>
+                        <td className="text-right pr-4 font-mono font-bold">${p.value.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          ) : areaView.rows.length === 0 ? (
+            <div className="p-6 text-center text-xs text-muted-foreground">
+              {areaView.loaded ? `No ${activeLabel} holdings yet.` : `${activeLabel} balance is unavailable right now.`}
+            </div>
           ) : (
-          <div className="overflow-x-auto scrollbar-none">
-            <table className="w-full text-sm min-w-[600px]">
-              <thead className="text-[11px] text-muted-foreground uppercase">
-                <tr className="border-b border-border/50">
-                  <th className="text-left px-4 py-2">Asset</th>
-                  <th className="text-right">Total</th>
-                  <th className="text-right">Available</th>
-                  <th className="text-right">Order-Reserved</th>
-                  <th className="text-right">Price</th>
-                  <th className="text-right pr-4">Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {spotHoldings.map((h) => (
-                  <tr key={h.asset} className="border-b border-border/30 hover:bg-muted/20">
-                    <td className="px-4 py-3 font-semibold">{h.asset}</td>
-                    <td className="text-right font-mono">{h.amount.toFixed(4)}</td>
-                    <td className="text-right font-mono text-buy">{h.available.toFixed(4)}</td>
-                    <td className="text-right font-mono text-muted-foreground">{h.tradingLocked.toFixed(4)}</td>
-                    <td className="text-right font-mono text-muted-foreground">{h.price > 0 ? formatPrice(h.price) : "—"}</td>
-                    <td className="text-right pr-4 font-mono font-bold">${h.value.toFixed(2)}</td>
+            <div className="overflow-x-auto scrollbar-none">
+              <table className="w-full text-sm min-w-[600px]">
+                <thead className="text-[11px] text-muted-foreground uppercase">
+                  <tr className="border-b border-border/50">
+                    <th className="text-left px-4 py-2">Asset</th>
+                    <th className="text-right">Total</th>
+                    {activeArea === "spot" && <th className="text-right">Available</th>}
+                    {activeArea === "spot" && <th className="text-right">Order-Reserved</th>}
+                    <th className="text-right">Price</th>
+                    <th className="text-right pr-4">Value</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {areaView.rows.map((h) => (
+                    <tr key={h.asset} className="border-b border-border/30 hover:bg-muted/20">
+                      <td className="px-4 py-3 font-semibold">{h.asset}</td>
+                      <td className="text-right font-mono">{h.total.toFixed(4)}</td>
+                      {activeArea === "spot" && <td className="text-right font-mono text-buy">{(h.available ?? 0).toFixed(4)}</td>}
+                      {activeArea === "spot" && <td className="text-right font-mono text-muted-foreground">{(h.reserved ?? 0).toFixed(4)}</td>}
+                      <td className="text-right font-mono text-muted-foreground">{h.price > 0 ? formatPrice(h.price) : "—"}</td>
+                      <td className="text-right pr-4 font-mono font-bold">${h.value.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
-
       </div>
       <TransferDialog open={transferOpen} onOpenChange={setTransferOpen} defaultMode={transferMode} />
       <WalletAreaTransferDialog
@@ -469,52 +520,6 @@ function formatTokenAmount(value: number) {
     minimumFractionDigits: 0,
     maximumFractionDigits: value >= 1 ? 2 : 6,
   });
-}
-
-// value: null means "not loaded yet / unreachable right now" (shown as
-// "—"), distinct from a loaded "0" — see the comment on futuresBalance
-// above for why this distinction matters (an area genuinely at zero reads
-// differently from one this page simply couldn't fetch).
-// rows: one line per asset this area actually holds (Spot/P2P list several
-// non-interchangeable assets; Futures/Staking/Prediction are BI2XUSD-only
-// pools and pass a single-item array) — see the call site's comment for
-// why this replaced a single collapsed/summed number. A row's value is
-// null when that asset/area couldn't be loaded right now, shown as "—",
-// distinct from a loaded "0".
-function AreaCard({
-  label, icon: Icon, iconClass, barClass, rows,
-}: {
-  label: string;
-  icon: LucideIcon;
-  // Icon chip's text + background tint (e.g. "text-buy bg-buy/10") and the
-  // thin top accent bar's fill (e.g. "bg-buy") — one color pair per area so
-  // the five cards read as distinct at a glance instead of five identical
-  // gray boxes differing only in their label text.
-  iconClass: string;
-  barClass: string;
-  rows: { asset: string; value: string | null }[];
-}) {
-  return (
-    <div className="group relative glass rounded-xl overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
-      <div className={cn("h-1 w-full", barClass)} />
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-3.5">
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
-          <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center transition-transform duration-200 group-hover:scale-110", iconClass)}>
-            <Icon className="h-4 w-4" />
-          </div>
-        </div>
-        <div className="divide-y divide-border/40">
-          {rows.map((r) => (
-            <div key={r.asset} className="flex items-baseline justify-between py-1.5 first:pt-0 last:pb-0">
-              <span className="text-xs text-muted-foreground">{r.asset}</span>
-              <span className={cn("text-sm font-bold font-mono", r.value === null && "text-muted-foreground/50")}>{r.value ?? "—"}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // points: cumulative realized PnL, oldest first, with the current
