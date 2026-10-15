@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createBI2XDatafeed } from "./bi2xDatafeed";
+import { clearCandleCache } from "./candleCache";
 
 function mockFetchJSON(body: unknown, ok = true, status = 200) {
   return vi.fn().mockResolvedValue({
@@ -12,6 +13,7 @@ function mockFetchJSON(body: unknown, ok = true, status = 200) {
 describe("createBI2XDatafeed", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    clearCandleCache();
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -175,5 +177,26 @@ describe("createBI2XDatafeed", () => {
 
     df.unsubscribeBars(guid);
     Object.defineProperty(document, "hidden", { value: false, configurable: true });
+  });
+
+  it("getBars serves cached candles instantly on a repeat first load, then refreshes in the background", async () => {
+    const first = mockFetchJSON({ s: "ok", t: [100, 160], o: [1, 2], h: [1, 2], l: [1, 2], c: [1, 2], v: [1, 1] });
+    vi.stubGlobal("fetch", first);
+    const df = createBI2XDatafeed();
+    const params = { from: 0, to: 1000, countBack: 10, firstDataRequest: true };
+    await new Promise<any[]>((resolve, reject) => df.getBars({} as any, "1", params, resolve, (e) => reject(new Error(e))));
+
+    // Second load: the network now returns an extra, newer bar.
+    const second = mockFetchJSON({ s: "ok", t: [100, 160, 220], o: [1, 2, 3], h: [1, 2, 3], l: [1, 2, 3], c: [1, 2, 3], v: [1, 1, 1] });
+    vi.stubGlobal("fetch", second);
+    const cachedBars = await new Promise<any[]>((resolve, reject) => df.getBars({} as any, "1", params, resolve, (e) => reject(new Error(e))));
+    expect(cachedBars.map((b) => b.time)).toEqual([100_000, 160_000]); // from cache, not the new response
+
+    // The chart subscribes right after; the background refresh's newer bars are fed in via onTick.
+    const ticks: number[] = [];
+    df.subscribeBars({} as any, "1", (bar: any) => ticks.push(bar.time), "guid-1");
+    await vi.advanceTimersByTimeAsync(10);
+    expect(ticks).toContain(220_000);
+    df.unsubscribeBars("guid-1");
   });
 });

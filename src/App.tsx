@@ -1,3 +1,4 @@
+import { preloadChartLibrary } from "@/lib/preloadChart";
 import { useLayoutEffect, useEffect, useState, lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
@@ -130,7 +131,9 @@ function RouteFallback() {
   return <div className="min-h-screen" aria-hidden="true" />;
 }
 
-const App = () => (
+const App = () => {
+  useEffect(() => { preloadChartLibrary(); }, []);
+  return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider delayDuration={200}>
       <Toaster />
@@ -194,6 +197,7 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;

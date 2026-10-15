@@ -14,6 +14,8 @@
 // history once that exists on the backend — nothing else in TradingChart.tsx
 // needs to change, the widget only knows about this interface.
 
+import { readCandles, writeCandles, deliverLateBars, trackTicks, untrackTicks } from "./candleCache";
+
 type ResolutionString = string;
 
 interface Bar {
@@ -208,11 +210,11 @@ export function createBinanceDatafeed() {
       const url =
         `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}` +
         `&endTime=${periodParams.to * 1000}&limit=${limit}`;
-      try {
+      const fetchBars = async (): Promise<Bar[]> => {
         const res = await fetch(url);
         if (!res.ok) throw new Error(`binance klines ${res.status}`);
         const raw: unknown[] = await res.json();
-        const bars: Bar[] = raw.map((k) => {
+        return raw.map((k) => {
           const row = k as [number, string, string, string, string, string];
           return {
             time: row[0],
@@ -223,6 +225,24 @@ export function createBinanceDatafeed() {
             volume: parseFloat(row[5]),
           };
         });
+      };
+      // First load of a chart: paint cached candles right away, then refresh
+      // in the background and stream in anything newer (see candleCache.ts).
+      const cacheKey = `binance:${binanceSymbol}:${resolution}`;
+      const cached = periodParams.firstDataRequest ? readCandles(cacheKey) : null;
+      if (cached) {
+        onResult(cached.slice(-limit), { noData: false });
+        fetchBars()
+          .then((fresh) => {
+            writeCandles(cacheKey, fresh);
+            deliverLateBars(cacheKey, fresh.filter((b) => b.time >= cached[cached.length - 1].time));
+          })
+          .catch(() => {});
+        return;
+      }
+      try {
+        const bars = await fetchBars();
+        if (periodParams.firstDataRequest) writeCandles(cacheKey, bars);
         onResult(bars, { noData: bars.length === 0 });
       } catch (err) {
         onError(err instanceof Error ? err.message : String(err));
@@ -237,12 +257,14 @@ export function createBinanceDatafeed() {
     ) {
       const interval = RESOLUTION_TO_INTERVAL[resolution] ?? "1m";
       const binanceSymbol = toBinanceSymbol(symbolInfo.ticker);
+      const tick = trackTicks(`binance:${binanceSymbol}:${resolution}`, listenerGuid, onTick);
       subscribeKlineStream(binanceSymbol, interval, listenerGuid, (bar) => {
-        onTick(bar);
+        tick(bar);
       });
     },
 
     unsubscribeBars(listenerGuid: string) {
+      untrackTicks(listenerGuid);
       unsubscribeKlineStream(listenerGuid);
     },
   };

@@ -24,6 +24,8 @@
 // simple enough to implement directly against the same interface
 // binanceDatafeed.ts already satisfies.
 
+import { readCandles, writeCandles, deliverLateBars, trackTicks, untrackTicks } from "./candleCache";
+
 const BI2X_CHART_BASE_URL = (import.meta.env.VITE_AUTH_API_URL ?? "http://localhost:8081") + "/bi2x-chart";
 
 type ResolutionString = string;
@@ -281,17 +283,11 @@ export function createBI2XDatafeed() {
       const url =
         `${BI2X_CHART_BASE_URL}/history?symbol=BI2X&resolution=${toFeedResolution(resolution)}` +
         `&to=${periodParams.to}&countback=${limit}`;
-      try {
+      const fetchBars = async (): Promise<Bar[] | "no_data"> => {
         const res = await fetchJSON<UDFHistoryResponse>(url);
-        if (res.s === "no_data") {
-          onResult([], { noData: true });
-          return;
-        }
-        if (res.s === "error" || !res.t) {
-          onError(res.errmsg ?? "bi2x history error");
-          return;
-        }
-        const bars: Bar[] = res.t.map((t, i) => ({
+        if (res.s === "no_data") return "no_data";
+        if (res.s === "error" || !res.t) throw new Error(res.errmsg ?? "bi2x history error");
+        return res.t.map((t, i) => ({
           time: t * 1000,
           open: res.o![i],
           high: res.h![i],
@@ -299,6 +295,29 @@ export function createBI2XDatafeed() {
           close: res.c![i],
           volume: res.v?.[i],
         }));
+      };
+      // First load of a chart: paint cached candles right away, then refresh
+      // in the background and stream in anything newer (see candleCache.ts).
+      const cacheKey = `bi2x:${resolution}`;
+      const cached = periodParams.firstDataRequest ? readCandles(cacheKey) : null;
+      if (cached) {
+        onResult(cached.slice(-limit), { noData: false });
+        fetchBars()
+          .then((fresh) => {
+            if (fresh === "no_data") return;
+            writeCandles(cacheKey, fresh);
+            deliverLateBars(cacheKey, fresh.filter((b) => b.time >= cached[cached.length - 1].time));
+          })
+          .catch(() => {});
+        return;
+      }
+      try {
+        const bars = await fetchBars();
+        if (bars === "no_data") {
+          onResult([], { noData: true });
+          return;
+        }
+        if (periodParams.firstDataRequest) writeCandles(cacheKey, bars);
         onResult(bars, { noData: bars.length === 0 });
       } catch (err) {
         onError(err instanceof Error ? err.message : String(err));
@@ -311,10 +330,11 @@ export function createBI2XDatafeed() {
       onTick: SubscribeBarsCallback,
       listenerGuid: string
     ) {
-      startPolling(resolution, listenerGuid, onTick);
+      startPolling(resolution, listenerGuid, trackTicks(`bi2x:${resolution}`, listenerGuid, onTick));
     },
 
     unsubscribeBars(listenerGuid: string) {
+      untrackTicks(listenerGuid);
       stopPolling(listenerGuid);
     },
   };
