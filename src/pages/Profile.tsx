@@ -1,3 +1,5 @@
+import { PaymentMethodFields } from "@/components/p2p/PaymentMethodFields";
+import { detailRows, methodDef, paymentFormError, useP2PCatalog } from "@/lib/p2pCatalog";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -7,7 +9,7 @@ import { useWallet, shortAddress } from "@/lib/useWallet";
 import { me, type AuthUser } from "@/lib/authApi";
 import {
   getP2PProfile, establishP2PUsername, getP2PPaymentAccounts, saveP2PPaymentAccount,
-  P2P_PAYMENT_METHODS, type P2PPaymentMethod, type P2PPaymentAccount, type P2PProfile,
+  type P2PPaymentMethod, type P2PPaymentAccount, type P2PProfile,
 } from "@/lib/p2pApi";
 import { Calendar, Edit, FileDown, CreditCard, Smartphone, Plus, WalletCards, Landmark, ShieldCheck, User, Wallet, Fingerprint } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,10 +20,6 @@ type ReportType = "Account Summary" | "Trade History" | "Tax Statement" | "P2P S
 
 const emptyPaymentForm = {
   method: "UPI" as P2PPaymentMethod,
-  accountName: "",
-  accountIdentifier: "",
-  bankName: "",
-  ifscCode: "",
   instructions: "",
 };
 
@@ -43,6 +41,9 @@ export default function Profile() {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [addPaymentOpen, setAddPaymentOpen] = useState(false);
   const [paymentForm, setPaymentForm] = useState(emptyPaymentForm);
+  const [paymentFields, setPaymentFields] = useState<Record<string, string>>({});
+  const [showPaymentErrors, setShowPaymentErrors] = useState(false);
+  const { countries } = useP2PCatalog();
   const [savingPayment, setSavingPayment] = useState(false);
 
   const [editUsernameOpen, setEditUsernameOpen] = useState(false);
@@ -102,33 +103,24 @@ export default function Profile() {
     toast.success(`${reportType} downloaded (${reportRange})`);
   };
 
-  const requiresBankDetails = paymentForm.method === "Bank Transfer" || paymentForm.method === "NEFT" || paymentForm.method === "IMPS";
-
   const openAddPayment = () => {
     setPaymentForm(emptyPaymentForm);
+    setPaymentFields({});
+    setShowPaymentErrors(false);
     setAddPaymentOpen(true);
   };
 
   const savePaymentMethod = async () => {
     if (savingPayment) return;
-    if (!paymentForm.accountName.trim()) {
-      toast.error("Enter the account holder name");
-      return;
-    }
-    if (!paymentForm.accountIdentifier.trim()) {
-      toast.error(paymentForm.method === "UPI" ? "Enter a UPI ID" : "Enter the account/payment identifier");
-      return;
-    }
-    if (requiresBankDetails && (!paymentForm.bankName.trim() || !paymentForm.ifscCode.trim())) {
-      toast.error("Enter bank name and IFSC code");
+    const formError = paymentFormError(methodDef(countries, paymentForm.method), paymentFields);
+    if (formError) {
+      setShowPaymentErrors(true);
+      toast.error(formError);
       return;
     }
     setSavingPayment(true);
     try {
-      await saveP2PPaymentAccount(
-        paymentForm.method, paymentForm.accountName, paymentForm.accountIdentifier,
-        paymentForm.instructions, paymentForm.bankName, paymentForm.ifscCode
-      );
+      await saveP2PPaymentAccount(paymentForm.method, paymentFields, paymentForm.instructions);
       toast.success(`${paymentForm.method} payment method saved`);
       setAddPaymentOpen(false);
       setPaymentOpen(true);
@@ -401,63 +393,23 @@ export default function Profile() {
             </DialogTitle>
           </DialogHeader>
           <div className="max-h-[72vh] space-y-5 overflow-y-auto p-6">
-            <div>
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Payment Type</div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                {P2P_PAYMENT_METHODS.map((methodOption) => (
-                  <button
-                    key={methodOption}
-                    onClick={() => setPaymentForm((form) => ({ ...form, method: methodOption }))}
-                    className={`rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
-                      paymentForm.method === methodOption
-                        ? "border-primary/50 bg-primary/15 text-primary"
-                        : "border-border/50 bg-muted/20 text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {methodOption}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <PaymentMethodFields
+              countries={countries}
+              method={paymentForm.method}
+              onMethodChange={(method) => { setPaymentForm((form) => ({ ...form, method })); setShowPaymentErrors(false); }}
+              values={paymentFields}
+              onValuesChange={setPaymentFields}
+              showErrors={showPaymentErrors}
+            />
 
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
               <div className="mb-1 flex items-center gap-2 font-semibold text-foreground">
                 <ShieldCheck className="h-4 w-4 text-primary" /> Required information
               </div>
-              Enter details exactly as registered with your bank or UPI app. These details are shown to counterparties during P2P settlement. Saving a method you already have replaces its existing details.
+              Enter details exactly as registered with your bank or payment app. These details are shown to counterparties during P2P settlement. Saving a method you already have replaces its existing details.
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field
-                label="Account Holder Name"
-                value={paymentForm.accountName}
-                placeholder="Name as per bank/UPI"
-                onChange={(value) => setPaymentForm((form) => ({ ...form, accountName: value }))}
-              />
-              <Field
-                label={paymentForm.method === "UPI" ? "UPI ID" : "Account / Payment Identifier"}
-                value={paymentForm.accountIdentifier}
-                placeholder={paymentForm.method === "UPI" ? "name@upi" : "Account number / identifier"}
-                onChange={(value) => setPaymentForm((form) => ({ ...form, accountIdentifier: value }))}
-              />
-
-              {requiresBankDetails && (
-                <>
-                  <Field
-                    label="Bank Name"
-                    value={paymentForm.bankName}
-                    placeholder="HDFC Bank"
-                    onChange={(value) => setPaymentForm((form) => ({ ...form, bankName: value }))}
-                  />
-                  <Field
-                    label="IFSC Code"
-                    value={paymentForm.ifscCode}
-                    placeholder="HDFC0001234"
-                    onChange={(value) => setPaymentForm((form) => ({ ...form, ifscCode: value.toUpperCase() }))}
-                  />
-                </>
-              )}
-
               <Field
                 label="Instructions (optional)"
                 value={paymentForm.instructions}
@@ -540,7 +492,8 @@ function PaymentMethodCard({
   account: P2PPaymentAccount;
   detailed?: boolean;
 }) {
-  const Icon = account.method === "UPI" ? Smartphone : Landmark;
+  const { countries } = useP2PCatalog();
+  const Icon = account.method === "UPI" || /pay|bkash|nagad|rocket|jazz|easypaisa|wallet|eWallet|Aani|Raast|FPS|DuitNow|PromptPay|PayMe/i.test(account.method) ? Smartphone : Landmark;
   const accentClass = PAYMENT_METHOD_STYLE[account.method] ?? "text-primary bg-primary/10";
 
   return (
@@ -560,8 +513,7 @@ function PaymentMethodCard({
           {detailed && (
             <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 pt-3 border-t border-border/30">
               <span>Holder: <b className="text-foreground">{account.accountName}</b></span>
-              {account.bankName && <span>Bank: <b className="text-foreground">{account.bankName}</b></span>}
-              {account.ifscCode && <span>IFSC: <b className="text-foreground">{account.ifscCode}</b></span>}
+              {detailRows(countries, account.method, account).map((row) => <span key={row.label}>{row.label}: <b className="text-foreground">{row.value}</b></span>)}
               {account.instructions && <span className="sm:col-span-2">Instructions: <b className="text-foreground">{account.instructions}</b></span>}
             </div>
           )}

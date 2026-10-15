@@ -101,4 +101,23 @@ describe("P2P page", () => {
     expect(sellInput.value).toBe("6.05");
     expect(screen.getByRole("button", { name: "Sell 6.05 BI2XUSD" })).toBeEnabled();
   });
+
+  it("requests ads for the selected country's currency and shows each ad in its own currency", async () => {
+    const urls: string[] = [];
+    listings = [{
+      id: "pk1", creatorId: "other", username: "Ali", side: "SELL", asset: "BI2XUSD",
+      amountRaw: "5000000", remainingRaw: "5000000", price: "280.00", fiatCurrency: "PKR",
+      minOrderFiat: "280.00", maxOrderFiat: "1400.00", paymentMethods: ["Raast"], status: "ACTIVE",
+      completedOrders: 0, completedAmountRaw: "0", completedOrders30d: 0, completionRate30d: "0", ratedOrders30d: 0,
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    }];
+    const base = (globalThis.fetch as unknown as (i: RequestInfo | URL) => Promise<Response>);
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => { urls.push(String(input)); return base(input); }));
+    render(<MemoryRouter><P2P /></MemoryRouter>);
+    expect(await screen.findByText("Ali")).toBeInTheDocument();
+    expect(urls.some(url => url.includes("/p2p/listings") && url.includes("currency=INR"))).toBe(true);
+    expect(urls.some(url => url.includes("/p2p/price") && url.includes("currency=INR"))).toBe(true);
+    expect(screen.getAllByText(/PKR/).length).toBeGreaterThan(0);
+    expect(screen.getByText("Raast")).toBeInTheDocument();
+  });
 });

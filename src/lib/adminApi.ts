@@ -104,6 +104,11 @@ export function getAdminDashboard() {
 export const getAdminP2PAppeals=()=>adminReq<{orders:P2POrder[]}>("/admin/p2p/appeals");
 export const getAdminP2PAppealDetail=(orderId:string)=>adminReq<{proofs:P2POrderProof[];messages:P2POrderMessage[];events:P2POrderEvent[]}>(`/admin/p2p/appeals?orderId=${encodeURIComponent(orderId)}`);
 export const resolveAdminP2PAppeal=(orderId:string,resolution:"RELEASE"|"REFUND")=>adminReq<{order:P2POrder}>("/admin/p2p/appeals",{method:"POST",body:JSON.stringify({orderId,resolution})});
+export type AdminP2PPrice={asset:string;fiatCurrency:string;price:string;priceDate:string;createdAt:string};
+export const getAdminP2PPrices=()=>adminReq<{prices:AdminP2PPrice[];assets:string[];currencies:string[]}>("/admin/p2p/prices");
+export const getAdminP2PPriceHistory=(asset:string,currency:string)=>adminReq<{history:AdminP2PPrice[]}>(`/admin/p2p/prices?asset=${encodeURIComponent(asset)}&currency=${encodeURIComponent(currency)}&limit=30`);
+// assets omitted/empty = every P2P asset (they are pegged 1:1, so one price normally covers all three).
+export const setAdminP2PPrice=(fiatCurrency:string,price:string,assets?:string[])=>adminReq<{prices:AdminP2PPrice[]}>("/admin/p2p/prices",{method:"POST",body:JSON.stringify({fiatCurrency,price,assets})});
 export async function openAdminP2PProof(proofId:string){const response=await fetch(`${AUTH_API_URL}/admin/p2p/proofs/download?proofId=${encodeURIComponent(proofId)}`,{headers:authHeader()});if(!response.ok)throw new Error("Could not load payment proof");const url=URL.createObjectURL(await response.blob());window.open(url,"_blank","noopener,noreferrer");window.setTimeout(()=>URL.revokeObjectURL(url),60_000)}
 
 export function getAdminProfile() {

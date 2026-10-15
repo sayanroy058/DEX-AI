@@ -245,7 +245,7 @@ const Portfolio = () => {
 
   // Holdings + loaded flag for the selected area. loaded=false means the
   // balance couldn't be fetched just now (shown as unavailable, not as zero).
-  const areaView = useMemo(() => {
+  const areaView = useMemo<{ loaded: boolean; rows: HoldingRow[] }>(() => {
     const mk = (asset: string, total: number, extra: Partial<HoldingRow> = {}): HoldingRow => {
       const price = priceFor(asset);
       return { asset, total, price, value: total * price, ...extra };

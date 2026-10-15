@@ -1,17 +1,18 @@
 const P2P_API_URL = import.meta.env.VITE_AUTH_API_URL ?? "http://localhost:8081";
 
 export const P2P_ASSETS = ["BI2XUSD", "USDT", "USDC"] as const;
-export const P2P_PAYMENT_METHODS = ["UPI", "Bank Transfer", "MPESN", "NEFT", "IMPS"] as const;
 export type P2PAsset = (typeof P2P_ASSETS)[number];
-export type P2PPaymentMethod = (typeof P2P_PAYMENT_METHODS)[number];
+// Payment method IDs come from the backend catalog (GET /p2p/catalog, see
+// p2pCatalog.ts) — one entry per country/method, e.g. "UPI", "Raast", "ACH".
+export type P2PPaymentMethod = string;
 export type P2PPrice = { asset:P2PAsset; fiatCurrency:string; price:string; priceDate:string; createdAt:string };
 export type P2PWalletBalance = { asset:P2PAsset; availableRaw:string; reservedRaw:string; totalRaw:string };
 export type P2PAdSide = "BUY"|"SELL";
 export type P2PProfile = { username:string };
 export type P2PListing = { id:string; creatorId:string; username:string; side:P2PAdSide; asset:P2PAsset; amountRaw:string; remainingRaw:string; price:string; fiatCurrency:string; minOrderFiat:string; maxOrderFiat:string; paymentMethods:P2PPaymentMethod[]; status:"ACTIVE"|"FILLED"|"CANCELLED"; completedOrders:number; completedAmountRaw:string; completedOrders30d:number; completionRate30d:string; ratedOrders30d:number; createdAt:string; updatedAt:string };
 export type P2POrderStatus = "pending_payment"|"payment_made"|"completed"|"cancelled"|"appeal";
-export type P2POrder = { id:string; listingId:string; sellerId:string; buyerId:string; asset:P2PAsset; amountRaw:string; escrowRaw:string; price:string; fiatCurrency:string; grossAmount:string; buyerFee:string; sellerFee:string; buyerPayable:string; sellerReceivable:string; buyerFeeRaw:string; sellerFeeRaw:string; buyerCreditRaw:string; sellerDebitRaw:string; paymentMethod:P2PPaymentMethod; paymentAccountName:string; paymentAccountIdentifier:string; paymentBankName?:string; paymentIfscCode?:string; paymentInstructions?:string; status:P2POrderStatus; expiresAt:string; paymentMarkedAt?:string; buyerOwnAccountAttested:boolean; appealAvailableAt?:string; appealedBy?:string; appealReason?:string; appealedAt?:string; updatedAt:string; cancellationReason?:string; completedAt?:string; createdAt:string };
-export type P2PPaymentAccount={id:string;method:P2PPaymentMethod;accountName:string;accountIdentifier:string;bankName?:string;ifscCode?:string;instructions?:string;createdAt:string;updatedAt:string};
+export type P2POrder = { id:string; listingId:string; sellerId:string; buyerId:string; asset:P2PAsset; amountRaw:string; escrowRaw:string; price:string; fiatCurrency:string; grossAmount:string; buyerFee:string; sellerFee:string; buyerPayable:string; sellerReceivable:string; buyerFeeRaw:string; sellerFeeRaw:string; buyerCreditRaw:string; sellerDebitRaw:string; paymentMethod:P2PPaymentMethod; paymentAccountName:string; paymentAccountIdentifier:string; paymentBankName?:string; paymentIfscCode?:string; paymentInstructions?:string; paymentDetails?:Record<string,string>; status:P2POrderStatus; expiresAt:string; paymentMarkedAt?:string; buyerOwnAccountAttested:boolean; appealAvailableAt?:string; appealedBy?:string; appealReason?:string; appealedAt?:string; updatedAt:string; cancellationReason?:string; completedAt?:string; createdAt:string };
+export type P2PPaymentAccount={id:string;method:P2PPaymentMethod;accountName:string;accountIdentifier:string;bankName?:string;ifscCode?:string;instructions?:string;details?:Record<string,string>;createdAt:string;updatedAt:string};
 export type P2POrderProof={id:string;fileName:string;mimeType:string;sizeBytes:number;createdAt:string};
 export type P2POrderMessage={id:string;senderId?:string;senderUsername:string;body:string;system:boolean;createdAt:string};
 export type P2POrderEvent={id:string;actorId?:string;kind:string;metadata:Record<string,unknown>;createdAt:string};
@@ -23,15 +24,19 @@ async function request<T>(path:string,options?:RequestInit):Promise<T>{
 }
 const json=(body:unknown):RequestInit=>({method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
 const idempotencyKey=()=>globalThis.crypto?.randomUUID?.()??`p2p-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-export const getP2PPrice=(asset:P2PAsset)=>request<{price:P2PPrice}>(`/p2p/price?asset=${encodeURIComponent(asset)}`);
+export const getP2PPrice=(asset:P2PAsset,currency="INR")=>request<{price:P2PPrice}>(`/p2p/price?asset=${encodeURIComponent(asset)}&currency=${encodeURIComponent(currency)}`);
+export const getP2PCatalogRaw=()=>request<{countries:unknown}>("/p2p/catalog");
 export const getP2PWallet=()=>request<{balance?:P2PWalletBalance;balances?:P2PWalletBalance[]}>("/p2p/wallet");
 export const getP2PProfile=()=>request<{profile:P2PProfile}>("/p2p/profile");
 export const establishP2PUsername=(username:string)=>request<{profile:P2PProfile}>("/p2p/profile",json({username}));
 // limit/offset are optional (P2P-L1): omitted, this returns the backend's
 // default first page instead of every listing unbounded.
-export const getP2PListings=(asset?:P2PAsset,limit?:number,offset?:number)=>{
+export type P2PListingFilters={currency?:string;paymentMethod?:string};
+export const getP2PListings=(asset?:P2PAsset,limit?:number,offset?:number,filters?:P2PListingFilters)=>{
 	const params=new URLSearchParams();
 	if(asset!==undefined)params.set("asset",asset);
+	if(filters?.currency)params.set("currency",filters.currency);
+	if(filters?.paymentMethod)params.set("paymentMethod",filters.paymentMethod);
 	if(limit!==undefined)params.set("limit",String(limit));
 	if(offset!==undefined)params.set("offset",String(offset));
 	const qs=params.toString();
@@ -41,7 +46,9 @@ export const getMyP2PListings=()=>request<{listings:P2PListing[]}>("/p2p/my-list
 export const getP2POrders=()=>request<{orders:P2POrder[]}>("/p2p/orders");
 export const getP2POrder=(orderId:string)=>request<{order:P2POrder}>(`/p2p/order?orderId=${encodeURIComponent(orderId)}`);
 export const getP2PPaymentAccounts=()=>request<{accounts:P2PPaymentAccount[]}>("/p2p/payment-accounts");
-export const saveP2PPaymentAccount=(method:P2PPaymentMethod,accountName:string,accountIdentifier:string,instructions:string,bankName="",ifscCode="")=>request<{account:P2PPaymentAccount}>("/p2p/payment-accounts",json({method,accountName,accountIdentifier,instructions,bankName,ifscCode}));
+// fields: every catalog field for the method keyed by field key (accountName,
+// identifier, bankName, ifsc, plus method-specific ones like sortCode).
+export const saveP2PPaymentAccount=(method:P2PPaymentMethod,fields:Record<string,string>,instructions:string)=>request<{account:P2PPaymentAccount}>("/p2p/payment-accounts",json({method,fields,instructions}));
 export const getP2POrderMessages=(orderId:string)=>request<{messages:P2POrderMessage[]}>(`/p2p/order/messages?orderId=${encodeURIComponent(orderId)}`);
 export const sendP2POrderMessage=(orderId:string,body:string)=>request<{message:P2POrderMessage}>("/p2p/order/messages",json({orderId,body}));
 export const getP2POrderProofs=(orderId:string)=>request<{proofs:P2POrderProof[]}>(`/p2p/order/proofs?orderId=${encodeURIComponent(orderId)}`);
@@ -129,4 +136,14 @@ function bi2xusdRawOrZero(value:string|number):bigint{
 	const text=typeof value==="number"?value.toFixed(6).replace(/\.?0+$/,""):value;
 	try{return BigInt(parseBI2XUSDAmount(text))}catch{return 0n}
 }
-export const formatINR=(value:string|number)=>new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2}).format(Number(value));
+function formatCurrency(value:string|number,currency:string,maxDigits:number):string{
+	const amount=Number(value);
+	try{return new Intl.NumberFormat(currency==="INR"?"en-IN":"en-US",{style:"currency",currency,minimumFractionDigits:2,maximumFractionDigits:maxDigits}).format(amount)}
+	catch{return `${currency} ${Number.isFinite(amount)?amount.toFixed(2):value}`}
+}
+// Money amounts (order totals, limits): always two decimals.
+export function formatFiat(value:string|number,currency="INR"):string{return formatCurrency(value,currency,2)}
+// Unit prices: up to four decimals, so a low-value currency like GBP shows
+// £0.7951 rather than rounding the price to £0.80.
+export function formatFiatPrice(value:string|number,currency="INR"):string{return formatCurrency(value,currency,4)}
+export const formatINR=(value:string|number)=>formatFiat(value,"INR");

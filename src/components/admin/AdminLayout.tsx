@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   BarChart3, LogOut, User, Zap, Waves, Wallet, LineChart, Scale, Radio,
-  Percent, Users, Layers, Coins, ArrowLeftRight, Menu, X,
+  Percent, Users, Layers, Coins, ArrowLeftRight, Menu, X, BadgeDollarSign,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ const NAV_GROUPS: { label: string; items: { to: string; label: string; icon: Luc
       { to: "/admin/fees", label: "Fee Control", icon: Percent },
       { to: "/admin/fee-revenue", label: "Fee Revenue", icon: Layers },
       { to: "/admin/swap-pool", label: "Swap Pool", icon: ArrowLeftRight },
+      { to: "/admin/p2p-prices", label: "P2P Prices", icon: BadgeDollarSign },
       { to: "/admin/bi2x-token", label: "BI2X Token", icon: Coins },
       { to: "/admin/test-balances", label: "Test Balances", icon: Wallet },
     ],

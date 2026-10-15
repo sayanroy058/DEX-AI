@@ -14,7 +14,6 @@ import {
   getP2PWallet,
   parseBI2XUSDAmount,
   P2P_ASSETS,
-  P2P_PAYMENT_METHODS,
   saveP2PPaymentAccount,
   type P2PAsset,
   type P2PPaymentAccount,
@@ -22,6 +21,8 @@ import {
   type P2PWalletBalance,
 } from "@/lib/p2pApi";
 import { useWallet, wallet } from "@/lib/useWallet";
+import { PaymentMethodFields } from "@/components/p2p/PaymentMethodFields";
+import { detailRows, identifierLabel, methodDef, paymentFormError, useP2PCatalog } from "@/lib/p2pCatalog";
 
 const emptyBalances: P2PWalletBalance[] = P2P_ASSETS.map((asset) => ({
   asset,
@@ -29,8 +30,6 @@ const emptyBalances: P2PWalletBalance[] = P2P_ASSETS.map((asset) => ({
   reservedRaw: "0",
   totalRaw: "0",
 }));
-
-const isBankPaymentMethod = (method: P2PPaymentMethod) => method === "Bank Transfer" || method === "NEFT" || method === "IMPS";
 
 export default function P2PWallet() {
   const { userId, balances } = useWallet();
@@ -44,11 +43,10 @@ export default function P2PWallet() {
   const [accountSuccess, setAccountSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [accounts, setAccounts] = useState<P2PPaymentAccount[]>([]);
+  const { countries } = useP2PCatalog();
   const [method, setMethod] = useState<P2PPaymentMethod>("UPI");
-  const [accountName, setAccountName] = useState("");
-  const [accountIdentifier, setAccountIdentifier] = useState("");
-  const [bankName, setBankName] = useState("");
-  const [ifscCode, setIfscCode] = useState("");
+  const [fields, setFields] = useState<Record<string, string>>({});
+  const [showFieldErrors, setShowFieldErrors] = useState(false);
   const [instructions, setInstructions] = useState("");
   const [savingAccount, setSavingAccount] = useState(false);
 
@@ -60,8 +58,7 @@ export default function P2PWallet() {
     () => p2pBalances.find((balance) => balance.asset === transferAsset) ?? emptyBalances[0],
     [p2pBalances, transferAsset],
   );
-  const needsBankDetails = isBankPaymentMethod(method);
-  const validIFSC = /^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode);
+  const formError = paymentFormError(methodDef(countries, method), fields);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -101,17 +98,32 @@ export default function P2PWallet() {
     }
   }
 
+  function editAccount(account: P2PPaymentAccount) {
+    setMethod(account.method);
+    setFields({
+      ...(account.details ?? {}),
+      accountName: account.accountName,
+      identifier: account.accountIdentifier,
+      ...(account.bankName ? { bankName: account.bankName } : {}),
+      ...(account.ifscCode ? { ifsc: account.ifscCode } : {}),
+    });
+    setInstructions(account.instructions ?? "");
+    setShowFieldErrors(false);
+    setAccountError("");
+    setAccountSuccess("");
+  }
+
   async function saveAccount() {
     try {
       setSavingAccount(true);
       setAccountError("");
       setAccountSuccess("");
-      await saveP2PPaymentAccount(method, accountName, accountIdentifier, instructions, bankName, ifscCode);
+      setShowFieldErrors(true);
+      if (formError) throw new Error(formError);
+      await saveP2PPaymentAccount(method, fields, instructions);
       setAccountSuccess(`${method} payment details saved.`);
-      setAccountName("");
-      setAccountIdentifier("");
-      setBankName("");
-      setIfscCode("");
+      setFields({});
+      setShowFieldErrors(false);
       setInstructions("");
       await load();
     } catch (cause) {
@@ -193,21 +205,13 @@ export default function P2PWallet() {
               <div className="mb-6"><h2 className="text-lg font-semibold">Payment Accounts</h2><p className="text-sm text-muted-foreground">These details are shown only to the buyer after an order is created.</p></div>
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="space-y-3">
-                  <Select value={method} onValueChange={(value) => setMethod(value as P2PPaymentMethod)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{P2P_PAYMENT_METHODS.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select>
-                  <Input value={accountName} onChange={event => setAccountName(event.target.value)} placeholder="Account holder name" maxLength={100} />
-                  <Input value={accountIdentifier} onChange={event => setAccountIdentifier(event.target.value)} placeholder={method === "UPI" ? "UPI ID" : "Account number or payment identifier"} maxLength={200} />
-                  {needsBankDetails && <>
-                    <Input value={bankName} onChange={event => setBankName(event.target.value)} placeholder="Bank name" maxLength={100} />
-                    <div><Input value={ifscCode} onChange={event => setIfscCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 11))} placeholder="IFSC code" maxLength={11} />
-                    {/* <p className="mt-1 text-xs text-muted-foreground">11 characters, for example HDFC0001234.</p> */}
-                    </div>
-                  </>}
+                  <PaymentMethodFields countries={countries} method={method} onMethodChange={(m) => { setMethod(m); setShowFieldErrors(false); }} values={fields} onValuesChange={setFields} showErrors={showFieldErrors} />
                   <Input value={instructions} onChange={event => setInstructions(event.target.value)} placeholder="Optional payment instructions" maxLength={500} />
                   {accountError && <p className="text-sm text-destructive">{accountError}</p>}
                   {accountSuccess && <p className="text-sm text-buy">{accountSuccess}</p>}
-                  <Button disabled={savingAccount || accountName.trim().length < 2 || accountIdentifier.trim().length < 2 || (needsBankDetails && (bankName.trim().length < 2 || !validIFSC))} onClick={() => void saveAccount()}>{savingAccount ? "Saving…" : "Save Payment Method"}</Button>
+                  <Button disabled={savingAccount || countries.length === 0} onClick={() => void saveAccount()}>{savingAccount ? "Saving…" : "Save Payment Method"}</Button>
                 </div>
-                <div className="space-y-2">{accounts.length === 0 ? <p className="rounded-lg border p-4 text-sm text-muted-foreground">No payment methods configured yet.</p> : accounts.map(account => <div key={account.id} className="rounded-lg border p-4"><div className="flex justify-between gap-3"><span className="font-semibold">{account.method}</span><span className="text-sm text-muted-foreground">{account.accountName}</span></div><p className="mt-2 break-all font-mono text-sm">{account.accountIdentifier}</p>{account.bankName && <p className="mt-2 text-sm">{account.bankName}</p>}{account.ifscCode && <p className="mt-1 font-mono text-sm text-muted-foreground">IFSC: {account.ifscCode}</p>}{account.instructions && <p className="mt-2 text-xs text-muted-foreground">{account.instructions}</p>}</div>)}</div>
+                <div className="space-y-2">{accounts.length === 0 ? <p className="rounded-lg border p-4 text-sm text-muted-foreground">No payment methods configured yet.</p> : accounts.map(account => <div key={account.id} className="rounded-lg border p-4"><div className="flex justify-between gap-3"><span className="font-semibold">{account.method}</span><span className="text-sm text-muted-foreground">{account.accountName}</span></div><p className="mt-2 text-xs text-muted-foreground">{identifierLabel(countries, account.method)}</p><p className="break-all font-mono text-sm">{account.accountIdentifier}</p>{detailRows(countries, account.method, account).map(row => <p key={row.label} className="mt-1 text-sm"><span className="text-muted-foreground">{row.label}: </span>{row.value}</p>)}{account.instructions && <p className="mt-2 text-xs text-muted-foreground">{account.instructions}</p>}<Button variant="outline" size="sm" className="mt-3" onClick={() => editAccount(account)}>Edit</Button></div>)}</div>
               </div>
             </Card>
           </>

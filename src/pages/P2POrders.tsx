@@ -5,7 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-  formatINR,
+  formatFiat,
   formatBI2XUSDAmount,
   getP2POrders,
   type P2POrder,
@@ -73,7 +73,7 @@ export default function P2POrders() {
             <td className="p-4 font-semibold">{bought ? "BUY" : "SELL"} {order.asset}</td>
             <td className="p-4">{formatBI2XUSDAmount(order.amountRaw)} {order.asset}</td>
             <td className="p-4">{order.paymentMethod}</td>
-            <td className="p-4">{formatINR(order.grossAmount)}</td>
+            <td className="p-4">{formatFiat(order.grossAmount, order.fiatCurrency)}</td>
             <td className="p-4">{formatBI2XUSDAmount(bought ? order.buyerFeeRaw : order.sellerFeeRaw)} {order.asset}</td>
             <td className="p-4">{settlementLabel(order, bought)}</td>
             <td className="p-4"><span className={order.status === "completed" ? "text-green-600" : order.status === "cancelled" ? "text-destructive" : "text-amber-500"}>{statusLabel[order.status]}</span>{pending && <p className="text-xs text-muted-foreground">Pay before {new Date(order.expiresAt).toLocaleString()}</p>}{order.cancellationReason && <p className="text-xs text-muted-foreground">{order.cancellationReason}</p>}</td>

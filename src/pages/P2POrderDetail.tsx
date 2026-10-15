@@ -14,7 +14,8 @@ import {
   appealP2POrder,
   cancelP2PAppeal,
   cancelP2POrder,
-  formatINR,
+  formatFiat,
+  formatFiatPrice,
   formatBI2XUSDAmount,
   getP2POrder,
   getP2POrderEvents,
@@ -32,10 +33,12 @@ import {
   type P2POrderProof,
 } from "@/lib/p2pApi";
 import { useWallet } from "@/lib/useWallet";
+import { detailRows, identifierLabel, useP2PCatalog } from "@/lib/p2pCatalog";
 
 const cancelReasons = ["I do not want to trade anymore", "I cannot use the selected payment method", "Technical or payment-platform problem", "Other reason"];
 
 export default function P2POrderDetail() {
+  const { countries } = useP2PCatalog();
   const { orderId = "" } = useParams();
   const { userId } = useWallet();
   const [order, setOrder] = useState<P2POrder | null>(null);
@@ -135,8 +138,8 @@ export default function P2POrderDetail() {
     {!order ? <Card className="p-8 text-center text-muted-foreground">Loading order…</Card> : <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
       <div className="space-y-6">
         <Card className="border-border/50 bg-card/30 p-6"><div className="mb-5 flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary"/><h2 className="font-semibold">Payment and order details</h2></div>
-          {buyer && <div className="mb-5 rounded-lg border bg-muted/20 p-4"><Detail label="Transfer via" value={order.paymentMethod}/><Detail label="Account name" value={order.paymentAccountName}/><Detail label="Payment identifier" value={order.paymentAccountIdentifier}/>{order.paymentBankName && <Detail label="Bank name" value={order.paymentBankName}/>} {order.paymentIfscCode && <Detail label="IFSC" value={order.paymentIfscCode}/>} {order.paymentInstructions && <Detail label="Instructions" value={order.paymentInstructions}/>}</div>}
-          <div className="grid gap-x-8 sm:grid-cols-2"><Detail label="Fiat amount" value={formatINR(order.grossAmount)}/><Detail label="Price" value={`${formatINR(order.price)} / ${order.asset}`}/><Detail label="Trade quantity" value={`${formatBI2XUSDAmount(order.amountRaw)} ${order.asset}`}/><Detail label="Your 1% fee" value={`${formatBI2XUSDAmount(buyer ? order.buyerFeeRaw : order.sellerFeeRaw)} ${order.asset}`}/><Detail label={buyer ? "You receive" : `${order.asset} escrowed`} value={`${formatBI2XUSDAmount(buyer ? order.buyerCreditRaw : order.sellerDebitRaw)} ${order.asset}`}/><Detail label="Payment deadline" value={new Date(order.expiresAt).toLocaleString()}/></div>
+          {buyer && <div className="mb-5 rounded-lg border bg-muted/20 p-4"><Detail label="Transfer via" value={order.paymentMethod}/><Detail label="Account name" value={order.paymentAccountName}/><Detail label={identifierLabel(countries, order.paymentMethod)} value={order.paymentAccountIdentifier}/>{detailRows(countries, order.paymentMethod, { bankName: order.paymentBankName, ifscCode: order.paymentIfscCode, details: order.paymentDetails }).map(row => <Detail key={row.label} label={row.label} value={row.value}/>)} {order.paymentInstructions && <Detail label="Instructions" value={order.paymentInstructions}/>}</div>}
+          <div className="grid gap-x-8 sm:grid-cols-2"><Detail label="Fiat amount" value={formatFiat(order.grossAmount, order.fiatCurrency)}/><Detail label="Price" value={`${formatFiatPrice(order.price, order.fiatCurrency)} / ${order.asset}`}/><Detail label="Trade quantity" value={`${formatBI2XUSDAmount(order.amountRaw)} ${order.asset}`}/><Detail label="Your 1% fee" value={`${formatBI2XUSDAmount(buyer ? order.buyerFeeRaw : order.sellerFeeRaw)} ${order.asset}`}/><Detail label={buyer ? "You receive" : `${order.asset} escrowed`} value={`${formatBI2XUSDAmount(buyer ? order.buyerCreditRaw : order.sellerDebitRaw)} ${order.asset}`}/><Detail label="Payment deadline" value={new Date(order.expiresAt).toLocaleString()}/></div>
         </Card>
 
         <Card className="border-border/50 bg-card/30 p-6"><div className="mb-4 flex items-center gap-2"><FileText className="h-5 w-5 text-primary"/><h2 className="font-semibold">Payment proof</h2></div><div className="flex flex-wrap gap-2">{proofs.map(proof => <Button key={proof.id} variant="outline" size="sm" onClick={() => window.open(p2pProofURL(proof.id), "_blank", "noopener,noreferrer")}>{proof.fileName}</Button>)}{proofs.length === 0 && <p className="text-sm text-muted-foreground">No payment proof uploaded.</p>}</div>{buyer && order.status === "pending_payment" && proofs.length < 3 && <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"><Upload className="h-4 w-4"/>Upload proof<Input className="hidden" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={event => { void upload(event.target.files?.[0]); event.currentTarget.value = ""; }}/></label>}</Card>

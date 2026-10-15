@@ -57,6 +57,7 @@ const AdminAffiliateLinks = lazy(() => import("./pages/AdminAffiliateLinks.tsx")
 const AdminFeeRevenue = lazy(() => import("./pages/AdminFeeRevenue.tsx"));
 const AdminTestBalances = lazy(() => import("./pages/AdminTestBalances.tsx"));
 const AdminP2PAppeals = lazy(() => import("./pages/AdminP2PAppeals.tsx"));
+const AdminP2PPrices = lazy(() => import("./pages/AdminP2PPrices.tsx"));
 const AdminBI2XTokenDetails = lazy(() => import("./pages/AdminBI2XTokenDetails.tsx"));
 const PartnerLogin = lazy(() => import("./pages/PartnerLogin.tsx"));
 const PartnerProfit = lazy(() => import("./pages/PartnerProfit.tsx"));
@@ -184,6 +185,7 @@ const App = () => {
             <Route path="/admin/fee-revenue" element={<AdminFeeRevenue />} />
             <Route path="/admin/test-balances" element={<AdminTestBalances />} />
             <Route path="/admin/p2p-appeals" element={<AdminP2PAppeals />} />
+            <Route path="/admin/p2p-prices" element={<AdminP2PPrices />} />
             <Route path="/admin/bi2x-token" element={<AdminBI2XTokenDetails />} />
             <Route path="/admin/profile" element={<AdminProfile />} />
           </Route>
