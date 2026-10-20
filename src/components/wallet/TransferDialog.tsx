@@ -14,6 +14,15 @@ import { cn } from "@/lib/utils";
 import { parseUnits, type Address } from "viem";
 
 const WITHDRAW_DECIMALS: Record<string, number> = { USDC: 6 };
+// This whole platform runs on Avalanche Fuji (chain id 43113, see
+// useWallet.ts's fujiChainId) — "AVAX" in the network selector has never
+// meant Avalanche mainnet, it's always been Fuji testnet behind the
+// scenes (DexVault, the chain listener, Snowtrace links below all point at
+// testnet). The selector used to show the bare chain code with no
+// indication of that, easy to misread as mainnet — this label makes it
+// explicit without touching the underlying Chain value itself (still just
+// "AVAX" everywhere else: depositAssets.ts, isDepositLive, etc.).
+const CHAIN_DISPLAY_LABEL: Record<string, string> = { AVAX: "AVAX (Fuji Testnet)" };
 // USDC on AVAX is the only (asset, chain) pair with a working contract/
 // listener today (see depositAssets.ts's isDepositLive) — default both
 // selectors to it, so the dialog opens ready to submit rather than on a
@@ -64,7 +73,7 @@ export function TransferDialog({
     setSubmitting(true);
     try {
       if (mode === "withdraw") {
-        if (asset !== "USDC" || network !== "AVAX") return toast.error("Only USDC withdrawals on Avalanche are supported right now");
+        if (asset !== "USDC" || network !== "AVAX") return toast.error("Only USDC withdrawals on Avalanche Fuji Testnet are supported right now");
         if (amt > balance) return toast.error("Insufficient balance");
 
         const amountRaw = parseUnits(amount, WITHDRAW_DECIMALS[asset]).toString();
@@ -103,7 +112,7 @@ export function TransferDialog({
         // rather than pretending to submit a deposit nothing on the backend
         // will ever see or credit.
         return toast.error(`${asset} deposits on ${network} are coming soon`, {
-          description: "This combination is on the roadmap but isn't live yet — use USDC on Avalanche for now.",
+          description: "This combination is on the roadmap but isn't live yet — use USDC on Avalanche Fuji Testnet for now.",
         });
       }
 
@@ -194,7 +203,7 @@ export function TransferDialog({
                 <Select value={network} onValueChange={setNetwork} disabled={mode === "withdraw"}>
                   <SelectTrigger className="h-9 bg-muted/30"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {networksForAsset.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                    {networksForAsset.map((n) => <SelectItem key={n} value={n}>{CHAIN_DISPLAY_LABEL[n] ?? n}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -226,7 +235,7 @@ export function TransferDialog({
               <p className="text-[10px] text-muted-foreground">
                 {isDepositLive(asset, network)
                   ? "Your wallet will ask to approve USDC, then confirm the deposit. Funds are forwarded to treasury on-chain."
-                  : `${asset} deposits on ${network} are coming soon — not live yet. Use USDC on Avalanche for now.`}
+                  : `${asset} deposits on ${CHAIN_DISPLAY_LABEL[network] ?? network} are coming soon — not live yet. Use USDC on Avalanche Fuji Testnet for now.`}
               </p>
             </TabsContent>
 
